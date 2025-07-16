@@ -18,9 +18,14 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
-        'name',
+        'first_name',
+        'last_name',
+        'user_type',
         'email',
         'password',
+        'company_id',
+        'created_by',
+        'permissions',
     ];
 
     /**
@@ -41,5 +46,30 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'permissions' => 'array',
     ];
+
+    /**
+     * Get the company that the user belongs to
+     */
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
+    }
+
+    /**
+     * Get the companies owned by this user
+     */
+    public function ownedCompanies()
+    {
+        return $this->hasMany(Company::class, 'owner_id');
+    }
+
+    /**
+     * Get the user's full name
+     */
+    public function getFullNameAttribute()
+    {
+        return $this->first_name . ' ' . $this->last_name;
+    }
 }
