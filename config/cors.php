@@ -15,20 +15,20 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie', 'login', 'logout'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie', 'login', 'logout', 'register', 'forgot-password', 'reset-password', 'email/*'],
 
-    'allowed_methods' => ['*'],             // Allow all HTTP methods
+    'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],             // Allow all origins
+    'allowed_origins' => ['*'], // Accept requests from any domain
 
-    'allowed_origins_patterns' => [],       // No specific pattern matching needed
+    'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['*'],             // Allow all headers
+    'allowed_headers' => ['*'],
 
-    'exposed_headers' => ['Authorization', 'Content-Type'], // Allow token headers
+    'exposed_headers' => ['Authorization', 'Content-Type'],
 
-    'max_age' => 0,                         // No caching of preflight response
+    'max_age' => 0,
 
-    'supports_credentials' => false,        // ✅ KEEP false if not using cookies (token-based only)
+    'supports_credentials' => false, // must be false when allowed_origins is '*'
 
 ];
