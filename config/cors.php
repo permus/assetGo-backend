@@ -19,9 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
-        'http://localhost:4200' // ✅ Add Angular dev URL
-    ],
+    'allowed_origins' => ['*'], // Use '*' to allow all origins, or specify specific domains like ['https://example.com']
 
     'allowed_origins_patterns' => [],
 
