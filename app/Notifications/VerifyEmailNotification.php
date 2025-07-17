@@ -2,13 +2,13 @@
 
 namespace App\Notifications;
 
-use Illuminate\Auth\Notifications\VerifyEmail as VerifyEmailNotification;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\URL;
 
-class VerifyEmailNotification extends VerifyEmailNotification
+class VerifyEmailNotification extends VerifyEmail
 {
     /**
      * Build the mail representation of the notification.
