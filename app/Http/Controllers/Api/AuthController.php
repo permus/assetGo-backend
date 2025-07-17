@@ -50,9 +50,6 @@ class AuthController extends Controller
             // Update user with company_id
             $user->update(['company_id' => $company->id]);
 
-            // Create token
-            $token = $user->createToken('auth_token')->plainTextToken;
-
             // Send email verification notification
             $user->sendEmailVerificationNotification();
 
@@ -61,13 +58,6 @@ class AuthController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'User registered successfully. Please check your email to verify your account.',
-                'data' => [
-                    'user' => $user->load('company'),
-                    'company' => $company,
-                    'token' => $token,
-                    'token_type' => 'Bearer',
-                    'email_verified' => false
-                ]
             ], 201);
 
         } catch (\Exception $e) {
