@@ -112,4 +112,18 @@ return [
 
     'password_timeout' => 10800,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Email Verification
+    |--------------------------------------------------------------------------
+    |
+    | Here you may specify the settings for email verification including
+    | the expiration time for verification links.
+    |
+    */
+
+    'verification' => [
+        'expire' => 60, // minutes
+    ],
+
 ];

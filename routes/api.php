@@ -21,15 +21,15 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');
+Route::post('/email/resend', [AuthController::class, 'resendVerification']);
 
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     // Auth routes
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
-    Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
-    Route::post('/resend-verification', [AuthController::class, 'resendVerification']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/logout-all', [AuthController::class, 'logoutAll']);
 
@@ -37,4 +37,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/company', [CompanyController::class, 'show']);
     Route::put('/company', [CompanyController::class, 'update']);
     Route::get('/company/users', [CompanyController::class, 'users']);
+});
+
+// Routes for verified users only (but don't require full verification middleware)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/email/resend-authenticated', [AuthController::class, 'resendVerification']);
 });

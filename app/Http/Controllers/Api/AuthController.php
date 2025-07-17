@@ -53,16 +53,20 @@ class AuthController extends Controller
             // Create token
             $token = $user->createToken('auth_token')->plainTextToken;
 
+            // Send email verification notification
+            $user->sendEmailVerificationNotification();
+
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'User registered successfully',
+                'message' => 'User registered successfully. Please check your email to verify your account.',
                 'data' => [
                     'user' => $user->load('company'),
                     'company' => $company,
                     'token' => $token,
-                    'token_type' => 'Bearer'
+                    'token_type' => 'Bearer',
+                    'email_verified' => false
                 ]
             ], 201);
 
@@ -89,6 +93,17 @@ class AuthController extends Controller
         }
 
         $user = Auth::user();
+
+        // Check if email is verified
+        if (!$user->hasVerifiedEmail()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please verify your email address before logging in.',
+                'email_verified' => false,
+                'user_id' => $user->id
+            ], 403);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -97,7 +112,8 @@ class AuthController extends Controller
             'data' => [
                 'user' => $user->load('company'),
                 'token' => $token,
-                'token_type' => 'Bearer'
+                'token_type' => 'Bearer',
+                'email_verified' => true
             ]
         ]);
     }
@@ -110,7 +126,8 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'user' => $request->user()->load('company')
+                'user' => $request->user()->load('company'),
+                'email_verified' => $request->user()->hasVerifiedEmail()
             ]
         ]);
     }
@@ -255,14 +272,24 @@ class AuthController extends Controller
     /**
      * Verify email address
      */
-    public function verifyEmail(Request $request)
+    public function verifyEmail(Request $request, $id, $hash)
     {
-        $user = $request->user();
+        // Find user by ID
+        $user = User::findOrFail($id);
+
+        // Verify the hash matches the user's email
+        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid verification link'
+            ], 400);
+        }
 
         if ($user->hasVerifiedEmail()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Email already verified'
+                'message' => 'Email already verified',
+                'email_verified' => true
             ]);
         }
 
@@ -270,21 +297,30 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Email verified successfully'
+            'message' => 'Email verified successfully! You can now log in.',
+            'email_verified' => true
         ]);
     }
 
     /**
-     * Resend email verification
+     * Resend email verification (for unverified users)
      */
     public function resendVerification(Request $request)
     {
-        $user = $request->user();
+        // Allow both authenticated and unauthenticated requests
+        if ($request->user()) {
+            $user = $request->user();
+        } else {
+            // For unauthenticated requests, require email
+            $request->validate(['email' => 'required|email|exists:users,email']);
+            $user = User::where('email', $request->email)->first();
+        }
 
         if ($user->hasVerifiedEmail()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Email already verified'
+                'message' => 'Email already verified',
+                'email_verified' => true
             ]);
         }
 
@@ -292,7 +328,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Verification email sent'
+            'message' => 'Verification email sent to your email address'
         ]);
     }
 }
