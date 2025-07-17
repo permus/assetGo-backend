@@ -19,7 +19,9 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'], // Accept requests from any domain
+    'allowed_origins' => [
+        'http://localhost:4200' // ✅ Add Angular dev URL
+    ],
 
     'allowed_origins_patterns' => [],
 
