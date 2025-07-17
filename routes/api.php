@@ -20,10 +20,6 @@ use App\Http\Controllers\Api\CompanyController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
-// Protected routes
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
 
 Route::middleware('auth:sanctum')->group(function () {
     // Auth routes
@@ -31,7 +27,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/logout-all', [AuthController::class, 'logoutAll']);
-    
+
     // Company routes
     Route::get('/company', [CompanyController::class, 'show']);
     Route::put('/company', [CompanyController::class, 'update']);
