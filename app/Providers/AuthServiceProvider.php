@@ -4,6 +4,7 @@ namespace App\Providers;
 
 // use Illuminate\Support\Facades\Gate;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use App\Notifications\ResetPasswordNotification;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -21,6 +22,14 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Customize the password reset URL for API usage
+        ResetPasswordNotification::createUrlUsing(function ($notifiable, $token) {
+            $frontendUrl = config('app.frontend_url', config('app.url'));
+            
+            return $frontendUrl . '/reset-password?' . http_build_query([
+                'token' => $token,
+                'email' => $notifiable->getEmailForPasswordReset(),
+            ]);
+        });
     }
 }
