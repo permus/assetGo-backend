@@ -13,11 +13,11 @@ class LocationTemplate extends Model
         'company_id',
         'user_id',
         'name',
-        'structure',
+        'suggestions',
     ];
 
     protected $casts = [
-        'structure' => 'array',
+        'suggestions' => 'array',
     ];
 
     /**
