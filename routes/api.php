@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\LocationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
@@ -39,15 +40,15 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/company/users', [CompanyController::class, 'users']);
 
     // Location Management routes
-    Route::apiResource('locations', App\Http\Controllers\Api\LocationController::class);
-    Route::post('locations/bulk', [App\Http\Controllers\Api\LocationController::class, 'bulkCreate']);
-    Route::post('locations/move', [App\Http\Controllers\Api\LocationController::class, 'move']);
-    Route::get('locations/{location}/qr', [App\Http\Controllers\Api\LocationController::class, 'qrCode']);
-    
+    Route::apiResource('locations', LocationController::class);
+    Route::post('locations/bulk', [LocationController::class, 'bulkCreate']);
+    Route::post('locations/move', [LocationController::class, 'move']);
+    Route::get('locations/{location}/qr', [LocationController::class, 'qrCode']);
+
     // Location helper routes
-    Route::get('locations-hierarchy', [App\Http\Controllers\Api\LocationController::class, 'hierarchy']);
-    Route::get('location-types', [App\Http\Controllers\Api\LocationController::class, 'types']);
-    Route::get('locations/possible-parents/{locationId?}', [App\Http\Controllers\Api\LocationController::class, 'possibleParents']);
+    Route::get('locations-hierarchy', [LocationController::class, 'hierarchy']);
+    Route::get('location-types', [LocationController::class, 'types']);
+    Route::get('locations/possible-parents/{locationId?}', [LocationController::class, 'possibleParents']);
 
 });
 
