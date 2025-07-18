@@ -95,7 +95,8 @@ class LocationController extends Controller
                 'success' => true,
                 'message' => 'Location created successfully',
                 'data' => [
-                    'location' => $location->load(['type', 'parent', 'creator', 'assetSummary'])
+                    'location' => $location->load(['type', 'parent', 'creator', 'assetSummary']),
+                    'asset_summary' => $location->getAssetSummaryData()
                 ]
             ], 201);
 
@@ -166,7 +167,8 @@ class LocationController extends Controller
                 'success' => true,
                 'message' => 'Location updated successfully',
                 'data' => [
-                    'location' => $location->fresh()->load(['type', 'parent', 'creator', 'assetSummary'])
+                    'location' => $location->fresh()->load(['type', 'parent', 'creator', 'assetSummary']),
+                    'asset_summary' => $location->getAssetSummaryData()
                 ]
             ]);
 
@@ -282,7 +284,11 @@ class LocationController extends Controller
                 'message' => count($locations) . ' locations created successfully',
                 'data' => [
                     'locations' => collect($locations)->map(function ($location) {
-                        return $location->load(['type', 'parent', 'creator', 'assetSummary']);
+                        $location->load(['type', 'parent', 'creator', 'assetSummary']);
+                        return [
+                            ...$location->toArray(),
+                            'asset_summary' => $location->getAssetSummaryData()
+                        ];
                     })
                 ]
             ], 201);
@@ -334,6 +340,9 @@ class LocationController extends Controller
                     'moved_locations' => $movedLocations,
                     'warnings' => $warnings,
                     'new_parent' => $newParentId ? Location::find($newParentId)->load('type') : null,
+                    'asset_summaries' => collect($movedLocations)->mapWithKeys(function ($location) {
+                        return [$location->id => $location->getAssetSummaryData()];
+                    })
                 ]
             ]);
 
