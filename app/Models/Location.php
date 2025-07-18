@@ -30,7 +30,6 @@ class Location extends Model
         'full_path',
         'public_url',
         'has_children',
-        'asset_summary',
     ];
 
     /**
@@ -210,11 +209,11 @@ class Location extends Model
     }
 
     /**
-     * Get asset summary attribute
+     * Get asset summary data
      */
-    public function getAssetSummaryAttribute()
+    public function getAssetSummaryData()
     {
-        $summary = $this->assetSummary();
+        $summary = $this->assetSummary;
         return $summary ? [
             'asset_count' => $summary->asset_count,
             'health_score' => $summary->health_score,
