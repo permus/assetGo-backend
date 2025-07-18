@@ -19,36 +19,21 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Educational',
                 'hierarchy_level' => 0,
                 'icon' => 'building-office-2',
-                'structure' => [
-                    'max_children' => 50,
-                    'allowed_child_types' => ['Building', 'Facility'],
-                    'required_fields' => ['name', 'address'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Complex',
                 'category' => 'Commercial',
                 'hierarchy_level' => 0,
                 'icon' => 'building-office',
-                'structure' => [
-                    'max_children' => 20,
-                    'allowed_child_types' => ['Building', 'Tower'],
-                    'required_fields' => ['name', 'address'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Site',
                 'category' => 'Industrial',
                 'hierarchy_level' => 0,
                 'icon' => 'map',
-                'structure' => [
-                    'max_children' => 30,
-                    'allowed_child_types' => ['Building', 'Warehouse', 'Facility'],
-                    'required_fields' => ['name', 'address'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
 
             // Level 1 - Buildings
@@ -57,48 +42,28 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Structure',
                 'hierarchy_level' => 1,
                 'icon' => 'building',
-                'structure' => [
-                    'max_children' => 100,
-                    'allowed_child_types' => ['Floor', 'Wing'],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['address', 'description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Tower',
                 'category' => 'Structure',
                 'hierarchy_level' => 1,
                 'icon' => 'building',
-                'structure' => [
-                    'max_children' => 50,
-                    'allowed_child_types' => ['Floor'],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Warehouse',
                 'category' => 'Storage',
                 'hierarchy_level' => 1,
                 'icon' => 'cube',
-                'structure' => [
-                    'max_children' => 20,
-                    'allowed_child_types' => ['Section', 'Zone'],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Facility',
                 'category' => 'Utility',
                 'hierarchy_level' => 1,
                 'icon' => 'wrench-screwdriver',
-                'structure' => [
-                    'max_children' => 30,
-                    'allowed_child_types' => ['Room', 'Area'],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
 
             // Level 2 - Floors/Sections
@@ -107,60 +72,35 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Level',
                 'hierarchy_level' => 2,
                 'icon' => 'rectangle-stack',
-                'structure' => [
-                    'max_children' => 200,
-                    'allowed_child_types' => ['Room', 'Office', 'Lab', 'Classroom'],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Wing',
                 'category' => 'Section',
                 'hierarchy_level' => 2,
                 'icon' => 'squares-2x2',
-                'structure' => [
-                    'max_children' => 50,
-                    'allowed_child_types' => ['Room', 'Office'],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Section',
                 'category' => 'Area',
                 'hierarchy_level' => 2,
                 'icon' => 'square-3-stack-3d',
-                'structure' => [
-                    'max_children' => 30,
-                    'allowed_child_types' => ['Bay', 'Aisle'],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Zone',
                 'category' => 'Area',
                 'hierarchy_level' => 2,
                 'icon' => 'map-pin',
-                'structure' => [
-                    'max_children' => 40,
-                    'allowed_child_types' => ['Bay', 'Slot'],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Area',
                 'category' => 'Space',
                 'hierarchy_level' => 2,
                 'icon' => 'rectangle-group',
-                'structure' => [
-                    'max_children' => 25,
-                    'allowed_child_types' => ['Station', 'Booth'],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
 
             // Level 3 - Rooms/Specific Locations
@@ -169,108 +109,63 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Space',
                 'hierarchy_level' => 3,
                 'icon' => 'home',
-                'structure' => [
-                    'max_children' => 0,
-                    'allowed_child_types' => [],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Office',
                 'category' => 'Workspace',
                 'hierarchy_level' => 3,
                 'icon' => 'briefcase',
-                'structure' => [
-                    'max_children' => 0,
-                    'allowed_child_types' => [],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Lab',
                 'category' => 'Research',
                 'hierarchy_level' => 3,
                 'icon' => 'beaker',
-                'structure' => [
-                    'max_children' => 0,
-                    'allowed_child_types' => [],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Classroom',
                 'category' => 'Educational',
                 'hierarchy_level' => 3,
                 'icon' => 'academic-cap',
-                'structure' => [
-                    'max_children' => 0,
-                    'allowed_child_types' => [],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Bay',
                 'category' => 'Storage',
                 'hierarchy_level' => 3,
                 'icon' => 'archive-box',
-                'structure' => [
-                    'max_children' => 0,
-                    'allowed_child_types' => [],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Aisle',
                 'category' => 'Pathway',
                 'hierarchy_level' => 3,
                 'icon' => 'arrows-right-left',
-                'structure' => [
-                    'max_children' => 0,
-                    'allowed_child_types' => [],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Slot',
                 'category' => 'Position',
                 'hierarchy_level' => 3,
                 'icon' => 'square',
-                'structure' => [
-                    'max_children' => 0,
-                    'allowed_child_types' => [],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Station',
                 'category' => 'Workpoint',
                 'hierarchy_level' => 3,
                 'icon' => 'computer-desktop',
-                'structure' => [
-                    'max_children' => 0,
-                    'allowed_child_types' => [],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
             [
                 'name' => 'Booth',
                 'category' => 'Workspace',
                 'hierarchy_level' => 3,
                 'icon' => 'cube-transparent',
-                'structure' => [
-                    'max_children' => 0,
-                    'allowed_child_types' => [],
-                    'required_fields' => ['name'],
-                    'optional_fields' => ['description']
-                ]
+                'suggestions' => []
             ],
         ];
 
