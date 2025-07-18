@@ -14,10 +14,14 @@ return new class extends Migration
         Schema::create('location_asset_summary', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('location_id');
+            $table->unsignedBigInteger('company_id')->nullable(); // If private template
+            $table->unsignedBigInteger('user_id')->nullable();       // User who created this location
             $table->unsignedInteger('asset_count')->default(0);
             $table->decimal('health_score', 5, 2)->default(100.00);
 
             $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
+            $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 

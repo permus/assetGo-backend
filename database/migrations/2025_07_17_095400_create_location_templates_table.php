@@ -14,11 +14,13 @@ return new class extends Migration
         Schema::create('location_templates', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('company_id')->nullable(); // If private template
+            $table->unsignedBigInteger('user_id')->nullable();       // User who created this location
             $table->string('name');
             $table->json('structure');   // Nested JSON of predefined layout
             $table->timestamps();
 
             $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
     }
 

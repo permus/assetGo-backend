@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('locations', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('company_id');       // Company ownership
+            $table->unsignedBigInteger('user_id');       // User who created this location
             $table->unsignedBigInteger('location_type_id'); // Type (from location_types)
             $table->unsignedBigInteger('parent_id')->nullable(); // For hierarchy
             $table->string('name');
