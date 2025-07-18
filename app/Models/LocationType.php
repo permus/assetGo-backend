@@ -14,7 +14,7 @@ class LocationType extends Model
         'category',
         'hierarchy_level',
         'icon',
-        'structure',
+        'suggesstions',
     ];
 
     protected $casts = [
