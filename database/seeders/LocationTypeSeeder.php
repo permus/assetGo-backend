@@ -14,159 +14,71 @@ class LocationTypeSeeder extends Seeder
     {
         $locationTypes = [
             // Level 0 - Top Level
-            [
-                'name' => 'Campus',
-                'category' => 'Educational',
-                'hierarchy_level' => 0,
-                'icon' => 'building-office-2',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Complex',
-                'category' => 'Commercial',
-                'hierarchy_level' => 0,
-                'icon' => 'building-office',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Site',
-                'category' => 'Industrial',
-                'hierarchy_level' => 0,
-                'icon' => 'map',
-                'suggestions' => []
-            ],
+            ['name' => 'Community', 'category' => 'Residential', 'hierarchy_level' => 0, 'icon' => 'home-modern', 'suggestions' => []],
+            ['name' => 'Campus', 'category' => 'Educational', 'hierarchy_level' => 0, 'icon' => 'building-office-2', 'suggestions' => []],
+            ['name' => 'Industrial Complex', 'category' => 'Industrial', 'hierarchy_level' => 0, 'icon' => 'factory', 'suggestions' => []],
+            ['name' => 'Shopping Complex', 'category' => 'Commercial', 'hierarchy_level' => 0, 'icon' => 'shopping-cart', 'suggestions' => []],
+            ['name' => 'Medical Campus', 'category' => 'Medical', 'hierarchy_level' => 0, 'icon' => 'hospital', 'suggestions' => []],
+            ['name' => 'Business Park', 'category' => 'Commercial', 'hierarchy_level' => 0, 'icon' => 'briefcase', 'suggestions' => []],
 
             // Level 1 - Buildings
-            [
-                'name' => 'Building',
-                'category' => 'Structure',
-                'hierarchy_level' => 1,
-                'icon' => 'building',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Tower',
-                'category' => 'Structure',
-                'hierarchy_level' => 1,
-                'icon' => 'building',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Warehouse',
-                'category' => 'Storage',
-                'hierarchy_level' => 1,
-                'icon' => 'cube',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Facility',
-                'category' => 'Utility',
-                'hierarchy_level' => 1,
-                'icon' => 'wrench-screwdriver',
-                'suggestions' => []
-            ],
+            ['name' => 'Office Building', 'category' => 'Commercial', 'hierarchy_level' => 1, 'icon' => 'building', 'suggestions' => []],
+            ['name' => 'Retail Store', 'category' => 'Commercial', 'hierarchy_level' => 1, 'icon' => 'shopping-bag', 'suggestions' => []],
+            ['name' => 'Data Center', 'category' => 'Technical', 'hierarchy_level' => 1, 'icon' => 'server', 'suggestions' => []],
+            ['name' => 'Warehouse', 'category' => 'Industrial', 'hierarchy_level' => 1, 'icon' => 'cube', 'suggestions' => []],
+            ['name' => 'Factory', 'category' => 'Industrial', 'hierarchy_level' => 1, 'icon' => 'cog', 'suggestions' => []],
+            ['name' => 'School', 'category' => 'Institutional', 'hierarchy_level' => 1, 'icon' => 'academic-cap', 'suggestions' => []],
+            ['name' => 'Hospital', 'category' => 'Institutional', 'hierarchy_level' => 1, 'icon' => 'hospital', 'suggestions' => []],
+            ['name' => 'Hotel', 'category' => 'Institutional', 'hierarchy_level' => 1, 'icon' => 'building', 'suggestions' => []],
+            ['name' => 'Sports Facility', 'category' => 'Recreational', 'hierarchy_level' => 1, 'icon' => 'trophy', 'suggestions' => []],
+            ['name' => 'Residential Building', 'category' => 'Residential', 'hierarchy_level' => 1, 'icon' => 'home', 'suggestions' => []],
 
-            // Level 2 - Floors/Sections
-            [
-                'name' => 'Floor',
-                'category' => 'Level',
-                'hierarchy_level' => 2,
-                'icon' => 'rectangle-stack',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Wing',
-                'category' => 'Section',
-                'hierarchy_level' => 2,
-                'icon' => 'squares-2x2',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Section',
-                'category' => 'Area',
-                'hierarchy_level' => 2,
-                'icon' => 'square-3-stack-3d',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Zone',
-                'category' => 'Area',
-                'hierarchy_level' => 2,
-                'icon' => 'map-pin',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Area',
-                'category' => 'Space',
-                'hierarchy_level' => 2,
-                'icon' => 'rectangle-group',
-                'suggestions' => []
-            ],
+            // Level 2 - Floors
+            ['name' => 'Floor', 'category' => 'Level', 'hierarchy_level' => 2, 'icon' => 'rectangle-stack', 'suggestions' => []],
 
-            // Level 3 - Rooms/Specific Locations
-            [
-                'name' => 'Room',
-                'category' => 'Space',
-                'hierarchy_level' => 3,
-                'icon' => 'home',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Office',
-                'category' => 'Workspace',
-                'hierarchy_level' => 3,
-                'icon' => 'briefcase',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Lab',
-                'category' => 'Research',
-                'hierarchy_level' => 3,
-                'icon' => 'beaker',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Classroom',
-                'category' => 'Educational',
-                'hierarchy_level' => 3,
-                'icon' => 'academic-cap',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Bay',
-                'category' => 'Storage',
-                'hierarchy_level' => 3,
-                'icon' => 'archive-box',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Aisle',
-                'category' => 'Pathway',
-                'hierarchy_level' => 3,
-                'icon' => 'arrows-right-left',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Slot',
-                'category' => 'Position',
-                'hierarchy_level' => 3,
-                'icon' => 'square',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Station',
-                'category' => 'Workpoint',
-                'hierarchy_level' => 3,
-                'icon' => 'computer-desktop',
-                'suggestions' => []
-            ],
-            [
-                'name' => 'Booth',
-                'category' => 'Workspace',
-                'hierarchy_level' => 3,
-                'icon' => 'cube-transparent',
-                'suggestions' => []
-            ],
+            // Level 3 - Rooms and Areas
+            ['name' => 'Office', 'category' => 'Workspace', 'hierarchy_level' => 3, 'icon' => 'briefcase', 'suggestions' => []],
+            ['name' => 'Conference Room', 'category' => 'Workspace', 'hierarchy_level' => 3, 'icon' => 'presentation-chart-bar', 'suggestions' => []],
+            ['name' => 'Break Room', 'category' => 'Workspace', 'hierarchy_level' => 3, 'icon' => 'coffee', 'suggestions' => []],
+            ['name' => 'Reception', 'category' => 'Workspace', 'hierarchy_level' => 3, 'icon' => 'user-circle', 'suggestions' => []],
+            ['name' => 'Lobby', 'category' => 'Workspace', 'hierarchy_level' => 3, 'icon' => 'building', 'suggestions' => []],
+            ['name' => 'Classroom', 'category' => 'Educational', 'hierarchy_level' => 3, 'icon' => 'academic-cap', 'suggestions' => []],
+            ['name' => 'Laboratory', 'category' => 'Research', 'hierarchy_level' => 3, 'icon' => 'beaker', 'suggestions' => []],
+            ['name' => 'Library', 'category' => 'Educational', 'hierarchy_level' => 3, 'icon' => 'book-open', 'suggestions' => []],
+            ['name' => 'Gymnasium', 'category' => 'Recreational', 'hierarchy_level' => 3, 'icon' => 'dumbbell', 'suggestions' => []],
+            ['name' => 'Apartment', 'category' => 'Residential', 'hierarchy_level' => 3, 'icon' => 'home', 'suggestions' => []],
+            ['name' => 'Server Room', 'category' => 'Technical', 'hierarchy_level' => 3, 'icon' => 'server', 'suggestions' => []],
+            ['name' => 'Mechanical Room', 'category' => 'Technical', 'hierarchy_level' => 3, 'icon' => 'cog', 'suggestions' => []],
+            ['name' => 'Utility Room', 'category' => 'Technical', 'hierarchy_level' => 3, 'icon' => 'wrench', 'suggestions' => []],
+            ['name' => 'Electrical Room', 'category' => 'Technical', 'hierarchy_level' => 3, 'icon' => 'bolt', 'suggestions' => []],
+            ['name' => 'Equipment Room', 'category' => 'Technical', 'hierarchy_level' => 3, 'icon' => 'toolbox', 'suggestions' => []],
+            ['name' => 'Storage Unit', 'category' => 'Storage', 'hierarchy_level' => 3, 'icon' => 'archive-box', 'suggestions' => []],
+            ['name' => 'Storage Closet', 'category' => 'Storage', 'hierarchy_level' => 3, 'icon' => 'archive-box', 'suggestions' => []],
+            ['name' => 'Workshop', 'category' => 'Work Area', 'hierarchy_level' => 3, 'icon' => 'hammer', 'suggestions' => []],
+            ['name' => 'Maintenance Shop', 'category' => 'Work Area', 'hierarchy_level' => 3, 'icon' => 'wrench', 'suggestions' => []],
+            ['name' => 'Warehouse', 'category' => 'Storage', 'hierarchy_level' => 3, 'icon' => 'cube', 'suggestions' => []],
+            ['name' => 'Cafeteria', 'category' => 'Common Area', 'hierarchy_level' => 3, 'icon' => 'utensils', 'suggestions' => []],
+            ['name' => 'Kitchen', 'category' => 'Common Area', 'hierarchy_level' => 3, 'icon' => 'utensils', 'suggestions' => []],
+            ['name' => 'Laundry Room', 'category' => 'Common Area', 'hierarchy_level' => 3, 'icon' => 'tshirt', 'suggestions' => []],
+            ['name' => 'Mailroom', 'category' => 'Common Area', 'hierarchy_level' => 3, 'icon' => 'envelope', 'suggestions' => []],
+            ['name' => 'First Aid Room', 'category' => 'Common Area', 'hierarchy_level' => 3, 'icon' => 'first-aid', 'suggestions' => []],
+            ['name' => 'Security Office', 'category' => 'Common Area', 'hierarchy_level' => 3, 'icon' => 'shield', 'suggestions' => []],
+            ['name' => 'Fitness Center', 'category' => 'Amenities', 'hierarchy_level' => 3, 'icon' => 'dumbbell', 'suggestions' => []],
+            ['name' => 'Pool', 'category' => 'Amenities', 'hierarchy_level' => 3, 'icon' => 'swimmer', 'suggestions' => []],
+            ['name' => 'Spa', 'category' => 'Amenities', 'hierarchy_level' => 3, 'icon' => 'spa', 'suggestions' => []],
+            ['name' => 'Game Room', 'category' => 'Amenities', 'hierarchy_level' => 3, 'icon' => 'gamepad', 'suggestions' => []],
+            ['name' => 'Lounge', 'category' => 'Amenities', 'hierarchy_level' => 3, 'icon' => 'couch', 'suggestions' => []],
+            ['name' => 'Corridor', 'category' => 'Circulation', 'hierarchy_level' => 3, 'icon' => 'arrows-right-left', 'suggestions' => []],
+            ['name' => 'Elevator Lobby', 'category' => 'Circulation', 'hierarchy_level' => 3, 'icon' => 'elevator', 'suggestions' => []],
+            ['name' => 'Stairwell', 'category' => 'Circulation', 'hierarchy_level' => 3, 'icon' => 'stairs', 'suggestions' => []],
+            ['name' => 'Parking Lot', 'category' => 'Outdoor', 'hierarchy_level' => 3, 'icon' => 'car', 'suggestions' => []],
+            ['name' => 'Outdoor Area', 'category' => 'Outdoor', 'hierarchy_level' => 3, 'icon' => 'tree', 'suggestions' => []],
+            ['name' => 'Garden', 'category' => 'Outdoor', 'hierarchy_level' => 3, 'icon' => 'flower', 'suggestions' => []],
+            ['name' => 'Courtyard', 'category' => 'Outdoor', 'hierarchy_level' => 3, 'icon' => 'square', 'suggestions' => []],
+            ['name' => 'Rooftop', 'category' => 'Outdoor', 'hierarchy_level' => 3, 'icon' => 'building', 'suggestions' => []],
+            ['name' => 'Balcony', 'category' => 'Outdoor', 'hierarchy_level' => 3, 'icon' => 'balcony', 'suggestions' => []],
+            ['name' => 'Loading Dock', 'category' => 'Outdoor', 'hierarchy_level' => 3, 'icon' => 'truck', 'suggestions' => []],
+            ['name' => 'Garage', 'category' => 'Outdoor', 'hierarchy_level' => 3, 'icon' => 'garage', 'suggestions' => []],
         ];
 
         foreach ($locationTypes as $type) {
