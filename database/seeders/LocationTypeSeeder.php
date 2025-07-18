@@ -19,7 +19,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Educational',
                 'hierarchy_level' => 0,
                 'icon' => 'building-office-2',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 50,
                     'allowed_child_types' => ['Building', 'Facility'],
                     'required_fields' => ['name', 'address'],
@@ -31,7 +31,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Commercial',
                 'hierarchy_level' => 0,
                 'icon' => 'building-office',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 20,
                     'allowed_child_types' => ['Building', 'Tower'],
                     'required_fields' => ['name', 'address'],
@@ -43,7 +43,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Industrial',
                 'hierarchy_level' => 0,
                 'icon' => 'map',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 30,
                     'allowed_child_types' => ['Building', 'Warehouse', 'Facility'],
                     'required_fields' => ['name', 'address'],
@@ -57,7 +57,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Structure',
                 'hierarchy_level' => 1,
                 'icon' => 'building',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 100,
                     'allowed_child_types' => ['Floor', 'Wing'],
                     'required_fields' => ['name'],
@@ -69,7 +69,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Structure',
                 'hierarchy_level' => 1,
                 'icon' => 'building',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 50,
                     'allowed_child_types' => ['Floor'],
                     'required_fields' => ['name'],
@@ -81,7 +81,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Storage',
                 'hierarchy_level' => 1,
                 'icon' => 'cube',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 20,
                     'allowed_child_types' => ['Section', 'Zone'],
                     'required_fields' => ['name'],
@@ -93,7 +93,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Utility',
                 'hierarchy_level' => 1,
                 'icon' => 'wrench-screwdriver',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 30,
                     'allowed_child_types' => ['Room', 'Area'],
                     'required_fields' => ['name'],
@@ -107,7 +107,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Level',
                 'hierarchy_level' => 2,
                 'icon' => 'rectangle-stack',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 200,
                     'allowed_child_types' => ['Room', 'Office', 'Lab', 'Classroom'],
                     'required_fields' => ['name'],
@@ -119,7 +119,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Section',
                 'hierarchy_level' => 2,
                 'icon' => 'squares-2x2',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 50,
                     'allowed_child_types' => ['Room', 'Office'],
                     'required_fields' => ['name'],
@@ -131,7 +131,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Area',
                 'hierarchy_level' => 2,
                 'icon' => 'square-3-stack-3d',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 30,
                     'allowed_child_types' => ['Bay', 'Aisle'],
                     'required_fields' => ['name'],
@@ -143,7 +143,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Area',
                 'hierarchy_level' => 2,
                 'icon' => 'map-pin',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 40,
                     'allowed_child_types' => ['Bay', 'Slot'],
                     'required_fields' => ['name'],
@@ -155,7 +155,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Space',
                 'hierarchy_level' => 2,
                 'icon' => 'rectangle-group',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 25,
                     'allowed_child_types' => ['Station', 'Booth'],
                     'required_fields' => ['name'],
@@ -169,7 +169,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Space',
                 'hierarchy_level' => 3,
                 'icon' => 'home',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 0,
                     'allowed_child_types' => [],
                     'required_fields' => ['name'],
@@ -181,7 +181,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Workspace',
                 'hierarchy_level' => 3,
                 'icon' => 'briefcase',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 0,
                     'allowed_child_types' => [],
                     'required_fields' => ['name'],
@@ -193,7 +193,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Research',
                 'hierarchy_level' => 3,
                 'icon' => 'beaker',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 0,
                     'allowed_child_types' => [],
                     'required_fields' => ['name'],
@@ -205,7 +205,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Educational',
                 'hierarchy_level' => 3,
                 'icon' => 'academic-cap',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 0,
                     'allowed_child_types' => [],
                     'required_fields' => ['name'],
@@ -217,7 +217,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Storage',
                 'hierarchy_level' => 3,
                 'icon' => 'archive-box',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 0,
                     'allowed_child_types' => [],
                     'required_fields' => ['name'],
@@ -229,7 +229,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Pathway',
                 'hierarchy_level' => 3,
                 'icon' => 'arrows-right-left',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 0,
                     'allowed_child_types' => [],
                     'required_fields' => ['name'],
@@ -241,7 +241,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Position',
                 'hierarchy_level' => 3,
                 'icon' => 'square',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 0,
                     'allowed_child_types' => [],
                     'required_fields' => ['name'],
@@ -253,7 +253,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Workpoint',
                 'hierarchy_level' => 3,
                 'icon' => 'computer-desktop',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 0,
                     'allowed_child_types' => [],
                     'required_fields' => ['name'],
@@ -265,7 +265,7 @@ class LocationTypeSeeder extends Seeder
                 'category' => 'Workspace',
                 'hierarchy_level' => 3,
                 'icon' => 'cube-transparent',
-                'suggestions' => [
+                'structure' => [
                     'max_children' => 0,
                     'allowed_child_types' => [],
                     'required_fields' => ['name'],

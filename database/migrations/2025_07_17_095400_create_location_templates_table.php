@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('company_id')->nullable(); // If private template
             $table->unsignedBigInteger('user_id')->nullable();       // User who created this location
             $table->string('name');
-            $table->json('suggestions');   // Nested JSON of predefined layout
+            $table->json('structure');   // Nested JSON of predefined layout
             $table->timestamps();
 
             $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');

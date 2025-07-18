@@ -28,7 +28,6 @@ class BulkCreateLocationRequest extends FormRequest
             'locations.*.parent_id' => 'nullable|exists:locations,id',
             'locations.*.address' => 'nullable|string|max:500',
             'locations.*.description' => 'nullable|string|max:1000',
-            'locations.*.suggestions' => 'nullable|array',
         ];
     }
 
