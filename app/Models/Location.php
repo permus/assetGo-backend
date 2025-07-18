@@ -4,12 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class Location extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
         'company_id',
@@ -25,7 +24,6 @@ class Location extends Model
     ];
 
     protected $casts = [
-        'deleted_at' => 'datetime',
     ];
 
     protected $appends = [
