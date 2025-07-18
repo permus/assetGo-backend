@@ -13,8 +13,9 @@ return new class extends Migration
     {
         Schema::create('location_types', function (Blueprint $table) {
             $table->id();
-            $table->string('name');          // e.g., Building, Campus, Room
-            $table->string('category');      // Optional (e.g., "Building", "Campus", etc.)
+            $table->string('name');                     // e.g., "Campus", "Building", "Room"
+            $table->string('category')->nullable();     // e.g., "Residential", "Commercial", etc.
+            $table->unsignedTinyInteger('hierarchy_level'); // 0 = top-level, up to 3
             $table->string('icon')->nullable(); // Optional for UI representation
             $table->timestamps();
         });

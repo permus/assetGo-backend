@@ -13,15 +13,20 @@ return new class extends Migration
     {
         Schema::create('locations', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('company_id');                // Company ownership
-            $table->unsignedBigInteger('parent_id')->nullable();     // For hierarchy (self-referencing)
-            $table->unsignedBigInteger('location_type_id');          // Location type
+            $table->unsignedBigInteger('company_id');       // Company ownership
+            $table->unsignedBigInteger('location_type_id'); // Type (from location_types)
+            $table->unsignedBigInteger('parent_id')->nullable(); // For hierarchy
             $table->string('name');
+            $table->string('slug')->unique()->nullable();   // SEO & QR-friendly
+            $table->string('address')->nullable();          // From Google Maps
             $table->text('description')->nullable();
-            $table->string('address')->nullable();
-            $table->string('slug')->nullable()->unique();
-            $table->string('qr_code_path')->nullable();                 // ✅ QR Code image path
+            $table->string('qr_code_path')->nullable();     // Path to generated QR code
+            $table->unsignedInteger('hierarchy_level')->default(0); // Cached level
             $table->timestamps();
+
+            $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
+            $table->foreign('location_type_id')->references('id')->on('location_types')->onDelete('restrict');
+            $table->foreign('parent_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

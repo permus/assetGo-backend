@@ -38,18 +38,6 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::put('/company', [CompanyController::class, 'update']);
     Route::get('/company/users', [CompanyController::class, 'users']);
 
-    // Location routes
-    Route::prefix('locations')->group(function () {
-        Route::get('/', [App\Http\Controllers\Api\LocationController::class, 'index']);
-        Route::post('/', [App\Http\Controllers\Api\LocationController::class, 'store']);
-        Route::get('/hierarchy', [App\Http\Controllers\Api\LocationController::class, 'hierarchy']);
-        Route::get('/types', [App\Http\Controllers\Api\LocationController::class, 'types']);
-        Route::get('/possible-parents/{location?}', [App\Http\Controllers\Api\LocationController::class, 'possibleParents']);
-        Route::get('/{location}', [App\Http\Controllers\Api\LocationController::class, 'show']);
-        Route::put('/{location}', [App\Http\Controllers\Api\LocationController::class, 'update']);
-        Route::delete('/{location}', [App\Http\Controllers\Api\LocationController::class, 'destroy']);
-        Route::get('/{location}/qr-code/download', [App\Http\Controllers\Api\LocationController::class, 'downloadQRCode']);
-    });
 });
 
 // Routes for verified users only (but don't require full verification middleware)
