@@ -13,6 +13,8 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // \App\Models\User::factory(10)->create();
+        // Uncomment the following line to seed the LocationTypeSeeder
+         $this->call(LocationTypeSeeder::class);
 
         // \App\Models\User::factory()->create([
         //     'name' => 'Test User',
