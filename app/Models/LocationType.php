@@ -18,7 +18,7 @@ class LocationType extends Model
     ];
 
     protected $casts = [
-        'structure' => 'array',
+        'suggesstions' => 'array',
     ];
 
     /**
