@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('category')->nullable();     // e.g., "Residential", "Commercial", etc.
             $table->unsignedTinyInteger('hierarchy_level'); // 0 = top-level, up to 3
             $table->string('icon')->nullable(); // Optional for UI representation
-            $table->json('suggesstions')->nullable();
+            $table->json('suggestions')->nullable();
             $table->timestamps();
         });
     }
