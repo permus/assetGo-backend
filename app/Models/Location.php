@@ -214,9 +214,10 @@ class Location extends Model
      */
     public function getAssetSummaryAttribute()
     {
-        return $this->assetSummary ? [
-            'asset_count' => $this->assetSummary->asset_count,
-            'health_score' => $this->assetSummary->health_score,
+        $summary = $this->assetSummary();
+        return $summary ? [
+            'asset_count' => $summary->asset_count,
+            'health_score' => $summary->health_score,
         ] : [
             'asset_count' => 0,
             'health_score' => 100.00,
@@ -228,7 +229,7 @@ class Location extends Model
      */
     public function createAssetSummary()
     {
-        if (!$this->assetSummary) {
+        if (!$this->assetSummary()->exists()) {
             LocationAssetSummary::create([
                 'location_id' => $this->id,
                 'company_id' => $this->company_id,
