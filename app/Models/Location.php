@@ -214,7 +214,7 @@ class Location extends Model
      */
     public function getAssetSummaryAttribute()
     {
-        $summary = $this->assetSummary();
+        $summary = $this->assetSummary;
         return $summary ? [
             'asset_count' => $summary->asset_count,
             'health_score' => $summary->health_score,
