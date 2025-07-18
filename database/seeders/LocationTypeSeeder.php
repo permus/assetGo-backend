@@ -81,6 +81,8 @@ class LocationTypeSeeder extends Seeder
             ['name' => 'Garage', 'category' => 'Outdoor', 'hierarchy_level' => 3, 'icon' => 'garage', 'suggestions' => []],
         ];
 
-        LocationType::insert($locationTypes);
+        foreach ($locationTypes as $type) {
+            LocationType::create($type);
+        }
     }
 }
