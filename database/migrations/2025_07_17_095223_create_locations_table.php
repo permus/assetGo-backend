@@ -26,7 +26,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
-            $table->foreign('location_type_id')->references('id')->on('location_types')->onDelete('restrict');
+            $table->foreign('location_type_id')->references('id')->on('location_types')->onDelete('cascade');
             $table->foreign('parent_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
