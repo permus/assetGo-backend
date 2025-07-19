@@ -438,12 +438,32 @@ class LocationController extends Controller
      */
     public function types(Request $request)
     {
-        $types = LocationType::orderBy('hierarchy_level')->orderBy('name')->get();
+        $query = LocationType::query();
+
+        // Search filter
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('category', 'like', "%{$search}%");
+            });
+        }
+
+        // Hierarchy level filter
+        if ($request->filled('hierarchy_level')) {
+            $query->where('hierarchy_level', $request->get('hierarchy_level'));
+        }
+
+        $types = $query->orderBy('hierarchy_level')->orderBy('name')->get();
 
         return response()->json([
             'success' => true,
             'data' => [
-                'types' => $types
+                'types' => $types,
+                'filters' => [
+                    'search' => $request->get('search'),
+                    'hierarchy_level' => $request->get('hierarchy_level'),
+                ]
             ]
         ]);
     }
