@@ -18,7 +18,7 @@ class LocationTypeSeeder extends Seeder
                 'name' => 'Community',
                 'category' => 'Residential',
                 'hierarchy_level' => 0,
-                'icon' => 'https://unpkg.com/lucide-static/icons/home.svg',
+                'icon' => 'https://unpkg.com/lucide-static/icons/layout-dashboard.svg',
                 'suggestions' => [],
             ],
             [
@@ -125,7 +125,7 @@ class LocationTypeSeeder extends Seeder
                 'name' => 'Residential Building',
                 'category' => 'Residential',
                 'hierarchy_level' => 1,
-                'icon' => 'https://unpkg.com/lucide-static/icons/home.svg',
+                'icon' => 'https://unpkg.com/lucide-static/icons/layout-dashboard.svg',
                 'suggestions' => [],
             ],
 
@@ -148,7 +148,7 @@ class LocationTypeSeeder extends Seeder
             ['name' => 'Laboratory', 'category' => '', 'hierarchy_level' => 3, 'icon' => 'https://unpkg.com/lucide-static/icons/flask-conical.svg', 'suggestions' => []],
             ['name' => 'Library', 'category' => '', 'hierarchy_level' => 3, 'icon' => 'https://unpkg.com/lucide-static/icons/book-open.svg', 'suggestions' => []],
             ['name' => 'Gymnasium', 'category' => '', 'hierarchy_level' => 3, 'icon' => 'https://unpkg.com/lucide-static/icons/dumbbell.svg', 'suggestions' => []],
-            ['name' => 'Apartment', 'category' => '', 'hierarchy_level' => 3, 'icon' => 'https://unpkg.com/lucide-static/icons/home.svg', 'suggestions' => []],
+            ['name' => 'Apartment', 'category' => '', 'hierarchy_level' => 3, 'icon' => 'https://unpkg.com/lucide-static/icons/layout-dashboard.svg', 'suggestions' => []],
             ['name' => 'Server Room', 'category' => '', 'hierarchy_level' => 3, 'icon' => 'https://unpkg.com/lucide-static/icons/server.svg', 'suggestions' => []],
             ['name' => 'Mechanical Room', 'category' => '', 'hierarchy_level' => 3, 'icon' => 'https://unpkg.com/lucide-static/icons/settings.svg', 'suggestions' => []],
             ['name' => 'Utility Room', 'category' => '', 'hierarchy_level' => 3, 'icon' => 'https://unpkg.com/lucide-static/icons/wrench.svg', 'suggestions' => []],
