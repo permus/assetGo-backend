@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CompanyController;
+use App\Http\Controllers\Api\AssetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,6 +50,23 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('locations-hierarchy', [LocationController::class, 'hierarchy']);
     Route::get('location-types', [LocationController::class, 'types']);
     Route::get('locations/possible-parents/{locationId?}', [LocationController::class, 'possibleParents']);
+
+    // Asset resource routes
+    Route::apiResource('assets', AssetController::class);
+
+    // Custom asset endpoints
+    Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);
+    Route::post('assets/import/bulk', [AssetController::class, 'bulkImport']);
+    Route::post('assets/{asset}/transfer', [AssetController::class, 'transfer']);
+
+    // Maintenance schedule CRUD
+    Route::get('assets/{asset}/maintenance-schedules', [AssetController::class, 'listMaintenanceSchedules']);
+    Route::post('assets/{asset}/maintenance-schedules', [AssetController::class, 'addMaintenanceSchedule']);
+    Route::put('assets/{asset}/maintenance-schedules/{scheduleId}', [AssetController::class, 'updateMaintenanceSchedule']);
+    Route::delete('assets/{asset}/maintenance-schedules/{scheduleId}', [AssetController::class, 'deleteMaintenanceSchedule']);
+
+    // Activity history
+    Route::get('assets/{asset}/activity-history', [AssetController::class, 'activityHistory']);
 
 });
 
