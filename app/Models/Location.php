@@ -30,6 +30,7 @@ class Location extends Model
         'full_path',
         'public_url',
         'has_children',
+        'qr_code_url',
     ];
 
     /**
@@ -206,6 +207,18 @@ class Location extends Model
     public function getHasChildrenAttribute()
     {
         return $this->children()->exists();
+    }
+
+    /**
+     * Get full QR code URL attribute
+     */
+    public function getQrCodeUrlAttribute()
+    {
+        if (!$this->qr_code_path) {
+            return null;
+        }
+        
+        return asset('storage/' . $this->qr_code_path);
     }
 
     /**
