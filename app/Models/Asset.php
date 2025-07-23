@@ -31,7 +31,6 @@ class Asset extends Model
         'health_score',
         'status',
         'qr_code_path',
-        'meta',
     ];
 
     protected $casts = [
@@ -39,7 +38,6 @@ class Asset extends Model
         'purchase_price' => 'decimal:2',
         'depreciation' => 'decimal:2',
         'health_score' => 'decimal:2',
-        'meta' => 'array',
     ];
 
     public function category()

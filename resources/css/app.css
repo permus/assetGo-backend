@@ -1,0 +1,7 @@
+/* Make all input, select, and textarea placeholders gray with full opacity */
+input::placeholder,
+select::placeholder,
+textarea::placeholder {
+  color: #888;
+  opacity: 1;
+}

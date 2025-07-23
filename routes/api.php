@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\AssetController;
+use App\Http\Controllers\Api\AssetCategoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -53,6 +54,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     // Asset resource routes
     Route::apiResource('assets', AssetController::class);
+
+    // Asset category routes
+    Route::get('asset-categories', [AssetCategoryController::class, 'index']);
 
     // Custom asset endpoints
     Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);

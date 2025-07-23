@@ -107,13 +107,19 @@ class AssetController extends Controller
             // Generate unique asset ID
             $assetId = 'AST-' . strtoupper(uniqid());
 
-            // Create asset
-            $asset = Asset::create(array_merge(
-                $request->validated(),
-                [
-                    'asset_id' => $assetId,
-                ]
-            ));
+            // Remove company_id from validated data if present
+            $data = $request->validated();
+
+            // Create asset with user's company_id
+            // Prepare asset data
+            $assetData = $data;
+            $assetData['company_id'] = $request->user()->company_id;
+            $assetData['user_id'] = $request->user()->id;
+            $assetData['status'] = $data['status'] ?? 'active'; // default to 'active' if not provided
+            $asset = Asset::create($assetData);
+
+            $assetData['asset_id'] = $asset->id;
+
 
             // Handle tags
             if ($request->filled('tags')) {
@@ -470,4 +476,4 @@ class AssetController extends Controller
             'data' => $activities
         ]);
     }
-} 
+}

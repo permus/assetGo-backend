@@ -26,8 +26,6 @@ class StoreAssetRequest extends FormRequest
             'depreciation' => 'nullable|numeric',
             'location_id' => 'nullable|exists:locations,id',
             'department_id' => 'nullable|integer',
-            'user_id' => 'nullable|exists:users,id',
-            'company_id' => 'required|exists:companies,id',
             'warranty' => 'nullable|string|max:255',
             'insurance' => 'nullable|string|max:255',
             'health_score' => 'nullable|numeric|min:0|max:100',
@@ -39,4 +37,4 @@ class StoreAssetRequest extends FormRequest
             'meta' => 'nullable|array',
         ];
     }
-} 
+}
