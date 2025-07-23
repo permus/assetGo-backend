@@ -115,11 +115,9 @@ class AssetController extends Controller
             $assetData = $data;
             $assetData['company_id'] = $request->user()->company_id;
             $assetData['user_id'] = $request->user()->id;
-            $assetData['status'] = $data['status'] ?? 'active'; // default to 'active' if not provided
+            $assetData['asset_id'] = $assetId;
+            $assetData['status'] = $data['status'] ?? 'active';
             $asset = Asset::create($assetData);
-
-            $assetData['asset_id'] = $asset->id;
-
 
             // Handle tags
             if ($request->filled('tags')) {

@@ -22,16 +22,6 @@ return new class extends Migration
             $table->unsignedBigInteger('approved_by')->nullable();
             $table->timestamps();
             $table->softDeletes();
-
-            $table->foreign('asset_id')->references('id')->on('assets')->onDelete('cascade');
-            $table->foreign('from_location_id')->references('id')->on('locations')->nullOnDelete();
-            $table->foreign('to_location_id')->references('id')->on('locations')->nullOnDelete();
-            $table->foreign('from_user_id')->references('id')->on('users')->nullOnDelete();
-            $table->foreign('to_user_id')->references('id')->on('users')->nullOnDelete();
-            $table->foreign('approved_by')->references('id')->on('users')->nullOnDelete();
-            $table->index('asset_id');
-            $table->index('from_location_id');
-            $table->index('to_location_id');
         });
     }
 
@@ -39,4 +29,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('asset_transfers');
     }
-}; 
+};

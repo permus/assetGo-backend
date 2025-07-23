@@ -13,10 +13,6 @@ return new class extends Migration
             $table->unsignedBigInteger('asset_id');
             $table->unsignedBigInteger('tag_id');
             $table->timestamps();
-
-            $table->foreign('asset_id')->references('id')->on('assets')->onDelete('cascade');
-            $table->foreign('tag_id')->references('id')->on('asset_tags')->onDelete('cascade');
-            $table->unique(['asset_id', 'tag_id']);
         });
     }
 
@@ -24,4 +20,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('asset_tag_pivot');
     }
-}; 
+};

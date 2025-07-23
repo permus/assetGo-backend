@@ -20,8 +20,6 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->foreign('asset_id')->references('id')->on('assets')->onDelete('cascade');
-            $table->index('asset_id');
         });
     }
 
@@ -29,4 +27,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('asset_maintenance_schedules');
     }
-}; 
+};

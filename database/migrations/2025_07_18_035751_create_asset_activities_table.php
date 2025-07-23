@@ -18,10 +18,6 @@ return new class extends Migration
             $table->text('comment')->nullable();
             $table->timestamps();
             $table->softDeletes();
-
-            $table->foreign('asset_id')->references('id')->on('assets')->onDelete('cascade');
-            $table->foreign('user_id')->references('id')->on('users')->nullOnDelete();
-            $table->index('asset_id');
         });
     }
 
@@ -29,4 +25,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('asset_activities');
     }
-}; 
+};

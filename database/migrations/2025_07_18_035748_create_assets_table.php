@@ -36,15 +36,6 @@ return new class extends Migration
             $table->json('meta')->nullable(); // For extensibility
             $table->timestamps();
             $table->softDeletes();
-
-            $table->index('serial_number');
-            $table->index('location_id');
-            $table->index('company_id');
-
-            $table->foreign('category_id')->references('id')->on('asset_categories')->nullOnDelete();
-            $table->foreign('location_id')->references('id')->on('locations')->nullOnDelete();
-            $table->foreign('user_id')->references('id')->on('users')->nullOnDelete();
-            $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
         });
     }
 
@@ -55,4 +46,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('assets');
     }
-}; 
+};
