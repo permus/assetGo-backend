@@ -60,6 +60,12 @@ class AssetController extends Controller
         if ($request->filled('max_value')) {
             $query->where('purchase_price', '<=', $request->max_value);
         }
+        // Archived filter
+        if ($request->filled('archived') && $request->boolean('archived')) {
+            $query->onlyTrashed();
+        } else {
+            $query->withoutTrashed();
+        }
 
         // Sorting
         $sortBy = $request->get('sort_by', 'created_at');
