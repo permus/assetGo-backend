@@ -52,6 +52,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('location-types', [LocationController::class, 'types']);
     Route::get('locations/possible-parents/{locationId?}', [LocationController::class, 'possibleParents']);
 
+    // Custom asset endpoints
+    Route::get('assets/statistics', [AssetController::class, 'statistics']);
     // Asset resource routes
     Route::apiResource('assets', AssetController::class);
 
@@ -59,7 +61,6 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('asset-categories', [AssetCategoryController::class, 'index']);
 
     // Custom asset endpoints
-    Route::get('assets/statistics', [AssetController::class, 'statistics']);
     Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);
     Route::post('assets/import/bulk', [AssetController::class, 'bulkImport']);
     Route::post('assets/{asset}/transfer', [AssetController::class, 'transfer']);
