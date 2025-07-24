@@ -474,4 +474,30 @@ class AssetController extends Controller
             'data' => $activities
         ]);
     }
+
+    /**
+     * Get asset statistics (total, active, maintenance, value, health)
+     */
+    public function statistics(Request $request)
+    {
+        $companyId = $request->user()->company_id;
+        $totalAssets = Asset::where('company_id', $companyId)->count();
+        $activeAssets = Asset::where('company_id', $companyId)->where('status', 'active')->count();
+        $maintenanceCount = \App\Models\AssetMaintenanceSchedule::whereHas('asset', function($q) use ($companyId) {
+            $q->where('company_id', $companyId);
+        })->where('status', 'active')->count();
+        $totalValue = Asset::where('company_id', $companyId)->sum('purchase_price');
+        $totalHealth = Asset::where('company_id', $companyId)->sum('health_score');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total_assets' => $totalAssets,
+                'active_assets' => $activeAssets,
+                'maintenance' => $maintenanceCount,
+                'total_asset_value' => $totalValue,
+                'total_asset_health' => $totalHealth,
+            ]
+        ]);
+    }
 }
