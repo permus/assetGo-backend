@@ -142,4 +142,62 @@ class AssetApiTest extends TestCase
         $response->assertStatus(200)->assertJson(['success' => true]);
         $response->assertJsonStructure(['success', 'data']);
     }
+
+    public function test_can_archive_with_reason()
+    {
+        $asset = Asset::factory()->create(['company_id' => $this->company->id]);
+        $reason = 'End of life';
+        $response = $this->actingAs($this->user)->postJson('/api/assets/' . $asset->id . '/archive', [
+            'archive_reason' => $reason
+        ]);
+        $response->assertStatus(200)->assertJson(['success' => true]);
+        $this->assertSoftDeleted('assets', ['id' => $asset->id]);
+        $this->assertDatabaseHas('assets', ['id' => $asset->id, 'archive_reason' => $reason, 'status' => 'archived']);
+    }
+
+    public function test_can_bulk_archive_with_reason()
+    {
+        $assets = Asset::factory()->count(2)->create(['company_id' => $this->company->id]);
+        $ids = $assets->pluck('id')->toArray();
+        $reason = 'Bulk archive';
+        $response = $this->actingAs($this->user)->postJson('/api/assets/bulk-archive', [
+            'asset_ids' => $ids,
+            'archive_reason' => $reason
+        ]);
+        $response->assertStatus(200)->assertJson(['success' => true]);
+        foreach ($ids as $id) {
+            $this->assertSoftDeleted('assets', ['id' => $id]);
+            $this->assertDatabaseHas('assets', ['id' => $id, 'archive_reason' => $reason, 'status' => 'archived']);
+        }
+    }
+
+    public function test_can_restore_archived_asset()
+    {
+        $asset = Asset::factory()->create(['company_id' => $this->company->id, 'status' => 'archived', 'archive_reason' => 'Test']);
+        $asset->delete();
+        $response = $this->actingAs($this->user)->postJson('/api/assets/' . $asset->id . '/restore');
+        $response->assertStatus(200)->assertJson(['success' => true]);
+        $this->assertDatabaseHas('assets', ['id' => $asset->id, 'archive_reason' => null]);
+        $this->assertDatabaseMissing('assets', ['id' => $asset->id, 'deleted_at' => $asset->deleted_at]);
+    }
+
+    public function test_can_get_analytics()
+    {
+        Asset::factory()->count(2)->create(['company_id' => $this->company->id]);
+        $archived = Asset::factory()->create(['company_id' => $this->company->id, 'status' => 'archived']);
+        $archived->delete();
+        $response = $this->actingAs($this->user)->getJson('/api/assets/analytics');
+        $response->assertStatus(200)->assertJson(['success' => true]);
+        $response->assertJsonStructure(['success', 'data' => ['total_assets', 'active_assets', 'archived_assets', 'archived_by_month']]);
+    }
+
+    public function test_can_export_archived_assets()
+    {
+        $archived = Asset::factory()->create(['company_id' => $this->company->id, 'status' => 'archived']);
+        $archived->delete();
+        $response = $this->actingAs($this->user)->get('/api/assets/export?archived=1');
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'text/csv');
+        $response->assertSee($archived->serial_number);
+    }
 } 
