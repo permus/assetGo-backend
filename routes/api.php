@@ -67,6 +67,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);
     Route::post('assets/import/bulk', [AssetController::class, 'bulkImport']);
     Route::post('assets/{asset}/transfer', [AssetController::class, 'transfer']);
+    Route::post('assets/{asset}/restore', [AssetController::class, 'restore']);
 
     // Maintenance schedule CRUD
     Route::get('assets/{asset}/maintenance-schedules', [AssetController::class, 'listMaintenanceSchedules']);
@@ -76,6 +77,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     // Activity history
     Route::get('assets/{asset}/activity-history', [AssetController::class, 'activityHistory']);
+    Route::get('assets/analytics', [AssetController::class, 'analytics']);
+    Route::get('assets/export', [AssetController::class, 'export']);
 
 });
 

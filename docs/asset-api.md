@@ -61,11 +61,58 @@ All endpoints require authentication via Bearer token (Sanctum).
 
 ### 5. Delete/Archive Asset
 - **DELETE** `/api/assets/{id}`
+- **Body (optional):** `{ "archive_reason": "Reason for archiving" }`
 - **Response:**
 ```json
 {
   "success": true,
   "message": "Asset deleted (archived) successfully"
+}
+```
+
+### 5b. Archive Asset (explicit)
+- **POST** `/api/assets/{id}/archive`
+- **Body (optional):** `{ "archive_reason": "Reason for archiving" }`
+- **Response:**
+```json
+{
+  "success": true,
+  "message": "Asset archived successfully"
+}
+```
+
+### 5c. Bulk Archive Assets
+- **POST** `/api/assets/bulk-archive`
+- **Body:** `{ "asset_ids": [1,2,3], "archive_reason": "Reason for archiving" }`
+- **Response:**
+```json
+{
+  "success": true,
+  "archived": [1,2,3],
+  "failed": []
+}
+```
+
+### 5d. Restore Asset
+- **POST** `/api/assets/{id}/restore`
+- **Response:**
+```json
+{
+  "success": true,
+  "message": "Asset restored successfully",
+  "data": { ... }
+}
+```
+
+### 5e. Bulk Permanently Delete Assets
+- **POST** `/api/assets/bulk-delete`
+- **Body:** `{ "asset_ids": [1,2,3] }`
+- **Response:**
+```json
+{
+  "success": true,
+  "deleted": [1,2,3],
+  "failed": []
 }
 ```
 
@@ -129,10 +176,32 @@ All endpoints require authentication via Bearer token (Sanctum).
 }
 ```
 
+### 11. Analytics
+- **GET** `/api/assets/analytics`
+- **Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "total_assets": 100,
+    "active_assets": 80,
+    "archived_assets": 20,
+    "archived_by_month": [ { "year": 2024, "month": 7, "count": 5 }, ... ]
+  }
+}
+```
+
+### 12. Export Assets
+- **GET** `/api/assets/export?archived=1`
+- **Response:** CSV file download of archived assets
+
 ---
 
 ## Notes
 - All endpoints require authentication.
 - See FormRequests for required/optional fields.
 - File uploads (images, import) use `multipart/form-data`.
-- All responses are JSON. 
+- All responses are JSON.
+- Archived assets have `status = 'archived'` and an optional `archive_reason` field.
+- Use the restore endpoint to unarchive assets.
+- Use the analytics and export endpoints for reporting and data extraction. 

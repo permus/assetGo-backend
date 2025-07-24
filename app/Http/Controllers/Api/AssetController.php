@@ -250,6 +250,12 @@ class AssetController extends Controller
             }
 
             $before = $asset->toArray();
+            // Set archive_reason if provided and set status to archived
+            if ($request->filled('archive_reason')) {
+                $asset->archive_reason = $request->archive_reason;
+            }
+            $asset->status = 'archived';
+            $asset->save();
             $asset->delete(); // Soft delete
 
             // Log activity
@@ -298,6 +304,12 @@ class AssetController extends Controller
             }
 
             $before = $asset->toArray();
+            // Set archive_reason if provided and set status to archived
+            if ($request->filled('archive_reason')) {
+                $asset->archive_reason = $request->archive_reason;
+            }
+            $asset->status = 'archived';
+            $asset->save();
             $asset->delete(); // Soft delete
 
             // Log activity
@@ -556,6 +568,71 @@ class AssetController extends Controller
     }
 
     /**
+     * Get analytics for archived and active assets
+     * Route: GET /api/assets/analytics
+     */
+    public function analytics(Request $request)
+    {
+        $companyId = $request->user()->company_id;
+        $totalAssets = \App\Models\Asset::withTrashed()->where('company_id', $companyId)->count();
+        $activeAssets = \App\Models\Asset::where('company_id', $companyId)->where('status', 'active')->count();
+        $archivedAssets = \App\Models\Asset::onlyTrashed()->where('company_id', $companyId)->count();
+        $archivedByMonth = \App\Models\Asset::onlyTrashed()
+            ->where('company_id', $companyId)
+            ->selectRaw('YEAR(deleted_at) as year, MONTH(deleted_at) as month, COUNT(*) as count')
+            ->groupBy('year', 'month')
+            ->orderBy('year')
+            ->orderBy('month')
+            ->get();
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total_assets' => $totalAssets,
+                'active_assets' => $activeAssets,
+                'archived_assets' => $archivedAssets,
+                'archived_by_month' => $archivedByMonth,
+            ]
+        ]);
+    }
+
+    /**
+     * Export assets (optionally only archived) as CSV
+     * Route: GET /api/assets/export?archived=1
+     */
+    public function export(Request $request)
+    {
+        $companyId = $request->user()->company_id;
+        $archived = $request->boolean('archived', false);
+        $query = \App\Models\Asset::query()->where('company_id', $companyId);
+        if ($archived) {
+            $query->onlyTrashed();
+        }
+        $assets = $query->get();
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="assets_export.csv"',
+        ];
+        $columns = [
+            'id', 'asset_id', 'name', 'description', 'category_id', 'type', 'serial_number', 'model', 'manufacturer',
+            'purchase_date', 'purchase_price', 'depreciation', 'location_id', 'department_id', 'user_id', 'company_id',
+            'warranty', 'insurance', 'health_score', 'status', 'archive_reason', 'deleted_at', 'created_at', 'updated_at'
+        ];
+        $callback = function() use ($assets, $columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+            foreach ($assets as $asset) {
+                $row = [];
+                foreach ($columns as $col) {
+                    $row[] = $asset->$col ?? '';
+                }
+                fputcsv($file, $row);
+            }
+            fclose($file);
+        };
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
      * Bulk archive (soft delete) assets
      */
     public function bulkArchive(Request $request)
@@ -563,10 +640,12 @@ class AssetController extends Controller
         $request->validate([
             'asset_ids' => 'required|array',
             'asset_ids.*' => 'exists:assets,id',
+            'archive_reason' => 'nullable|string',
         ]);
 
         $userId = $request->user()->id;
         $assetIds = $request->asset_ids;
+        $archiveReason = $request->archive_reason;
         $success = [];
         $failed = [];
 
@@ -595,6 +674,12 @@ class AssetController extends Controller
             }
             try {
                 $before = $asset->toArray();
+                // Set archive_reason if provided and set status to archived
+                if ($archiveReason) {
+                    $asset->archive_reason = $archiveReason;
+                }
+                $asset->status = 'archived';
+                $asset->save();
                 $asset->delete();
                 $asset->activities()->create([
                     'user_id' => $userId,
@@ -653,7 +738,6 @@ class AssetController extends Controller
             try {
                 $before = $asset->toArray();
                 $asset->forceDelete();
-                // Optionally log activity (if you want to keep a record)
                  $asset->activities()->create([
                      'user_id' => $userId,
                      'action' => 'deleted',
@@ -675,5 +759,49 @@ class AssetController extends Controller
             'deleted' => $success,
             'failed' => $failed,
         ]);
+    }
+
+    /**
+     * Restore a soft-deleted (archived) asset
+     * Route: POST /api/assets/{asset}/restore
+     */
+    public function restore(Request $request, $id)
+    {
+        $asset = \App\Models\Asset::withTrashed()->findOrFail($id);
+        if (!$asset->trashed()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Asset is not archived.'
+            ], 400);
+        }
+        \DB::beginTransaction();
+        try {
+            $before = $asset->toArray();
+            $asset->restore();
+            // Optionally clear archive_reason
+            $asset->archive_reason = null;
+            $asset->save();
+            // Log activity
+            $asset->activities()->create([
+                'user_id' => $request->user()->id,
+                'action' => 'restored',
+                'before' => $before,
+                'after' => $asset->toArray(),
+                'comment' => 'Asset restored from archive',
+            ]);
+            \DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Asset restored successfully',
+                'data' => $asset->fresh()
+            ]);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to restore asset',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }
