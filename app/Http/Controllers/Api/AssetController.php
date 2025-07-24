@@ -548,4 +548,68 @@ class AssetController extends Controller
             ]
         ]);
     }
+
+    /**
+     * Bulk archive (soft delete) assets
+     */
+    public function bulkArchive(Request $request)
+    {
+        $request->validate([
+            'asset_ids' => 'required|array',
+            'asset_ids.*' => 'exists:assets,id',
+        ]);
+
+        $userId = $request->user()->id;
+        $assetIds = $request->asset_ids;
+        $success = [];
+        $failed = [];
+
+        foreach ($assetIds as $id) {
+            $asset = \App\Models\Asset::find($id);
+            if (!$asset) {
+                $failed[] = [
+                    'id' => $id,
+                    'reason' => 'Asset not found',
+                ];
+                continue;
+            }
+            if ($asset->transfers()->where('status', 'pending')->exists()) {
+                $failed[] = [
+                    'id' => $id,
+                    'reason' => 'Active transfers',
+                ];
+                continue;
+            }
+            if ($asset->maintenanceSchedules()->where('status', 'active')->exists()) {
+                $failed[] = [
+                    'id' => $id,
+                    'reason' => 'Active maintenance',
+                ];
+                continue;
+            }
+            try {
+                $before = $asset->toArray();
+                $asset->delete();
+                $asset->activities()->create([
+                    'user_id' => $userId,
+                    'action' => 'archived',
+                    'before' => $before,
+                    'after' => null,
+                    'comment' => 'Asset archived (bulk)',
+                ]);
+                $success[] = $id;
+            } catch (\Exception $e) {
+                $failed[] = [
+                    'id' => $id,
+                    'reason' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'archived' => $success,
+            'failed' => $failed,
+        ]);
+    }
 }

@@ -53,6 +53,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('locations/possible-parents/{locationId?}', [LocationController::class, 'possibleParents']);
 
     // Custom asset endpoints
+    Route::post('assets/bulk-archive', [AssetController::class, 'bulkArchive']);
     Route::post('assets/{asset}/archive', [AssetController::class, 'archive']);
     Route::get('assets/statistics', [AssetController::class, 'statistics']);
     // Asset resource routes
