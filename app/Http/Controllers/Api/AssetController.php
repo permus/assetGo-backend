@@ -648,13 +648,13 @@ class AssetController extends Controller
                 $before = $asset->toArray();
                 $asset->forceDelete();
                 // Optionally log activity (if you want to keep a record)
-                // $asset->activities()->create([
-                //     'user_id' => $userId,
-                //     'action' => 'deleted',
-                //     'before' => $before,
-                //     'after' => null,
-                //     'comment' => 'Asset permanently deleted (bulk)',
-                // ]);
+                 $asset->activities()->create([
+                     'user_id' => $userId,
+                     'action' => 'deleted',
+                     'before' => $before,
+                     'after' => null,
+                     'comment' => 'Asset permanently deleted (bulk)',
+                 ]);
                 $success[] = $id;
             } catch (\Exception $e) {
                 $failed[] = [
