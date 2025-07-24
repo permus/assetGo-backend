@@ -116,6 +116,18 @@ All endpoints require authentication via Bearer token (Sanctum).
 }
 ```
 
+### 5f. Bulk Restore Assets
+- **POST** `/api/assets/bulk-restore`
+- **Body:** `{ "asset_ids": [1,2,3] }`
+- **Response:**
+```json
+{
+  "success": true,
+  "restored": [1,2,3],
+  "failed": []
+}
+```
+
 ### 6. Duplicate Asset
 - **POST** `/api/assets/{id}/duplicate`
 - **Body:** `{ "serial_number": "NEW_SERIAL" }` (and any fields to override)

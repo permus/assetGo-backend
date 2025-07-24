@@ -181,6 +181,23 @@ class AssetApiTest extends TestCase
         $this->assertDatabaseMissing('assets', ['id' => $asset->id, 'deleted_at' => $asset->deleted_at]);
     }
 
+    public function test_can_bulk_restore_archived_assets()
+    {
+        $assets = Asset::factory()->count(2)->create(['company_id' => $this->company->id, 'status' => 'archived']);
+        foreach ($assets as $asset) {
+            $asset->delete();
+        }
+        $ids = $assets->pluck('id')->toArray();
+        $response = $this->actingAs($this->user)->postJson('/api/assets/bulk-restore', [
+            'asset_ids' => $ids
+        ]);
+        $response->assertStatus(200)->assertJson(['success' => true, 'restored' => $ids]);
+        foreach ($ids as $id) {
+            $this->assertDatabaseHas('assets', ['id' => $id, 'archive_reason' => null]);
+            $this->assertDatabaseMissing('assets', ['id' => $id, 'deleted_at' => $assets->find($id)->deleted_at]);
+        }
+    }
+
     public function test_can_get_analytics()
     {
         Asset::factory()->count(2)->create(['company_id' => $this->company->id]);

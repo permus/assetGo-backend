@@ -804,4 +804,55 @@ class AssetController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Bulk restore archived assets
+     * Route: POST /api/assets/bulk-restore
+     * Body: { "asset_ids": [1,2,3] }
+     */
+    public function bulkRestore(Request $request)
+    {
+        $request->validate([
+            'asset_ids' => 'required|array',
+            'asset_ids.*' => 'exists:assets,id',
+        ]);
+        $userId = $request->user()->id;
+        $assetIds = $request->asset_ids;
+        $restored = [];
+        $failed = [];
+        foreach ($assetIds as $id) {
+            $asset = \App\Models\Asset::withTrashed()->find($id);
+            if (!$asset || !$asset->trashed()) {
+                $failed[] = [
+                    'id' => $id,
+                    'reason' => !$asset ? 'Asset not found' : 'Asset is not archived',
+                ];
+                continue;
+            }
+            try {
+                $before = $asset->toArray();
+                $asset->restore();
+                $asset->archive_reason = null;
+                $asset->save();
+                $asset->activities()->create([
+                    'user_id' => $userId,
+                    'action' => 'restored',
+                    'before' => $before,
+                    'after' => $asset->toArray(),
+                    'comment' => 'Asset restored from archive (bulk)',
+                ]);
+                $restored[] = $id;
+            } catch (\Exception $e) {
+                $failed[] = [
+                    'id' => $id,
+                    'reason' => $e->getMessage(),
+                ];
+            }
+        }
+        return response()->json([
+            'success' => true,
+            'restored' => $restored,
+            'failed' => $failed,
+        ]);
+    }
 }
