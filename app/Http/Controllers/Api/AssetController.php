@@ -270,6 +270,54 @@ class AssetController extends Controller
         }
     }
 
+    /**
+     * Archive (soft delete) an asset
+     */
+    public function archive(Request $request, Asset $asset)
+    {
+        \DB::beginTransaction();
+        try {
+            // Check for active transfers or maintenance
+            if ($asset->transfers()->where('status', 'pending')->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot archive asset with active transfers.'
+                ], 400);
+            }
+            if ($asset->maintenanceSchedules()->where('status', 'active')->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot archive asset with active maintenance.'
+                ], 400);
+            }
+
+            $before = $asset->toArray();
+            $asset->delete(); // Soft delete
+
+            // Log activity
+            $asset->activities()->create([
+                'user_id' => $request->user()->id,
+                'action' => 'archived',
+                'before' => $before,
+                'after' => null,
+                'comment' => 'Asset archived',
+            ]);
+
+            \DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Asset archived successfully',
+            ]);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to archive asset',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     // Duplicate asset
     public function duplicate(Request $request, Asset $asset)
     {
