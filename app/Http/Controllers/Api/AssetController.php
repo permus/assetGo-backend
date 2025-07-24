@@ -612,4 +612,62 @@ class AssetController extends Controller
             'failed' => $failed,
         ]);
     }
+
+    /**
+     * Bulk permanently delete (force delete) assets that are already archived
+     */
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'asset_ids' => 'required|array',
+            'asset_ids.*' => 'exists:assets,id',
+        ]);
+
+        $userId = $request->user()->id;
+        $assetIds = $request->asset_ids;
+        $success = [];
+        $failed = [];
+
+        foreach ($assetIds as $id) {
+            $asset = \App\Models\Asset::withTrashed()->find($id);
+            if (!$asset) {
+                $failed[] = [
+                    'id' => $id,
+                    'reason' => 'Asset not found',
+                ];
+                continue;
+            }
+            if (!$asset->trashed()) {
+                $failed[] = [
+                    'id' => $id,
+                    'reason' => 'Asset is not archived',
+                ];
+                continue;
+            }
+            try {
+                $before = $asset->toArray();
+                $asset->forceDelete();
+                // Optionally log activity (if you want to keep a record)
+                // $asset->activities()->create([
+                //     'user_id' => $userId,
+                //     'action' => 'deleted',
+                //     'before' => $before,
+                //     'after' => null,
+                //     'comment' => 'Asset permanently deleted (bulk)',
+                // ]);
+                $success[] = $id;
+            } catch (\Exception $e) {
+                $failed[] = [
+                    'id' => $id,
+                    'reason' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'deleted' => $success,
+            'failed' => $failed,
+        ]);
+    }
 }
