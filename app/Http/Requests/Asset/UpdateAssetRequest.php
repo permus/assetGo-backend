@@ -15,15 +15,15 @@ class UpdateAssetRequest extends FormRequest
     {
         $assetId = $this->route('asset') ? $this->route('asset')->id : null;
         return [
-            'name' => 'sometimes|required|string|max:255',
-            'description' => 'nullable|string',
+            'name' => 'sometimes|required|string|max:100',
+            'description' => 'nullable|string|max:500',
             'category_id' => 'nullable|exists:asset_categories,id',
             'type' => 'nullable|string|max:100',
-            'serial_number' => 'sometimes|required|string|max:255|unique:assets,serial_number,' . $assetId,
+            'serial_number' => 'nullable|string|max:255|unique:assets,serial_number,' . $assetId . ',id,company_id,' . ($this->user() ? $this->user()->company_id : 'NULL'),
             'model' => 'nullable|string|max:255',
             'manufacturer' => 'nullable|string|max:255',
-            'purchase_date' => 'nullable|date',
-            'purchase_price' => 'nullable|numeric',
+            'purchase_date' => 'nullable|date|before_or_equal:today',
+            'purchase_price' => 'nullable|numeric|min:0.01',
             'depreciation' => 'nullable|numeric',
             'location_id' => 'nullable|exists:locations,id',
             'department_id' => 'nullable|integer',
