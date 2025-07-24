@@ -40,6 +40,26 @@ class Asset extends Model
         'health_score' => 'decimal:2',
     ];
 
+    protected static function booted()
+    {
+        static::deleting(function ($asset) {
+            // Detach tags
+            $asset->tags()->detach();
+            // Delete images
+            foreach ($asset->images as $image) {
+                $image->delete();
+            }
+        });
+        static::forceDeleted(function ($asset) {
+            // Detach tags (in case not already detached)
+            $asset->tags()->detach();
+            // Delete images (in case not already deleted)
+            foreach ($asset->images as $image) {
+                $image->delete();
+            }
+        });
+    }
+
     public function category()
     {
         return $this->belongsTo(AssetCategory::class);

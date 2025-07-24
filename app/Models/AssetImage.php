@@ -15,6 +15,15 @@ class AssetImage extends Model
         'caption',
     ];
 
+    protected static function booted()
+    {
+        static::deleting(function ($image) {
+            if ($image->image_path && \Storage::disk('public')->exists($image->image_path)) {
+                \Storage::disk('public')->delete($image->image_path);
+            }
+        });
+    }
+
     public function asset()
     {
         return $this->belongsTo(Asset::class);

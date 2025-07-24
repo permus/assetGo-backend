@@ -250,6 +250,30 @@ class AssetController extends Controller
             }
 
             $before = $asset->toArray();
+            // Permanent delete (force delete)
+            if ($request->has('force') && $request->boolean('force')) {
+                if ($request->filled('deletion_reason')) {
+                    $asset->deletion_reason = $request->deletion_reason;
+                    $asset->save();
+                }
+                if ($asset->qr_code_path) {
+                    $qrService = app(\App\Services\QRCodeService::class);
+                    $qrService->deleteQRCode($asset->qr_code_path);
+                }
+                $asset->forceDelete();
+                $asset->activities()->create([
+                    'user_id' => $request->user()->id,
+                    'action' => 'deleted',
+                    'before' => $before,
+                    'after' => null,
+                    'comment' => 'Asset permanently deleted',
+                ]);
+                \DB::commit();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Asset permanently deleted successfully',
+                ]);
+            }
             // Set archive_reason if provided and set status to archived
             if ($request->filled('archive_reason')) {
                 $asset->archive_reason = $request->archive_reason;
@@ -737,14 +761,23 @@ class AssetController extends Controller
             }
             try {
                 $before = $asset->toArray();
+                if ($request->filled('deletion_reason')) {
+                    $asset->deletion_reason = $request->deletion_reason;
+                    $asset->save();
+                }
+                // Delete QR code file if exists
+                if ($asset->qr_code_path) {
+                    $qrService = app(\App\Services\QRCodeService::class);
+                    $qrService->deleteQRCode($asset->qr_code_path);
+                }
                 $asset->forceDelete();
-                 $asset->activities()->create([
-                     'user_id' => $userId,
-                     'action' => 'deleted',
-                     'before' => $before,
-                     'after' => null,
-                     'comment' => 'Asset permanently deleted (bulk)',
-                 ]);
+                $asset->activities()->create([
+                    'user_id' => $userId,
+                    'action' => 'deleted',
+                    'before' => $before,
+                    'after' => null,
+                    'comment' => 'Asset permanently deleted (bulk)',
+                ]);
                 $success[] = $id;
             } catch (\Exception $e) {
                 $failed[] = [
