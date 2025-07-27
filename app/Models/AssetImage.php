@@ -15,6 +15,17 @@ class AssetImage extends Model
         'caption',
     ];
 
+    protected $appends = ['image_url'];
+
+    public function getImageUrlAttribute()
+    {
+        if ($this->image_path) {
+            // Use Storage::url if you use Laravel's storage symlink, otherwise use asset()
+            return \Storage::disk('public')->url($this->image_path);
+        }
+        return null;
+    }
+
     protected static function booted()
     {
         static::deleting(function ($image) {
