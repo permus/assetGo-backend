@@ -65,6 +65,11 @@ class Asset extends Model
         return $this->belongsTo(AssetCategory::class);
     }
 
+    public function assetType()
+    {
+        return $this->belongsTo(AssetType::class, 'type', 'name');
+    }
+
     public function location()
     {
         return $this->belongsTo(Location::class);
