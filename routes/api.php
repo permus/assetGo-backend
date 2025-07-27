@@ -62,7 +62,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::apiResource('assets', AssetController::class);
 
     // Asset category routes
-    Route::get('asset-categories', [AssetCategoryController::class, 'index']);
+    Route::apiResource('asset-categories', AssetCategoryController::class);
+    Route::get('asset-categories-list', [AssetCategoryController::class, 'list']);
 
     // Asset type routes
     Route::apiResource('asset-types', AssetTypeController::class);
