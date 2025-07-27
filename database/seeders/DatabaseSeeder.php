@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
          $this->call(LocationTypeSeeder::class);
         $this->call(AssetCategoriesSeeder::class);
         $this->call(AssetTypeSeeder::class);
+        $this->call(AssetStatusSeeder::class);
 
         // \App\Models\User::factory()->create([
         //     'name' => 'Test User',

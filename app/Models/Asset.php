@@ -70,6 +70,11 @@ class Asset extends Model
         return $this->belongsTo(AssetType::class, 'type', 'name');
     }
 
+    public function assetStatus()
+    {
+        return $this->belongsTo(AssetStatus::class, 'status', 'name');
+    }
+
     public function location()
     {
         return $this->belongsTo(Location::class);

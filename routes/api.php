@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\AssetController;
 use App\Http\Controllers\Api\AssetCategoryController;
 use App\Http\Controllers\Api\AssetTypeController;
+use App\Http\Controllers\Api\AssetStatusController;
 
 /*
 |--------------------------------------------------------------------------
@@ -68,6 +69,10 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     // Asset type routes
     Route::apiResource('asset-types', AssetTypeController::class);
     Route::get('asset-types-list', [AssetTypeController::class, 'list']);
+
+    // Asset status routes
+    Route::apiResource('asset-statuses', AssetStatusController::class);
+    Route::get('asset-statuses-list', [AssetStatusController::class, 'list']);
 
     // Custom asset endpoints
     Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);

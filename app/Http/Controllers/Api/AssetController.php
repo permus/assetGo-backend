@@ -22,7 +22,7 @@ class AssetController extends Controller
     // List assets (grid/list view)
     public function index(Request $request)
     {
-        $query = Asset::with(['category', 'assetType', 'tags', 'images', 'location', 'user', 'company']);
+        $query = Asset::with(['category', 'assetType', 'assetStatus', 'tags', 'images', 'location', 'user', 'company']);
 
         // Search
         if ($search = $request->get('search')) {
@@ -99,7 +99,7 @@ class AssetController extends Controller
     // Show asset detail
     public function show(Asset $asset)
     {
-        $asset->load(['category', 'assetType', 'tags', 'images', 'location', 'user', 'company', 'maintenanceSchedules', 'activities']);
+        $asset->load(['category', 'assetType', 'assetStatus', 'tags', 'images', 'location', 'user', 'company', 'maintenanceSchedules', 'activities']);
         return response()->json([
             'success' => true,
             'data' => [
@@ -165,7 +165,7 @@ class AssetController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Asset created successfully',
-                'data' => $asset->load(['category', 'assetType', 'tags', 'images', 'location', 'user', 'company'])
+                'data' => $asset->load(['category', 'assetType', 'assetStatus', 'tags', 'images', 'location', 'user', 'company'])
             ], 201);
         } catch (\Exception $e) {
             \DB::rollBack();
@@ -221,7 +221,7 @@ class AssetController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Asset updated successfully',
-                'data' => $asset->load(['category', 'assetType', 'tags', 'images', 'location', 'user', 'company'])
+                'data' => $asset->load(['category', 'assetType', 'assetStatus', 'tags', 'images', 'location', 'user', 'company'])
             ]);
         } catch (\Exception $e) {
             \DB::rollBack();
@@ -403,7 +403,7 @@ class AssetController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Asset duplicated successfully',
-                'data' => $newAsset->load(['category', 'assetType', 'tags', 'images', 'location', 'user', 'company'])
+                'data' => $newAsset->load(['category', 'assetType', 'assetStatus', 'tags', 'images', 'location', 'user', 'company'])
             ], 201);
         } catch (\Exception $e) {
             \DB::rollBack();
