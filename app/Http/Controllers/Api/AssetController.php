@@ -139,11 +139,22 @@ class AssetController extends Controller
                 $asset->tags()->sync($tagIds);
             }
 
-            // Handle images
-            if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $image) {
-                    $path = $image->store('assets/images', 'public');
-                    $asset->images()->create(['image_path' => $path]);
+            // Handle images (base64)
+            if ($request->filled('images')) {
+                foreach ($request->images as $base64Image) {
+                    if (preg_match('/^data:image\/(\w+);base64,/', $base64Image, $type)) {
+                        $base64Image = substr($base64Image, strpos($base64Image, ',') + 1);
+                        $type = strtolower($type[1]); // jpg, png, gif
+
+                        $base64Image = str_replace(' ', '+', $base64Image);
+                        $imageData = base64_decode($base64Image);
+
+                        $fileName = uniqid('asset_') . '.' . $type;
+                        $filePath = 'assets/images/' . $fileName;
+                        \Storage::disk('public')->put($filePath, $imageData);
+
+                        $asset->images()->create(['image_path' => $filePath]);
+                    }
                 }
             }
 
@@ -212,11 +223,22 @@ class AssetController extends Controller
                 $asset->tags()->sync($tagIds);
             }
 
-            // Handle images (add only, for simplicity)
-            if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $image) {
-                    $path = $image->store('assets/images', 'public');
-                    $asset->images()->create(['image_path' => $path]);
+            // Handle images (base64)
+            if ($request->filled('images')) {
+                foreach ($request->images as $base64Image) {
+                    if (preg_match('/^data:image\/(\w+);base64,/', $base64Image, $type)) {
+                        $base64Image = substr($base64Image, strpos($base64Image, ',') + 1);
+                        $type = strtolower($type[1]); // jpg, png, gif
+
+                        $base64Image = str_replace(' ', '+', $base64Image);
+                        $imageData = base64_decode($base64Image);
+
+                        $fileName = uniqid('asset_') . '.' . $type;
+                        $filePath = 'assets/images/' . $fileName;
+                        \Storage::disk('public')->put($filePath, $imageData);
+
+                        $asset->images()->create(['image_path' => $filePath]);
+                    }
                 }
             }
 
