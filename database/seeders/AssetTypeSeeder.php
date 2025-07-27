@@ -12,6 +12,9 @@ class AssetTypeSeeder extends Seeder
      */
     public function run(): void
     {
+        // Truncate the table to avoid duplicates
+        \App\Models\AssetType::truncate();
+        
         $assetTypes = [
             [
                 'name' => 'Fixed Assets',

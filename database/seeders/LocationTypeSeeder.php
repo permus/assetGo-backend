@@ -12,6 +12,9 @@ class LocationTypeSeeder extends Seeder
      */
     public function run(): void
     {
+        // Truncate the table to avoid duplicates
+        LocationType::truncate();
+        
         $locationTypes = [
             // Level 0 - Top Level
             [

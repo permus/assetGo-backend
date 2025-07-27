@@ -9,6 +9,9 @@ class AssetCategoriesSeeder extends Seeder
 {
     public function run(): void
     {
+        // Truncate the table to avoid duplicates
+        AssetCategory::truncate();
+        
         $categories = [
             'HVAC System',
             'Plumbing System',
@@ -41,7 +44,7 @@ class AssetCategoriesSeeder extends Seeder
         ];
 
         foreach ($categories as $name) {
-            AssetCategory::firstOrCreate(['name' => $name]);
+            AssetCategory::create(['name' => $name]);
         }
     }
 }
