@@ -130,7 +130,9 @@ class AssetController extends Controller
 
             // Handle tags
             if ($request->filled('tags')) {
-                $asset->tags()->sync($request->tags);
+                // Convert tag names to IDs
+                $tagIds = \App\Models\AssetTag::whereIn('name', $request->tags)->pluck('id')->toArray();
+                $asset->tags()->sync($tagIds);
             }
 
             // Handle images
@@ -197,7 +199,9 @@ class AssetController extends Controller
 
             // Handle tags
             if ($request->filled('tags')) {
-                $asset->tags()->sync($request->tags);
+                // Convert tag names to IDs
+                $tagIds = \App\Models\AssetTag::whereIn('name', $request->tags)->pluck('id')->toArray();
+                $asset->tags()->sync($tagIds);
             }
 
             // Handle images (add only, for simplicity)
