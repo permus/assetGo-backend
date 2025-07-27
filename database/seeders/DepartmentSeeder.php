@@ -15,17 +15,6 @@ class DepartmentSeeder extends Seeder
     {
         // Truncate the table to avoid duplicates
         Department::truncate();
-        
-        // Get the first company (or create one if none exists)
-        $company = Company::first();
-        if (!$company) {
-            $company = Company::create([
-                'name' => 'Default Company',
-                'email' => 'admin@company.com',
-                'phone' => '+1234567890',
-                'address' => '123 Main St, City, State 12345',
-            ]);
-        }
 
         // Get the first user (or create one if none exists)
         $user = \App\Models\User::first();
@@ -34,15 +23,13 @@ class DepartmentSeeder extends Seeder
                 'name' => 'Admin User',
                 'email' => 'admin@company.com',
                 'password' => bcrypt('password'),
-                'company_id' => $company->id,
             ]);
         }
-        
+
         $departments = [
             [
                 'name' => 'IT Department',
                 'description' => 'Information Technology and Systems',
-                'company_id' => $company->id,
                 'user_id' => $user->id,
                 'code' => 'IT',
                 'is_active' => true,
@@ -51,7 +38,6 @@ class DepartmentSeeder extends Seeder
             [
                 'name' => 'Maintenance',
                 'description' => 'Equipment and facility maintenance',
-                'company_id' => $company->id,
                 'user_id' => $user->id,
                 'code' => 'MAINT',
                 'is_active' => true,
@@ -60,7 +46,6 @@ class DepartmentSeeder extends Seeder
             [
                 'name' => 'Manufacturing',
                 'description' => 'Production and manufacturing',
-                'company_id' => $company->id,
                 'user_id' => $user->id,
                 'code' => 'MFG',
                 'is_active' => true,
@@ -69,7 +54,6 @@ class DepartmentSeeder extends Seeder
             [
                 'name' => 'Operations',
                 'description' => 'Daily operations and logistics',
-                'company_id' => $company->id,
                 'user_id' => $user->id,
                 'code' => 'OPS',
                 'is_active' => true,
@@ -78,7 +62,6 @@ class DepartmentSeeder extends Seeder
             [
                 'name' => 'Human Resources',
                 'description' => 'HR and employee management',
-                'company_id' => $company->id,
                 'user_id' => $user->id,
                 'code' => 'HR',
                 'is_active' => true,
@@ -87,7 +70,6 @@ class DepartmentSeeder extends Seeder
             [
                 'name' => 'Finance',
                 'description' => 'Financial management and accounting',
-                'company_id' => $company->id,
                 'user_id' => $user->id,
                 'code' => 'FIN',
                 'is_active' => true,
@@ -96,7 +78,6 @@ class DepartmentSeeder extends Seeder
             [
                 'name' => 'Sales',
                 'description' => 'Sales and customer relations',
-                'company_id' => $company->id,
                 'user_id' => $user->id,
                 'code' => 'SALES',
                 'is_active' => true,
@@ -105,7 +86,6 @@ class DepartmentSeeder extends Seeder
             [
                 'name' => 'Marketing',
                 'description' => 'Marketing and communications',
-                'company_id' => $company->id,
                 'user_id' => $user->id,
                 'code' => 'MKT',
                 'is_active' => true,
@@ -114,7 +94,6 @@ class DepartmentSeeder extends Seeder
             [
                 'name' => 'Research & Development',
                 'description' => 'R&D and innovation',
-                'company_id' => $company->id,
                 'user_id' => $user->id,
                 'code' => 'RND',
                 'is_active' => true,
@@ -123,7 +102,6 @@ class DepartmentSeeder extends Seeder
             [
                 'name' => 'Quality Assurance',
                 'description' => 'Quality control and testing',
-                'company_id' => $company->id,
                 'user_id' => $user->id,
                 'code' => 'QA',
                 'is_active' => true,
@@ -135,4 +113,4 @@ class DepartmentSeeder extends Seeder
             Department::create($department);
         }
     }
-} 
+}
