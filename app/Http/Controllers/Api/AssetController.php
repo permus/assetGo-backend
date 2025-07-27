@@ -130,8 +130,12 @@ class AssetController extends Controller
 
             // Handle tags
             if ($request->filled('tags')) {
-                // Convert tag names to IDs
-                $tagIds = \App\Models\AssetTag::whereIn('name', $request->tags)->pluck('id')->toArray();
+                $tagIds = [];
+                foreach ($request->tags as $tagName) {
+                    // Find existing tag or create new one
+                    $tag = \App\Models\AssetTag::firstOrCreate(['name' => $tagName]);
+                    $tagIds[] = $tag->id;
+                }
                 $asset->tags()->sync($tagIds);
             }
 
@@ -199,8 +203,12 @@ class AssetController extends Controller
 
             // Handle tags
             if ($request->filled('tags')) {
-                // Convert tag names to IDs
-                $tagIds = \App\Models\AssetTag::whereIn('name', $request->tags)->pluck('id')->toArray();
+                $tagIds = [];
+                foreach ($request->tags as $tagName) {
+                    // Find existing tag or create new one
+                    $tag = \App\Models\AssetTag::firstOrCreate(['name' => $tagName]);
+                    $tagIds[] = $tag->id;
+                }
                 $asset->tags()->sync($tagIds);
             }
 

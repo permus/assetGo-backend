@@ -34,7 +34,7 @@ class UpdateAssetRequest extends FormRequest
             'health_score' => 'nullable|numeric|min:0|max:100',
             'status' => 'nullable|string|max:50',
             'tags' => 'nullable|array',
-            'tags.*' => 'exists:asset_tags,name',
+            'tags.*' => 'string|max:255',
             'images' => 'nullable|array',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:5120',
             'meta' => 'nullable|array',
