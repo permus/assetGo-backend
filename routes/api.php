@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\AssetController;
 use App\Http\Controllers\Api\AssetCategoryController;
 use App\Http\Controllers\Api\AssetTypeController;
 use App\Http\Controllers\Api\AssetStatusController;
+use App\Http\Controllers\Api\DepartmentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -73,6 +74,10 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     // Asset status routes
     Route::apiResource('asset-statuses', AssetStatusController::class);
     Route::get('asset-statuses-list', [AssetStatusController::class, 'list']);
+
+    // Department routes
+    Route::apiResource('departments', DepartmentController::class);
+    Route::get('departments-list', [DepartmentController::class, 'list']);
 
     // Custom asset endpoints
     Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);
