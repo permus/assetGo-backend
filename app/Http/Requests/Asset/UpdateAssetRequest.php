@@ -18,7 +18,7 @@ class UpdateAssetRequest extends FormRequest
             'name' => 'sometimes|required|string|max:100',
             'description' => 'nullable|string|max:500',
             'category_id' => 'nullable|exists:asset_categories,id',
-            'type' => 'nullable|string|max:100',
+            'type' => 'nullable',
             'serial_number' => 'nullable|string|max:255|unique:assets,serial_number,' . $assetId . ',id,company_id,' . ($this->user() ? $this->user()->company_id : 'NULL'),
             'model' => 'nullable|string|max:255',
             'manufacturer' => 'nullable|string|max:255',
@@ -40,4 +40,4 @@ class UpdateAssetRequest extends FormRequest
             'meta' => 'nullable|array',
         ];
     }
-} 
+}
