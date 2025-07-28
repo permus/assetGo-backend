@@ -14,7 +14,7 @@ use App\Models\AssetTag;
 use App\Models\AssetImage;
 use App\Models\AssetTransfer;
 use App\Models\AssetActivity;
-use App\Models\AssetMaintenanceSchedule;
+use App\Services\QRCodeService;
 use Illuminate\Http\Request;
 
 class AssetController extends Controller
@@ -171,8 +171,7 @@ class AssetController extends Controller
             }
 
             // Generate QR code (using QRCodeService)
-            $qrService = app(\App\Services\QRCodeService::class);
-            $qrPath = $qrService->generateAssetQRCode($asset);
+            $qrPath = QRCodeService::generateAssetQRCode($asset);
             if ($qrPath) {
                 $asset->qr_code_path = $qrPath;
                 $asset->save();
