@@ -19,10 +19,10 @@ class QRCodeService
         try {
             // Create the QR code content (public URL to the location)
             $qrContent = $location->public_url;
-            
+
             // Generate filename
             $filename = 'qrcodes/location-' . $location->id . '.png';
-            
+
             // Generate QR code
             $qrCode = QrCode::format('png')
                 ->size(300)
@@ -31,12 +31,12 @@ class QRCodeService
                 ->backgroundColor(255, 255, 255)
                 ->color(0, 0, 0)
                 ->generate($qrContent);
-            
+
             // Save to storage
             Storage::disk('public')->put($filename, $qrCode);
-            
+
             return $filename;
-            
+
         } catch (\Exception $e) {
             \Log::error('QR Code generation failed: ' . $e->getMessage());
             return null;
@@ -55,7 +55,7 @@ class QRCodeService
         try {
             $qrContent = $location->public_url;
             $filename = 'qrcodes/location-' . $location->id . '-' . $size . '.png';
-            
+
             $qrCode = QrCode::format('png')
                 ->size($size)
                 ->margin(2)
@@ -63,11 +63,11 @@ class QRCodeService
                 ->backgroundColor(255, 255, 255)
                 ->color(0, 0, 0)
                 ->generate($qrContent);
-            
+
             Storage::disk('public')->put($filename, $qrCode);
-            
+
             return $filename;
-            
+
         } catch (\Exception $e) {
             \Log::error('QR Code generation failed: ' . $e->getMessage());
             return null;
@@ -100,11 +100,11 @@ class QRCodeService
 
             $pdfFilename = 'qrcodes/location-' . $location->id . '-printable.pdf';
             $pdfContent = $pdf->output();
-            
+
             Storage::disk('public')->put($pdfFilename, $pdfContent);
-            
+
             return $pdfFilename;
-            
+
         } catch (\Exception $e) {
             \Log::error('Printable QR Code generation failed: ' . $e->getMessage());
             return null;
@@ -202,10 +202,11 @@ class QRCodeService
         try {
             // Create the QR code content (public URL to the asset)
             $qrContent = $asset->public_url;
-            
+
             // Generate filename
             $filename = 'qrcodes/asset-' . $asset->id . '.png';
-            
+
+            return $filename;
             // Generate QR code
             $qrCode = QrCode::format('png')
                 ->size(300)
@@ -214,12 +215,12 @@ class QRCodeService
                 ->backgroundColor(255, 255, 255)
                 ->color(0, 0, 0)
                 ->generate($qrContent);
-            
+
             // Save to storage
             Storage::disk('public')->put($filename, $qrCode);
-            
+
             return $filename;
-            
+
         } catch (\Exception $e) {
             \Log::error('QR Code generation failed: ' . $e->getMessage());
             return null;
