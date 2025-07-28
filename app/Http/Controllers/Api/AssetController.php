@@ -16,7 +16,6 @@ use App\Models\AssetTransfer;
 use App\Models\AssetActivity;
 use App\Services\QRCodeService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class AssetController extends Controller
 {
@@ -108,16 +107,9 @@ class AssetController extends Controller
     // Show asset detail
     public function show(Asset $asset)
     {
-        $assetData = Asset::findOrFail($asset->id);
         // Generate QR code if it does not exist
-        if (!$assetData->qr_code_path) {
-            $qrPath = $this->qrCodeService->generateAssetQRCode($assetData);
-            return response()->json([
-                'success' => $asset,
-                'data' => [
-                    'asset' => $qrPath,
-                ]
-            ]);
+        if (!$asset->qr_code_path) {
+            $qrPath = $this->qrCodeService->generateAssetQRCode($asset);
             if ($qrPath) {
                 $asset->qr_code_path = $qrPath;
                 $asset->save();
@@ -125,7 +117,7 @@ class AssetController extends Controller
         }
         $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company', 'maintenanceSchedules', 'activities']);
         $assetArray = $asset->toArray();
-        $assetArray['qr_code_url'] = $asset->qr_code_path ? Storage::disk('public')->url($asset->qr_code_path) : null;
+        $assetArray['qr_code_url'] = $asset->qr_code_path ? \Storage::disk('public')->url($asset->qr_code_path) : null;
         return response()->json([
             'success' => true,
             'data' => [
@@ -177,7 +169,7 @@ class AssetController extends Controller
 
                         $fileName = uniqid('asset_') . '.' . $type;
                         $filePath = 'assets/images/' . $fileName;
-                        Storage::disk('public')->put($filePath, $imageData);
+                        \Storage::disk('public')->put($filePath, $imageData);
 
                         $asset->images()->create(['image_path' => $filePath]);
                     }
@@ -201,7 +193,6 @@ class AssetController extends Controller
 
             \DB::commit();
             return response()->json([
-                '$qrPath' => $qrPath,
                 'success' => true,
                 'message' => 'Asset created successfully',
                 'data' => $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company'])
@@ -263,7 +254,7 @@ class AssetController extends Controller
 
                         $fileName = uniqid('asset_') . '.' . $type;
                         $filePath = 'assets/images/' . $fileName;
-                        Storage::disk('public')->put($filePath, $imageData);
+                        \Storage::disk('public')->put($filePath, $imageData);
 
                         $asset->images()->create(['image_path' => $filePath]);
                     }
