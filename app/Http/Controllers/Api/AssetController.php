@@ -110,10 +110,12 @@ class AssetController extends Controller
             }
         }
         $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company', 'maintenanceSchedules', 'activities']);
+        $assetArray = $asset->toArray();
+        $assetArray['qr_code_url'] = $asset->qr_code_path ? \Storage::disk('public')->url($asset->qr_code_path) : null;
         return response()->json([
             'success' => true,
             'data' => [
-                'asset' => $asset,
+                'asset' => $assetArray,
             ]
         ]);
     }
