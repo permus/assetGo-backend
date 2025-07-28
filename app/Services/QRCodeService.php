@@ -221,7 +221,7 @@ class QRCodeService
             return $filename;
             
         } catch (\Exception $e) {
-            \Log::error('Asset QR Code generation failed: ' . $e->getMessage());
+            \Log::error('QR Code generation failed: ' . $e->getMessage());
             return null;
         }
     }

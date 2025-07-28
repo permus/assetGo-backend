@@ -111,6 +111,12 @@ class AssetController extends Controller
         // Generate QR code if it does not exist
         if (!$asset->qr_code_path) {
             $qrPath = $this->qrCodeService->generateAssetQRCode($asset);
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'asset' => $qrPath,
+                ]
+            ]);
             if ($qrPath) {
                 $asset->qr_code_path = $qrPath;
                 $asset->save();
