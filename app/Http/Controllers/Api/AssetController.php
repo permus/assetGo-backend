@@ -112,7 +112,7 @@ class AssetController extends Controller
         if (!$asset->qr_code_path) {
             $qrPath = $this->qrCodeService->generateAssetQRCode($asset);
             return response()->json([
-                'success' => true,
+                'success' => $asset,
                 'data' => [
                     'asset' => $qrPath,
                 ]
