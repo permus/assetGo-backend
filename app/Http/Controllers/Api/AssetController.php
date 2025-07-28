@@ -100,6 +100,15 @@ class AssetController extends Controller
     // Show asset detail
     public function show(Asset $asset)
     {
+        // Generate QR code if it does not exist
+        if (!$asset->qr_code_path) {
+            $qrService = app(\App\Services\QRCodeService::class);
+            $qrPath = $qrService->generateAssetQRCode($asset);
+            if ($qrPath) {
+                $asset->qr_code_path = $qrPath;
+                $asset->save();
+            }
+        }
         $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company', 'maintenanceSchedules', 'activities']);
         return response()->json([
             'success' => true,
