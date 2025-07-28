@@ -40,6 +40,16 @@ class Asset extends Model
         'health_score' => 'decimal:2',
     ];
 
+    protected $appends = ['qr_code_url'];
+
+    public function getQrCodeUrlAttribute()
+    {
+        if ($this->qr_code_path) {
+            return \Storage::disk('public')->url($this->qr_code_path);
+        }
+        return null;
+    }
+
     protected static function booted()
     {
         static::deleting(function ($asset) {
