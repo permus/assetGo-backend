@@ -22,7 +22,8 @@ class AssetController extends Controller
     // List assets (grid/list view)
     public function index(Request $request)
     {
-        $query = Asset::with(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company']);
+        $companyId = $request->user()->company_id;
+        $query = Asset::with(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company'])->where('company_id', $companyId);
 
         // Search
         if ($search = $request->get('search')) {
@@ -608,13 +609,13 @@ class AssetController extends Controller
     public function statistics(Request $request)
     {
         $companyId = $request->user()->company_id;
-        $totalAssets = Asset::withTrashed()->where('company_id', $companyId)->count();
-        $activeAssets = Asset::withTrashed()->where('company_id', $companyId)->where('status', 'active')->count();
+        $totalAssets = Asset::where('company_id', $companyId)->count();
+        $activeAssets = Asset::where('company_id', $companyId)->where('status', 'active')->count();
         $maintenanceCount = \App\Models\AssetMaintenanceSchedule::whereHas('asset', function($q) use ($companyId) {
             $q->withTrashed()->where('company_id', $companyId);
         })->where('status', 'active')->count();
-        $totalValue = Asset::withTrashed()->where('company_id', $companyId)->sum('purchase_price');
-        $totalHealth = Asset::withTrashed()->where('company_id', $companyId)->sum('health_score');
+        $totalValue = Asset::where('company_id', $companyId)->sum('purchase_price');
+        $totalHealth = Asset::where('company_id', $companyId)->sum('health_score');
 
         return response()->json([
             'success' => true,
