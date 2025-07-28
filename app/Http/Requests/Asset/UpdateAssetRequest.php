@@ -36,7 +36,7 @@ class UpdateAssetRequest extends FormRequest
             'tags' => 'nullable|array',
             'tags.*' => 'string|max:255',
             'images' => 'nullable|array',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:5120',
+            'images.*' => 'string',
             'meta' => 'nullable|array',
         ];
     }
