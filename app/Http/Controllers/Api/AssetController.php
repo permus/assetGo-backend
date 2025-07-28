@@ -193,6 +193,7 @@ class AssetController extends Controller
 
             \DB::commit();
             return response()->json([
+                '$qrPath' => $qrPath,
                 'success' => true,
                 'message' => 'Asset created successfully',
                 'data' => $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company'])
