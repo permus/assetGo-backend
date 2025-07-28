@@ -224,6 +224,12 @@ class AssetController extends Controller
                 $asset->tags()->sync($tagIds);
             }
 
+            // Handle image removal
+            if ($request->filled('remove_image_ids')) {
+                $removeImageIds = $request->remove_image_ids;
+                $asset->images()->whereIn('id', $removeImageIds)->delete();
+            }
+
             // Handle images (base64)
             if ($request->filled('images')) {
                 foreach ($request->images as $base64Image) {

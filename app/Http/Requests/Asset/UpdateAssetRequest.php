@@ -37,6 +37,7 @@ class UpdateAssetRequest extends FormRequest
             'tags.*' => 'string|max:255',
             'images' => 'nullable|array',
             'images.*' => 'string',
+            'remove_image_ids' => 'nullable|array',
             'meta' => 'nullable|array',
         ];
     }
