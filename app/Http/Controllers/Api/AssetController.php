@@ -161,11 +161,7 @@ class AssetController extends Controller
 
             // Generate QR code (using QRCodeService)
             $qrService = app(\App\Services\QRCodeService::class);
-            $qrContent = route('assets.show', $asset->id); // Or use a public URL if available
-            $qrPath = $qrService->generateLocationQRCode((object)[
-                'id' => $asset->id,
-                'public_url' => $qrContent,
-            ]);
+            $qrPath = $qrService->generateAssetQRCode($asset);
             if ($qrPath) {
                 $asset->qr_code_path = $qrPath;
                 $asset->save();
@@ -424,11 +420,7 @@ class AssetController extends Controller
             }
             // Generate QR code
             $qrService = app(\App\Services\QRCodeService::class);
-            $qrContent = route('assets.show', $newAsset->id);
-            $qrPath = $qrService->generateLocationQRCode((object)[
-                'id' => $newAsset->id,
-                'public_url' => $qrContent,
-            ]);
+            $qrPath = $qrService->generateAssetQRCode($newAsset);
             if ($qrPath) {
                 $newAsset->qr_code_path = $qrPath;
                 $newAsset->save();

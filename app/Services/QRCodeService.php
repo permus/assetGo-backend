@@ -196,4 +196,27 @@ class QRCodeService
             return null;
         }
     }
+
+    public function generateAssetQRCode($asset)
+    {
+        try {
+            $qrContent = route('assets.show', $asset->id);
+            $filename = 'qrcodes/asset-' . $asset->id . '.png';
+
+            $qrCode = QrCode::format('png')
+                ->size(300)
+                ->margin(2)
+                ->errorCorrection('M')
+                ->backgroundColor(255, 255, 255)
+                ->color(0, 0, 0)
+                ->generate($qrContent);
+
+            Storage::disk('public')->put($filename, $qrCode);
+
+            return $filename;
+        } catch (\Exception $e) {
+            \Log::error('Asset QR Code generation failed: ' . $e->getMessage());
+            return null;
+        }
+    }
 }
