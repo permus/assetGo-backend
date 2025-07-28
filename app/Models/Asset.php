@@ -40,7 +40,7 @@ class Asset extends Model
         'health_score' => 'decimal:2',
     ];
 
-    protected $appends = ['qr_code_url'];
+    protected $appends = ['qr_code_url', 'public_url'];
 
     public function getQrCodeUrlAttribute()
     {
@@ -48,6 +48,11 @@ class Asset extends Model
             return \Storage::disk('public')->url($this->qr_code_path);
         }
         return null;
+    }
+
+    public function getPublicUrlAttribute()
+    {
+        return config('app.frontend_url', config('app.url')) . '/assets/' . $this->asset_id;
     }
 
     protected static function booted()

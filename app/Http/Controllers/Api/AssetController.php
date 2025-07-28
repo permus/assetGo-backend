@@ -16,6 +16,7 @@ use App\Models\AssetTransfer;
 use App\Models\AssetActivity;
 use App\Services\QRCodeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class AssetController extends Controller
 {
@@ -117,7 +118,7 @@ class AssetController extends Controller
         }
         $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company', 'maintenanceSchedules', 'activities']);
         $assetArray = $asset->toArray();
-        $assetArray['qr_code_url'] = $asset->qr_code_path ? \Storage::disk('public')->url($asset->qr_code_path) : null;
+        $assetArray['qr_code_url'] = $asset->qr_code_path ? Storage::disk('public')->url($asset->qr_code_path) : null;
         return response()->json([
             'success' => true,
             'data' => [
@@ -169,7 +170,7 @@ class AssetController extends Controller
 
                         $fileName = uniqid('asset_') . '.' . $type;
                         $filePath = 'assets/images/' . $fileName;
-                        \Storage::disk('public')->put($filePath, $imageData);
+                        Storage::disk('public')->put($filePath, $imageData);
 
                         $asset->images()->create(['image_path' => $filePath]);
                     }
@@ -255,7 +256,7 @@ class AssetController extends Controller
 
                         $fileName = uniqid('asset_') . '.' . $type;
                         $filePath = 'assets/images/' . $fileName;
-                        \Storage::disk('public')->put($filePath, $imageData);
+                        Storage::disk('public')->put($filePath, $imageData);
 
                         $asset->images()->create(['image_path' => $filePath]);
                     }
