@@ -206,7 +206,6 @@ class QRCodeService
             // Generate filename
             $filename = 'qrcodes/asset-' . $asset->id . '.png';
 
-            return $filename;
             // Generate QR code
             $qrCode = QrCode::format('png')
                 ->size(300)
@@ -216,6 +215,7 @@ class QRCodeService
                 ->color(0, 0, 0)
                 ->generate($qrContent);
 
+            return $filename;
             // Save to storage
             Storage::disk('public')->put($filename, $qrCode);
 
