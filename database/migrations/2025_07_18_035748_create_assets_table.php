@@ -18,7 +18,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->unsignedBigInteger('category_id')->nullable();
             $table->string('type')->nullable();
-            $table->string('serial_number')->unique();
+            $table->string('serial_number')->nullable()->unique();
             $table->string('model')->nullable();
             $table->string('manufacturer')->nullable();
             $table->date('purchase_date')->nullable();
