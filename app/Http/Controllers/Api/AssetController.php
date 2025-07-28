@@ -19,6 +19,13 @@ use Illuminate\Http\Request;
 
 class AssetController extends Controller
 {
+    protected $qrCodeService;
+
+    public function __construct(QRCodeService $qrCodeService)
+    {
+        $this->qrCodeService = $qrCodeService;
+    }
+
     // List assets (grid/list view)
     public function index(Request $request)
     {
@@ -102,8 +109,7 @@ class AssetController extends Controller
     {
         // Generate QR code if it does not exist
         if (!$asset->qr_code_path) {
-            $qrService = app(\App\Services\QRCodeService::class);
-            $qrPath = $qrService->generateAssetQRCode($asset);
+            $qrPath = $this->qrCodeService->generateAssetQRCode($asset);
             if ($qrPath) {
                 $asset->qr_code_path = $qrPath;
                 $asset->save();
@@ -171,8 +177,7 @@ class AssetController extends Controller
             }
 
             // Generate QR code (using QRCodeService)
-            $qrService = app(\App\Services\QRCodeService::class);
-            $qrPath = $qrService->generateAssetQRCode($asset);
+            $qrPath = $this->qrCodeService->generateAssetQRCode($asset);
             if ($qrPath) {
                 $asset->qr_code_path = $qrPath;
                 $asset->save();
@@ -308,8 +313,7 @@ class AssetController extends Controller
                     $asset->save();
                 }
                 if ($asset->qr_code_path) {
-                    $qrService = app(\App\Services\QRCodeService::class);
-                    $qrService->deleteQRCode($asset->qr_code_path);
+                    $this->qrCodeService->deleteQRCode($asset->qr_code_path);
                 }
                 $asset->forceDelete();
                 $asset->activities()->create([
@@ -430,8 +434,7 @@ class AssetController extends Controller
                 $newAsset->images()->create(['image_path' => $img->image_path, 'caption' => $img->caption]);
             }
             // Generate QR code
-            $qrService = app(\App\Services\QRCodeService::class);
-            $qrPath = $qrService->generateAssetQRCode($newAsset);
+            $qrPath = $this->qrCodeService->generateAssetQRCode($newAsset);
             if ($qrPath) {
                 $newAsset->qr_code_path = $qrPath;
                 $newAsset->save();
@@ -814,8 +817,7 @@ class AssetController extends Controller
                 }
                 // Delete QR code file if exists
                 if ($asset->qr_code_path) {
-                    $qrService = app(\App\Services\QRCodeService::class);
-                    $qrService->deleteQRCode($asset->qr_code_path);
+                    $this->qrCodeService->deleteQRCode($asset->qr_code_path);
                 }
                 $asset->forceDelete();
                 $asset->activities()->create([
