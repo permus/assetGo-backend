@@ -214,8 +214,8 @@ class QRCodeService
                 ->backgroundColor(255, 255, 255)
                 ->color(0, 0, 0)
                 ->generate($qrContent);
+            return $qrCode;
 
-            return $filename;
             // Save to storage
             Storage::disk('public')->put($filename, $qrCode);
 
