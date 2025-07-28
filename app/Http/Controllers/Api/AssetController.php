@@ -171,7 +171,8 @@ class AssetController extends Controller
             }
 
             // Generate QR code (using QRCodeService)
-            $qrPath = QRCodeService::generateAssetQRCode($asset);
+            $qrService = app(\App\Services\QRCodeService::class);
+            $qrPath = $qrService->generateAssetQRCode($asset);
             if ($qrPath) {
                 $asset->qr_code_path = $qrPath;
                 $asset->save();
