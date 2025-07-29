@@ -58,6 +58,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     // Custom asset endpoints
     Route::post('assets/bulk-delete', [AssetController::class, 'bulkDelete']);
     Route::post('assets/bulk-archive', [AssetController::class, 'bulkArchive']);
+    Route::post('assets/import-bulk', [AssetController::class, 'importBulk']);
+    Route::get('assets/import/template', [AssetController::class, 'downloadTemplate']);
     Route::post('assets/{asset}/archive', [AssetController::class, 'archive']);
     Route::get('assets/statistics', [AssetController::class, 'statistics']);
     Route::get('assets-hierarchy', [AssetController::class, 'hierarchy']);

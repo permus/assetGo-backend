@@ -1,0 +1,4 @@
+Asset Name,Asset ID,Description,Category,Location,Type,Serial Number,Model,Manufacturer,Purchase Date,Purchase Price,Warranty,Insurance,Health Score,Status,Department,Tags
+Laptop Dell XPS 13,AST-001,High-performance laptop for development,Electronics,IT Department,Computer,SN123456,Dell XPS 13,Dell,2024-01-15,1299.99,2027-01-15,,95,Active,IT,"Critical,Development"
+Office Chair,AST-002,Ergonomic office chair,Office Equipment,Main Office,Furniture,SN789012,ErgoMax Pro,OfficeCo,2024-02-01,299.99,2026-02-01,,90,Active,HR,"Comfort,Ergonomic"
+Printer HP LaserJet,AST-003,Network printer for office use,Electronics,Reception,Printer,SN345678,HP LaserJet Pro,HP,2024-01-10,399.99,2026-01-10,,85,Active,Admin,"Printing,Network" 

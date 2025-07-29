@@ -519,6 +519,177 @@ class AssetController extends Controller
         }
     }
 
+    /**
+     * Bulk import assets from array payload
+     * Route: POST /api/assets/import-bulk
+     * Payload: { assets: [ ... ] }
+     */
+    public function importBulk(Request $request)
+    {
+        $user = $request->user();
+        $companyId = $user->company_id;
+        $assets = $request->input('assets', []);
+        $errors = [];
+        $imported = 0;
+        if (!is_array($assets) || empty($assets)) {
+            return response()->json([
+                'imported' => 0,
+                'errors' => [['row' => 0, 'error' => 'The assets field is required and must be a non-empty array.']]
+            ], 422);
+        }
+        // Collect all serial numbers in DB for this company for uniqueness check
+        $existingSerials = \App\Models\Asset::where('company_id', $companyId)
+            ->pluck('serial_number')->filter()->map(fn($s) => strtolower($s))->toArray();
+        $serialsInPayload = [];
+        foreach ($assets as $i => $row) {
+            $rowErrors = [];
+            // Validate required fields
+            if (empty($row['name'])) {
+                $rowErrors[] = 'Asset name is required.';
+            }
+            // Validate purchase_cost
+            if (isset($row['purchase_cost']) && !is_numeric($row['purchase_cost'])) {
+                $rowErrors[] = 'Purchase cost must be numeric.';
+            }
+            // Validate purchase_date
+            if (!empty($row['purchase_date'])) {
+                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $row['purchase_date']) || strtotime($row['purchase_date']) === false) {
+                    $rowErrors[] = 'Purchase date must be in YYYY-MM-DD format.';
+                } elseif (strtotime($row['purchase_date']) > time()) {
+                    $rowErrors[] = 'Purchase date cannot be in the future.';
+                }
+            }
+            // Validate serial_number uniqueness (in DB and in this payload)
+            $serial = isset($row['serial_number']) ? strtolower($row['serial_number']) : null;
+            if ($serial) {
+                if (in_array($serial, $existingSerials)) {
+                    $rowErrors[] = 'Serial number already exists in this company.';
+                }
+                if (in_array($serial, $serialsInPayload)) {
+                    $rowErrors[] = 'Duplicate serial number in import file.';
+                }
+                $serialsInPayload[] = $serial;
+            }
+            // Lookup or create asset type
+            $typeId = null;
+            if (!empty($row['asset_type'])) {
+                $type = \App\Models\AssetType::firstOrCreate(['name' => $row['asset_type']]);
+                $typeId = $type->id;
+            }
+            // Lookup or create category
+            $categoryId = null;
+            if (!empty($row['category'])) {
+                $category = \App\Models\AssetCategory::firstOrCreate(['name' => $row['category']]);
+                $categoryId = $category->id;
+            }
+            // Lookup or create department
+            $departmentId = null;
+            if (!empty($row['department'])) {
+                $department = \App\Models\Department::where('company_id', $companyId)
+                    ->where('name', $row['department'])->first();
+                if (!$department) {
+                    $department = \App\Models\Department::create([
+                        'name' => $row['department'],
+                        'company_id' => $companyId,
+                        'user_id' => $user->id,
+                        'is_active' => true
+                    ]);
+                }
+                $departmentId = $department->id;
+            }
+            // Lookup location by full path or name (do not create)
+            $locationId = null;
+            if (!empty($row['location'])) {
+                $location = \App\Models\Location::where('company_id', $companyId)->get()
+                    ->first(fn($loc) => $loc->full_path === $row['location'] || $loc->name === $row['location']);
+                if (!$location) {
+                    $rowErrors[] = 'Location not found: ' . $row['location'];
+                } else {
+                    $locationId = $location->id;
+                }
+            }
+            // If any errors, collect and skip
+            if (!empty($rowErrors)) {
+                $errors[] = ['row' => $i + 1, 'error' => implode(' ', $rowErrors)];
+                continue;
+            }
+            // Generate unique asset_id
+            $assetId = 'ASSET-' . $companyId . '-' . strtoupper(substr(uniqid(), -6));
+            // Prepare asset data
+            $assetData = [
+                'asset_id' => $assetId,
+                'name' => $row['name'],
+                'description' => $row['description'] ?? null,
+                'category_id' => $categoryId,
+                'type' => $row['asset_type'] ?? null,
+                'serial_number' => $row['serial_number'] ?? null,
+                'model' => $row['model'] ?? null,
+                'manufacturer' => $row['manufacturer'] ?? null,
+                'purchase_date' => $row['purchase_date'] ?? null,
+                'purchase_price' => $row['purchase_cost'] ?? null,
+                'location_id' => $locationId,
+                'department_id' => $departmentId,
+                'user_id' => $user->id,
+                'company_id' => $companyId,
+                'status' => $row['status'] ?? 'active',
+                'warranty' => $row['warranty_period'] ?? null,
+                'health_score' => $row['health_score'] ?? null,
+                'brand' => $row['brand'] ?? null,
+                'supplier' => $row['supplier'] ?? null,
+                'depreciation' => $row['depreciation_method'] ?? null,
+            ];
+            \DB::beginTransaction();
+            try {
+                $asset = \App\Models\Asset::create($assetData);
+                // Handle tags
+                if (!empty($row['tags']) && is_array($row['tags'])) {
+                    $tagIds = [];
+                    foreach ($row['tags'] as $tagName) {
+                        $tag = \App\Models\AssetTag::firstOrCreate(['name' => $tagName]);
+                        $tagIds[] = $tag->id;
+                    }
+                    $asset->tags()->sync($tagIds);
+                }
+                // Generate QR code
+                $qrPath = $this->qrCodeService->generateAssetQRCode($asset);
+                if ($qrPath) {
+                    $asset->qr_code_path = $qrPath;
+                    $asset->save();
+                }
+                \DB::commit();
+                $imported++;
+            } catch (\Exception $e) {
+                \DB::rollBack();
+                $errors[] = ['row' => $i + 1, 'error' => $e->getMessage()];
+            }
+        }
+        return response()->json([
+            'imported' => $imported,
+            'errors' => $errors
+        ]);
+    }
+
+    /**
+     * Download asset import template
+     * Route: GET /api/assets/import/template
+     */
+    public function downloadTemplate()
+    {
+        $templatePath = public_path('asset-import-template.csv');
+        
+        if (!file_exists($templatePath)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Template file not found'
+            ], 404);
+        }
+
+        return response()->download($templatePath, 'asset-import-template.csv', [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="asset-import-template.csv"'
+        ]);
+    }
+
     // Transfer asset
     public function transfer(TransferAssetRequest $request, Asset $asset)
     {
