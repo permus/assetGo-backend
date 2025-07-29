@@ -675,8 +675,8 @@ class AssetController extends Controller
      */
     public function downloadTemplate()
     {
-        $templatePath = public_path('asset-import-template.csv');
-        
+        $templatePath = public_path('asset-import-template.xlsx');
+
         if (!file_exists($templatePath)) {
             return response()->json([
                 'success' => false,
@@ -684,9 +684,9 @@ class AssetController extends Controller
             ], 404);
         }
 
-        return response()->download($templatePath, 'asset-import-template.csv', [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="asset-import-template.csv"'
+        return response()->download($templatePath, 'asset-import-template.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="asset-import-template.xlsx"'
         ]);
     }
 
@@ -1118,7 +1118,7 @@ class AssetController extends Controller
     public function hierarchy(Request $request)
     {
         $companyId = $request->user()->company_id;
-        
+
         $assets = Asset::with(['children', 'category', 'assetType', 'assetStatus'])
             ->forCompany($companyId)
             ->rootAssets()
@@ -1178,7 +1178,7 @@ class AssetController extends Controller
         ]);
 
         $asset = Asset::findOrFail($request->asset_id);
-        
+
         // Check if user has permission to modify this asset
         if ($asset->company_id !== $request->user()->company_id) {
             return response()->json([
