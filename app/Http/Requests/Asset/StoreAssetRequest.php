@@ -26,6 +26,7 @@ class StoreAssetRequest extends FormRequest
             'depreciation' => 'nullable|numeric',
             'location_id' => 'nullable|exists:locations,id',
             'department_id' => 'nullable|integer',
+            'parent_id' => 'nullable|exists:assets,id',
             'warranty' => 'nullable|string|max:255',
             'insurance' => 'nullable|string|max:255',
             'health_score' => 'nullable|numeric|min:0|max:100',

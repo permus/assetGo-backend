@@ -28,6 +28,7 @@ class UpdateAssetRequest extends FormRequest
             'location_id' => 'nullable|exists:locations,id',
             'department_id' => 'nullable|integer',
             'user_id' => 'nullable|exists:users,id',
+            'parent_id' => 'nullable|exists:assets,id',
             'company_id' => 'sometimes|required|exists:companies,id',
             'warranty' => 'nullable|string|max:255',
             'insurance' => 'nullable|string|max:255',

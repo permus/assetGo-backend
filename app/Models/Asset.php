@@ -31,6 +31,7 @@ class Asset extends Model
         'health_score',
         'status',
         'qr_code_path',
+        'parent_id',
     ];
 
     protected $casts = [
@@ -40,7 +41,7 @@ class Asset extends Model
         'health_score' => 'decimal:2',
     ];
 
-    protected $appends = ['qr_code_url', 'public_url'];
+    protected $appends = ['qr_code_url', 'public_url', 'full_path', 'has_children'];
 
     public function getQrCodeUrlAttribute()
     {
@@ -93,6 +94,86 @@ class Asset extends Model
     public function department()
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(Asset::class, 'parent_id');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(Asset::class, 'parent_id');
+    }
+
+    public function descendants()
+    {
+        return $this->children()->with('descendants');
+    }
+
+    public function ancestors()
+    {
+        $ancestors = collect();
+        $current = $this->parent;
+
+        while ($current) {
+            $ancestors->prepend($current);
+            $current = $current->parent;
+        }
+
+        return $ancestors;
+    }
+
+    public function getFullPathAttribute()
+    {
+        $path = collect([$this->name]);
+        $current = $this->parent;
+
+        while ($current) {
+            $path->prepend($current->name);
+            $current = $current->parent;
+        }
+
+        return $path->implode(' → ');
+    }
+
+    public function getHasChildrenAttribute()
+    {
+        return $this->children()->exists();
+    }
+
+    public function wouldCreateCircularReference($newParentId)
+    {
+        if (!$newParentId || $newParentId == $this->id) {
+            return $newParentId == $this->id; // Self-parenting
+        }
+
+        // Check if new parent is a descendant of this asset
+        $newParent = self::find($newParentId);
+        if (!$newParent) {
+            return false;
+        }
+
+        $ancestors = $newParent->ancestors();
+        return $ancestors->contains('id', $this->id);
+    }
+
+    public function scopeForCompany($query, $companyId)
+    {
+        return $query->where('company_id', $companyId);
+    }
+
+    public function scopeByParent($query, $parentId)
+    {
+        if ($parentId !== null) {
+            return $query->where('parent_id', $parentId);
+        }
+        return $query;
+    }
+
+    public function scopeRootAssets($query)
+    {
+        return $query->whereNull('parent_id');
     }
 
     public function location()

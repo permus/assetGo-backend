@@ -60,6 +60,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('assets/bulk-archive', [AssetController::class, 'bulkArchive']);
     Route::post('assets/{asset}/archive', [AssetController::class, 'archive']);
     Route::get('assets/statistics', [AssetController::class, 'statistics']);
+    Route::get('assets-hierarchy', [AssetController::class, 'hierarchy']);
+    Route::get('assets/possible-parents/{assetId?}', [AssetController::class, 'possibleParents']);
+    Route::post('assets/move', [AssetController::class, 'move']);
     // Asset resource routes
     Route::apiResource('assets', AssetController::class);
 

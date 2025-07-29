@@ -71,6 +71,9 @@ class AssetController extends Controller
         if ($request->filled('max_value')) {
             $query->where('purchase_price', '<=', $request->max_value);
         }
+        if ($request->filled('parent_id')) {
+            $query->where('parent_id', $request->parent_id);
+        }
         // Archived filter
         if ($request->filled('archived') && $request->boolean('archived')) {
             $query->onlyTrashed();
@@ -115,7 +118,7 @@ class AssetController extends Controller
                 $asset->save();
             }
         }
-        $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company', 'maintenanceSchedules', 'activities']);
+        $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company', 'maintenanceSchedules', 'activities', 'parent', 'children']);
         $assetArray = $asset->toArray();
         $assetArray['qr_code_url'] = $asset->qr_code_path ? \Storage::disk('public')->url($asset->qr_code_path) : null;
         return response()->json([
@@ -936,5 +939,128 @@ class AssetController extends Controller
             'restored' => $restored,
             'failed' => $failed,
         ]);
+    }
+
+    /**
+     * Get asset hierarchy (tree structure)
+     */
+    public function hierarchy(Request $request)
+    {
+        $companyId = $request->user()->company_id;
+        
+        $assets = Asset::with(['children', 'category', 'assetType', 'assetStatus'])
+            ->forCompany($companyId)
+            ->rootAssets()
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'hierarchy' => $this->buildAssetHierarchyTree($assets)
+            ]
+        ]);
+    }
+
+    /**
+     * Get possible parents for an asset
+     */
+    public function possibleParents(Request $request, $assetId = null)
+    {
+        $companyId = $request->user()->company_id;
+        $query = Asset::forCompany($companyId);
+
+        if ($assetId) {
+            $asset = Asset::find($assetId);
+            if ($asset) {
+                // Exclude the asset itself and its descendants
+                $excludeIds = collect([$asset->id])->merge($asset->descendants->pluck('id'));
+                $query->whereNotIn('id', $excludeIds);
+            }
+        }
+
+        $assets = $query->orderBy('name')->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'possible_parents' => $assets->map(function ($asset) {
+                    return [
+                        'id' => $asset->id,
+                        'name' => $asset->name,
+                        'asset_id' => $asset->asset_id,
+                        'full_path' => $asset->full_path,
+                    ];
+                })
+            ]
+        ]);
+    }
+
+    /**
+     * Move asset to new parent
+     */
+    public function move(Request $request)
+    {
+        $request->validate([
+            'asset_id' => 'required|exists:assets,id',
+            'new_parent_id' => 'nullable|exists:assets,id',
+        ]);
+
+        $asset = Asset::findOrFail($request->asset_id);
+        
+        // Check if user has permission to modify this asset
+        if ($asset->company_id !== $request->user()->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized to modify this asset.'
+            ], 403);
+        }
+
+        // Check for circular reference
+        if ($asset->wouldCreateCircularReference($request->new_parent_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot move asset: would create circular reference.'
+            ], 400);
+        }
+
+        $before = $asset->toArray();
+        $asset->parent_id = $request->new_parent_id;
+        $asset->save();
+
+        // Log activity
+        $asset->activities()->create([
+            'user_id' => $request->user()->id,
+            'action' => 'moved',
+            'before' => $before,
+            'after' => $asset->toArray(),
+            'comment' => 'Asset moved in hierarchy',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Asset moved successfully',
+            'data' => $asset->load(['parent', 'children'])
+        ]);
+    }
+
+    /**
+     * Build asset hierarchy tree
+     */
+    private function buildAssetHierarchyTree($assets)
+    {
+        return $assets->map(function ($asset) {
+            return [
+                'id' => $asset->id,
+                'asset_id' => $asset->asset_id,
+                'name' => $asset->name,
+                'full_path' => $asset->full_path,
+                'category' => $asset->category ? $asset->category->name : null,
+                'type' => $asset->assetType ? $asset->assetType->name : null,
+                'status' => $asset->assetStatus ? $asset->assetStatus->name : null,
+                'has_children' => $asset->has_children,
+                'children' => $this->buildAssetHierarchyTree($asset->children),
+            ];
+        });
     }
 }
