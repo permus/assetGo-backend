@@ -693,39 +693,72 @@ class AssetController extends Controller
     // Transfer asset
     public function transfer(TransferAssetRequest $request, Asset $asset)
     {
+        // Check if asset belongs to user's company
+        if ($asset->company_id !== $request->user()->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Asset not found or unauthorized'
+            ], 404);
+        }
+
+        // Check if new location is different from current
+        if ($asset->location_id == $request->new_location_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transfer location must be different from current.'
+            ], 400);
+        }
+
         \DB::beginTransaction();
         try {
             $before = $asset->toArray();
-            $asset->location_id = $request->to_location_id;
+            
+            // Update asset location and department
+            $asset->location_id = $request->new_location_id;
+            if ($request->filled('new_department_id')) {
+                $asset->department_id = $request->new_department_id;
+            }
             if ($request->filled('to_user_id')) {
                 $asset->user_id = $request->to_user_id;
             }
             $asset->save();
+
+            // Create transfer record
             $transfer = $asset->transfers()->create([
-                'from_location_id' => $before['location_id'],
-                'to_location_id' => $request->to_location_id,
+                'old_location_id' => $before['location_id'],
+                'new_location_id' => $request->new_location_id,
+                'old_department_id' => $before['department_id'],
+                'new_department_id' => $request->new_department_id,
                 'from_user_id' => $before['user_id'],
                 'to_user_id' => $request->to_user_id,
+                'reason' => $request->transfer_reason,
                 'transfer_date' => $request->transfer_date,
                 'notes' => $request->notes,
                 'condition_report' => $request->condition_report,
                 'status' => 'completed',
                 'approved_by' => $request->user()->id,
+                'created_by' => $request->user()->id,
             ]);
+
+            // Log activity
             $asset->activities()->create([
                 'user_id' => $request->user()->id,
                 'action' => 'transferred',
                 'before' => $before,
                 'after' => $asset->toArray(),
-                'comment' => 'Asset transferred',
+                'comment' => 'Asset transferred: ' . $request->transfer_reason,
             ]);
+
             \DB::commit();
+
             return response()->json([
                 'success' => true,
-                'message' => 'Asset transferred successfully',
+                'message' => 'Asset transfer completed.',
                 'data' => [
-                    'asset' => $asset->load(['location', 'user']),
-                    'transfer' => $transfer,
+                    'transfer_id' => $transfer->id,
+                    'asset_id' => $asset->asset_id,
+                    'new_location' => $asset->location->name ?? null,
+                    'new_department' => $asset->department->name ?? null,
                 ]
             ]);
         } catch (\Exception $e) {
@@ -736,6 +769,19 @@ class AssetController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    // Debug method to test validation rules
+    public function debugTransferValidation(Request $request)
+    {
+        $transferRequest = new TransferAssetRequest();
+        $rules = $transferRequest->rules();
+        
+        return response()->json([
+            'validation_rules' => $rules,
+            'request_data' => $request->all(),
+            'expected_fields' => array_keys($rules)
+        ]);
     }
 
     // Maintenance schedule CRUD

@@ -90,6 +90,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('assets/{asset}/transfer', [AssetController::class, 'transfer']);
     Route::post('assets/{asset}/restore', [AssetController::class, 'restore']);
     Route::post('assets/bulk-restore', [AssetController::class, 'bulkRestore']);
+    
+    // Debug route for transfer validation
+    Route::post('assets/debug-transfer-validation', [AssetController::class, 'debugTransferValidation']);
 
     // Maintenance schedule CRUD
     Route::get('assets/{asset}/maintenance-schedules', [AssetController::class, 'listMaintenanceSchedules']);

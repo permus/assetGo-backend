@@ -12,15 +12,19 @@ class AssetTransfer extends Model
 
     protected $fillable = [
         'asset_id',
-        'from_location_id',
-        'to_location_id',
+        'old_location_id',
+        'new_location_id',
+        'old_department_id',
+        'new_department_id',
         'from_user_id',
         'to_user_id',
+        'reason',
         'transfer_date',
         'notes',
         'condition_report',
         'status',
         'approved_by',
+        'created_by',
     ];
 
     protected $casts = [
@@ -32,14 +36,24 @@ class AssetTransfer extends Model
         return $this->belongsTo(Asset::class);
     }
 
-    public function fromLocation()
+    public function oldLocation()
     {
-        return $this->belongsTo(Location::class, 'from_location_id');
+        return $this->belongsTo(Location::class, 'old_location_id');
     }
 
-    public function toLocation()
+    public function newLocation()
     {
-        return $this->belongsTo(Location::class, 'to_location_id');
+        return $this->belongsTo(Location::class, 'new_location_id');
+    }
+
+    public function oldDepartment()
+    {
+        return $this->belongsTo(Department::class, 'old_department_id');
+    }
+
+    public function newDepartment()
+    {
+        return $this->belongsTo(Department::class, 'new_department_id');
     }
 
     public function fromUser()
@@ -55,5 +69,10 @@ class AssetTransfer extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 } 

@@ -12,6 +12,7 @@ use App\Models\Asset;
 use App\Models\AssetCategory;
 use App\Models\AssetTag;
 use App\Models\Location;
+use App\Models\Department;
 
 class AssetApiTest extends TestCase
 {
@@ -93,13 +94,85 @@ class AssetApiTest extends TestCase
     {
         $asset = Asset::factory()->create(['company_id' => $this->company->id]);
         $location = Location::factory()->create(['company_id' => $this->company->id]);
+        $department = Department::factory()->create(['company_id' => $this->company->id]);
+        
         $data = [
-            'to_location_id' => $location->id,
+            'new_location_id' => $location->id,
+            'new_department_id' => $department->id,
+            'transfer_reason' => 'Relocation',
             'transfer_date' => now()->toDateString(),
+            'notes' => 'Moving due to upgrade',
         ];
+        
         $response = $this->actingAs($this->user)->postJson('/api/assets/' . $asset->id . '/transfer', $data);
         $response->assertStatus(200)->assertJson(['success' => true]);
-        $this->assertDatabaseHas('assets', ['id' => $asset->id, 'location_id' => $location->id]);
+        
+        $this->assertDatabaseHas('assets', ['id' => $asset->id, 'location_id' => $location->id, 'department_id' => $department->id]);
+        $this->assertDatabaseHas('asset_transfers', [
+            'asset_id' => $asset->id,
+            'new_location_id' => $location->id,
+            'new_department_id' => $department->id,
+            'reason' => 'Relocation',
+        ]);
+    }
+
+    public function test_cannot_transfer_to_same_location()
+    {
+        $asset = Asset::factory()->create(['company_id' => $this->company->id]);
+        
+        $data = [
+            'new_location_id' => $asset->location_id,
+            'transfer_reason' => 'Relocation',
+            'transfer_date' => now()->toDateString(),
+        ];
+        
+        $response = $this->actingAs($this->user)->postJson('/api/assets/' . $asset->id . '/transfer', $data);
+        $response->assertStatus(400)->assertJson(['success' => false]);
+    }
+
+    public function test_cannot_transfer_asset_from_different_company()
+    {
+        $otherCompany = Company::factory()->create();
+        $asset = Asset::factory()->create(['company_id' => $otherCompany->id]);
+        $location = Location::factory()->create(['company_id' => $this->company->id]);
+        
+        $data = [
+            'new_location_id' => $location->id,
+            'transfer_reason' => 'Relocation',
+            'transfer_date' => now()->toDateString(),
+        ];
+        
+        $response = $this->actingAs($this->user)->postJson('/api/assets/' . $asset->id . '/transfer', $data);
+        $response->assertStatus(404)->assertJson(['success' => false]);
+    }
+
+    public function test_transfer_validation_requires_reason()
+    {
+        $asset = Asset::factory()->create(['company_id' => $this->company->id]);
+        $location = Location::factory()->create(['company_id' => $this->company->id]);
+        
+        $data = [
+            'new_location_id' => $location->id,
+            'transfer_date' => now()->toDateString(),
+        ];
+        
+        $response = $this->actingAs($this->user)->postJson('/api/assets/' . $asset->id . '/transfer', $data);
+        $response->assertStatus(422);
+    }
+
+    public function test_transfer_validation_requires_valid_reason()
+    {
+        $asset = Asset::factory()->create(['company_id' => $this->company->id]);
+        $location = Location::factory()->create(['company_id' => $this->company->id]);
+        
+        $data = [
+            'new_location_id' => $location->id,
+            'transfer_reason' => 'Invalid Reason',
+            'transfer_date' => now()->toDateString(),
+        ];
+        
+        $response = $this->actingAs($this->user)->postJson('/api/assets/' . $asset->id . '/transfer', $data);
+        $response->assertStatus(422);
     }
 
     public function test_can_bulk_import_assets()

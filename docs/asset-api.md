@@ -155,13 +155,47 @@ All endpoints require authentication via Bearer token (Sanctum).
 
 ### 8. Transfer Asset
 - **POST** `/api/assets/{id}/transfer`
-- **Body:** to_location_id, to_user_id, transfer_date, notes, condition_report
-- **Response:**
+- **Authorization:** Only authenticated users can transfer assets. Asset must belong to user's company.
+- **Body:**
+```json
+{
+  "new_location_id": 123,
+  "new_department_id": 45,
+  "transfer_reason": "Relocation",
+  "transfer_date": "2025-07-30",
+  "notes": "Moving due to upgrade"
+}
+```
+- **Validation Rules:**
+  - `new_location_id`: required, must exist and differ from current location
+  - `new_department_id`: optional, must exist if provided
+  - `transfer_reason`: required, enum: Relocation, Department Change, Maintenance, Upgrade, Storage, Disposal, Other
+  - `transfer_date`: required, must not be in the future
+  - `notes`: optional, max 1000 characters
+- **Response (Success):**
 ```json
 {
   "success": true,
-  "message": "Asset transferred successfully",
-  "data": { ... }
+  "message": "Asset transfer completed.",
+  "data": {
+    "transfer_id": 789,
+    "asset_id": "AST-101",
+    "new_location": "1st Floor",
+    "new_department": "Manufacturing"
+  }
+}
+```
+- **Response (Error):**
+```json
+{
+  "success": false,
+  "message": "Asset not found or unauthorized"
+}
+```
+```json
+{
+  "success": false,
+  "message": "Transfer location must be different from current."
 }
 ```
 
