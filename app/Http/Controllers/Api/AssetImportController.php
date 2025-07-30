@@ -394,16 +394,16 @@ class AssetImportController extends Controller
      */
     public function downloadTemplate()
     {
-        $templatePath = public_path('asset-import-template.xlsx');
+        $templatePath = public_path('asset-import-template.csv');
         if (!file_exists($templatePath)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Template file not found.'
             ], 404);
         }
-        return response()->download($templatePath, 'asset-import-template.xlsx', [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="asset-import-template.xlsx"'
+        return response()->download($templatePath, 'asset-import-template.csv', [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="asset-import-template.csv"'
         ]);
     }
 }
