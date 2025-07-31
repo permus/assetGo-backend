@@ -23,24 +23,28 @@ POST /api/assets/import-bulk-json
 | Field | Type | Description | Validation |
 |-------|------|-------------|------------|
 | `assets` | array | Array of asset objects | Required, minimum 1 asset |
-| `assets[].name` | string | Asset name | Required, max 255 characters |
-| `assets[].category` | string | Asset category | Required, max 255 characters |
-| `assets[].facility_id` | string | Facility identifier | Required, max 255 characters |
-| `assets[].asset_type` | string | Type of asset | Required, max 255 characters |
-| `assets[].status` | string | Asset status | Required, one of: Active, Inactive, Maintenance, Retired |
+| `assets[].name` | string | Asset name | Required, max 100 characters |
 
 ### Optional Fields
 
 | Field | Type | Description | Validation |
 |-------|------|-------------|------------|
-| `assets[].description` | string | Asset description | Optional |
-| `assets[].serial_number` | string | Serial number | Optional, max 255 characters |
+| `assets[].description` | string | Asset description | Optional, max 500 characters |
+| `assets[].category` | string | Asset category | Optional, max 255 characters |
+| `assets[].type` | string | Asset type | Optional, max 255 characters |
+| `assets[].serial_number` | string | Serial number | Optional, max 255 characters, unique per company |
 | `assets[].model` | string | Asset model | Optional, max 255 characters |
 | `assets[].manufacturer` | string | Manufacturer | Optional, max 255 characters |
-| `assets[].purchase_date` | date | Purchase date | Optional, valid date format |
-| `assets[].purchase_cost` | numeric | Purchase cost | Optional, numeric, minimum 0 |
+| `assets[].purchase_date` | date | Purchase date | Optional, valid date format, not in future |
+| `assets[].purchase_price` | numeric | Purchase price | Optional, numeric, minimum 0.01 |
+| `assets[].depreciation` | numeric | Depreciation value | Optional, numeric |
 | `assets[].location` | string | Location name | Optional, max 255 characters |
 | `assets[].department` | string | Department name | Optional, max 255 characters |
+| `assets[].warranty` | string | Warranty information | Optional, max 255 characters |
+| `assets[].insurance` | string | Insurance information | Optional, max 255 characters |
+| `assets[].health_score` | numeric | Health score | Optional, numeric, 0-100 |
+| `assets[].status` | string | Asset status | Optional, max 50 characters |
+| `assets[].tags` | array | Array of tag names | Optional, array of strings |
 
 ## Request Example
 
@@ -49,33 +53,41 @@ POST /api/assets/import-bulk-json
   "assets": [
     {
       "name": "Sample Asset 1",
-      "category": "Equipment",
-      "facility_id": "212",
-      "asset_type": "Computer",
-      "status": "Active",
       "description": "Office computer for accounting",
+      "category": "Equipment",
+      "type": "Computer",
       "serial_number": "SN001",
       "model": "Dell OptiPlex",
       "manufacturer": "Dell",
       "purchase_date": "2024-01-15",
-      "purchase_cost": "1200.00",
+      "purchase_price": "1200.00",
+      "depreciation": "100.00",
       "location": "Main Office",
-      "department": "IT"
+      "department": "IT",
+      "warranty": "3 years",
+      "insurance": "Company policy",
+      "health_score": 95,
+      "status": "Active",
+      "tags": ["Computer", "Office", "IT"]
     },
     {
       "name": "Sample Asset 2",
-      "category": "Furniture",
-      "facility_id": "212",
-      "asset_type": "Desk",
-      "status": "Active",
       "description": "Executive desk",
+      "category": "Furniture",
+      "type": "Desk",
       "serial_number": "SN002",
       "model": "Executive Desk",
       "manufacturer": "OfficeMax",
       "purchase_date": "2024-02-20",
-      "purchase_cost": "800.00",
+      "purchase_price": "800.00",
+      "depreciation": "50.00",
       "location": "Conference Room",
-      "department": "HR"
+      "department": "HR",
+      "warranty": "1 year",
+      "insurance": "Company policy",
+      "health_score": 90,
+      "status": "Active",
+      "tags": ["Furniture", "Desk", "Executive"]
     }
   ]
 }
@@ -141,23 +153,25 @@ POST /api/assets/import-bulk-json
 ### Import Process
 
 1. **Validation**: Validate all required fields and data types
-2. **Entity Validation**: Check if related entities exist:
+2. **Entity Handling**: Handle related entities as follows:
    - **Categories**: Create if doesn't exist
    - **Locations**: Must exist (will show error if not found)
    - **Departments**: Must exist (will show error if not found)
    - **Asset Types**: Create if doesn't exist
    - **Asset Statuses**: Create if doesn't exist
-3. **Asset ID Generation**: Generate unique asset IDs using format: `AST-{FACILITY_PREFIX}-{SEQUENTIAL_NUMBER}`
+   - **Tags**: Create if doesn't exist (company-scoped)
+3. **Asset ID Generation**: Generate unique asset IDs using format: `AST-{COMPANY_PREFIX}-{SEQUENTIAL_NUMBER}`
 4. **Asset Creation**: Create assets with all provided data
-5. **Activity Logging**: Log creation activity for each asset
-6. **Transaction Safety**: Use database transactions for data consistency
+5. **Tag Assignment**: Attach tags to assets if provided
+6. **Activity Logging**: Log creation activity for each asset
+7. **Transaction Safety**: Use database transactions for data consistency
 
 ### Asset ID Generation
 
 The API generates unique asset IDs using the following format:
-- **Format**: `AST-{FACILITY_PREFIX}-{SEQUENTIAL_NUMBER}`
-- **Example**: `AST-212-0001`, `AST-212-0002`, etc.
-- **Facility Prefix**: First 3 characters of the facility_id (uppercase)
+- **Format**: `AST-{COMPANY_PREFIX}-{SEQUENTIAL_NUMBER}`
+- **Example**: `AST-123-0001`, `AST-123-0002`, etc.
+- **Company Prefix**: First 3 characters of the company_id (uppercase)
 - **Sequential Number**: 4-digit zero-padded number based on company's asset count
 
 ### Entity Handling
@@ -183,14 +197,22 @@ The API handles related entities as follows:
 - **Action**: Create departments manually before importing assets
 
 #### Asset Types
+- **Auto-creation**: Creates if doesn't exist
 - **Name**: As provided in the request
 - **Description**: "{type} type"
 - **Icon**: Default icon (🏷️)
 
 #### Asset Statuses
+- **Auto-creation**: Creates if doesn't exist
 - **Name**: As provided in the request
 - **Description**: "{status} status"
 - **Color**: Green for "Active", gray for others
+
+#### Tags
+- **Auto-creation**: Creates if doesn't exist
+- **Name**: As provided in the request
+- **Company**: User's company
+- **Assignment**: Automatically attached to the asset
 
 ## Error Handling
 
@@ -219,12 +241,13 @@ The API processes all assets even if some fail:
 ### Common Error Scenarios
 
 1. **Missing required fields**: Returns 422 with field-specific errors
-2. **Invalid status values**: Returns 422 for invalid status
-3. **Invalid date format**: Returns 422 for malformed dates
-4. **Invalid numeric values**: Returns 422 for non-numeric purchase costs
-5. **Location not found**: Returns error with specific location name
-6. **Department not found**: Returns error with specific department name
-7. **Database errors**: Returns 500 with error details
+2. **Invalid date format**: Returns 422 for malformed dates
+3. **Invalid numeric values**: Returns 422 for non-numeric purchase prices
+4. **Duplicate serial numbers**: Returns 422 for duplicate serial numbers within company
+5. **Invalid health score**: Returns 422 for health scores outside 0-100 range
+6. **Location not found**: Returns error with specific location name
+7. **Department not found**: Returns error with specific department name
+8. **Database errors**: Returns 500 with error details
 
 ## Testing
 

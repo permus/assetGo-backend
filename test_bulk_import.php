@@ -11,74 +11,84 @@ $baseUrl = 'http://localhost:8000/api'; // Adjust to your Laravel app URL
 $email = 'admin@example.com'; // Replace with a valid user email
 $password = 'password'; // Replace with the user's password
 
-// Test payload with non-existent location
-$testPayloadWithInvalidLocation = [
-    'assets' => [
-        [
-            'name' => 'Test Asset with Invalid Location',
-            'category' => 'Equipment',
-            'facility_id' => '212',
-            'asset_type' => 'Computer',
-            'status' => 'Active',
-            'description' => 'Test asset with invalid location',
-            'serial_number' => 'SN001',
-            'model' => 'Dell OptiPlex',
-            'manufacturer' => 'Dell',
-            'purchase_date' => '2024-01-15',
-            'purchase_cost' => '1200.00',
-            'location' => 'Non Existent Location', // This location doesn't exist
-            'department' => 'IT'
-        ]
-    ]
-];
-
 // Test payload with valid data
 $testPayload = [
     'assets' => [
         [
             'name' => 'Sample Asset 1',
-            'category' => 'Equipment',
-            'facility_id' => '212',
-            'asset_type' => 'Computer',
-            'status' => 'Active',
             'description' => 'Office computer for accounting',
+            'category' => 'Equipment',
+            'type' => 'Computer',
             'serial_number' => 'SN001',
             'model' => 'Dell OptiPlex',
             'manufacturer' => 'Dell',
             'purchase_date' => '2024-01-15',
-            'purchase_cost' => '1200.00',
+            'purchase_price' => '1200.00',
+            'depreciation' => '100.00',
             'location' => 'Main Office',
-            'department' => 'IT'
+            'department' => 'IT',
+            'warranty' => '3 years',
+            'insurance' => 'Company policy',
+            'health_score' => 95,
+            'status' => 'Active',
+            'tags' => ['Computer', 'Office', 'IT']
         ],
         [
             'name' => 'Sample Asset 2',
-            'category' => 'Furniture',
-            'facility_id' => '212',
-            'asset_type' => 'Desk',
-            'status' => 'Active',
             'description' => 'Executive desk',
+            'category' => 'Furniture',
+            'type' => 'Desk',
             'serial_number' => 'SN002',
             'model' => 'Executive Desk',
             'manufacturer' => 'OfficeMax',
             'purchase_date' => '2024-02-20',
-            'purchase_cost' => '800.00',
+            'purchase_price' => '800.00',
+            'depreciation' => '50.00',
             'location' => 'Conference Room',
-            'department' => 'HR'
+            'department' => 'HR',
+            'warranty' => '1 year',
+            'insurance' => 'Company policy',
+            'health_score' => 90,
+            'status' => 'Active',
+            'tags' => ['Furniture', 'Desk', 'Executive']
         ],
         [
             'name' => 'Sample Asset 3',
-            'category' => 'Vehicle',
-            'facility_id' => '212',
-            'asset_type' => 'Car',
-            'status' => 'Active',
             'description' => 'Company vehicle',
+            'category' => 'Vehicle',
+            'type' => 'Car',
             'serial_number' => 'SN003',
             'model' => 'Toyota Camry',
             'manufacturer' => 'Toyota',
             'purchase_date' => '2024-03-10',
-            'purchase_cost' => '25000.00',
+            'purchase_price' => '25000.00',
+            'depreciation' => '2000.00',
             'location' => 'Parking Lot',
-            'department' => 'Operations'
+            'department' => 'Operations',
+            'warranty' => '5 years',
+            'insurance' => 'Auto insurance',
+            'health_score' => 85,
+            'status' => 'Active',
+            'tags' => ['Vehicle', 'Car', 'Transport']
+        ]
+    ]
+];
+
+// Test payload with non-existent location
+$testPayloadWithInvalidLocation = [
+    'assets' => [
+        [
+            'name' => 'Test Asset with Invalid Location',
+            'description' => 'Test asset with invalid location',
+            'category' => 'Equipment',
+            'type' => 'Computer',
+            'serial_number' => 'SN004',
+            'model' => 'Test Model',
+            'manufacturer' => 'Test Manufacturer',
+            'purchase_date' => '2024-01-15',
+            'purchase_price' => '1000.00',
+            'location' => 'Non Existent Location', // This location doesn't exist
+            'department' => 'IT'
         ]
     ]
 ];

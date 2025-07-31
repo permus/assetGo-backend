@@ -684,19 +684,24 @@ class AssetController extends Controller
         // Validate the request
         $request->validate([
             'assets' => 'required|array|min:1',
-            'assets.*.name' => 'required|string|max:255',
-            'assets.*.category' => 'required|string|max:255',
-            'assets.*.facility_id' => 'required|string|max:255',
-            'assets.*.asset_type' => 'required|string|max:255',
-            'assets.*.status' => 'required|string|in:Active,Inactive,Maintenance,Retired',
-            'assets.*.description' => 'nullable|string',
-            'assets.*.serial_number' => 'nullable|string|max:255',
+            'assets.*.name' => 'required|string|max:100',
+            'assets.*.description' => 'nullable|string|max:500',
+            'assets.*.category' => 'nullable|string|max:255',
+            'assets.*.type' => 'nullable|string|max:255',
+            'assets.*.serial_number' => 'nullable|string|max:255|unique:assets,serial_number,NULL,id,company_id,' . ($request->user() ? $request->user()->company_id : 'NULL'),
             'assets.*.model' => 'nullable|string|max:255',
             'assets.*.manufacturer' => 'nullable|string|max:255',
-            'assets.*.purchase_date' => 'nullable|date',
-            'assets.*.purchase_cost' => 'nullable|numeric|min:0',
+            'assets.*.purchase_date' => 'nullable|date|before_or_equal:today',
+            'assets.*.purchase_price' => 'nullable|numeric|min:0.01',
+            'assets.*.depreciation' => 'nullable|numeric',
             'assets.*.location' => 'nullable|string|max:255',
             'assets.*.department' => 'nullable|string|max:255',
+            'assets.*.warranty' => 'nullable|string|max:255',
+            'assets.*.insurance' => 'nullable|string|max:255',
+            'assets.*.health_score' => 'nullable|numeric|min:0|max:100',
+            'assets.*.status' => 'nullable|string|max:50',
+            'assets.*.tags' => 'nullable|array',
+            'assets.*.tags.*' => 'string|max:255',
         ]);
 
         $user = $request->user();
@@ -710,13 +715,16 @@ class AssetController extends Controller
             foreach ($assets as $index => $assetData) {
                 try {
                     // Find or create category
-                    $category = AssetCategory::firstOrCreate(
-                        ['name' => $assetData['category']],
-                        [
-                            'description' => $assetData['category'] . ' category',
-                            'icon' => '📦'
-                        ]
-                    );
+                    $category = null;
+                    if (!empty($assetData['category'])) {
+                        $category = AssetCategory::firstOrCreate(
+                            ['name' => $assetData['category']],
+                            [
+                                'description' => $assetData['category'] . ' category',
+                                'icon' => '📦'
+                            ]
+                        );
+                    }
 
                     // Find location (don't create if doesn't exist)
                     $location = null;
@@ -730,38 +738,44 @@ class AssetController extends Controller
                         }
                     }
 
-                    // Find department (don't create if doesn't exist)
+                    // Find or create department
                     $department = null;
                     if (!empty($assetData['department'])) {
-                        $department = Department::where('name', $assetData['department'])
-                            ->where('company_id', $user->company_id)
-                            ->first();
-                        
-                        if (!$department) {
-                            throw new \Exception("Department '{$assetData['department']}' does not exist. Please create the department first.");
-                        }
+                        $department = Department::firstOrCreate(
+                            [
+                                'name' => $assetData['department'],
+                                'company_id' => $user->company_id,
+                                'user_id' => $user->id
+                            ],
+                        );
                     }
 
                     // Find or create asset type
-                    $assetType = AssetType::firstOrCreate(
-                        ['name' => $assetData['asset_type']],
-                        [
-                            'description' => $assetData['asset_type'] . ' type',
-                            'icon' => '🏷️'
-                        ]
-                    );
+                    $assetType = null;
+                    if (!empty($assetData['type'])) {
+                        $assetType = AssetType::firstOrCreate(
+                            ['name' => $assetData['type']],
+                            [
+                                'description' => $assetData['type'] . ' type',
+                                'icon' => '🏷️'
+                            ]
+                        );
+                    }
 
                     // Find or create asset status
-                    $assetStatus = AssetStatus::firstOrCreate(
-                        ['name' => $assetData['status']],
-                        [
-                            'description' => $assetData['status'] . ' status',
-                            'color' => $assetData['status'] === 'Active' ? '#10B981' : '#6B7280'
-                        ]
-                    );
+                    $assetStatus = null;
+                    if (!empty($assetData['status'])) {
+                        $assetStatus = AssetStatus::firstOrCreate(
+                            ['name' => $assetData['status']],
+                            [
+                                'description' => $assetData['status'] . ' status',
+                                'color' => $assetData['status'] === 'Active' ? '#10B981' : '#6B7280'
+                            ]
+                        );
+                    }
 
                     // Generate unique asset ID
-                    $assetId = 'AST-' . strtoupper(substr($assetData['facility_id'], 0, 3)) . '-' .
+                    $assetId = 'AST-' . strtoupper(substr($user->company_id, 0, 3)) . '-' .
                               str_pad(Asset::where('company_id', $user->company_id)->count() + 1, 4, '0', STR_PAD_LEFT);
 
                     // Create the asset
@@ -769,20 +783,36 @@ class AssetController extends Controller
                         'asset_id' => $assetId,
                         'name' => $assetData['name'],
                         'description' => $assetData['description'] ?? '',
-                        'category_id' => $category->id,
-                        'type' => $assetType->name,
+                        'category_id' => $category?->id,
+                        'type' => $assetType?->name ?? $assetData['type'],
                         'serial_number' => $assetData['serial_number'] ?? null,
                         'model' => $assetData['model'] ?? null,
                         'manufacturer' => $assetData['manufacturer'] ?? null,
                         'purchase_date' => $assetData['purchase_date'] ?? null,
-                        'purchase_price' => $assetData['purchase_cost'] ?? null,
+                        'purchase_price' => $assetData['purchase_price'] ?? null,
+                        'depreciation' => $assetData['depreciation'] ?? null,
                         'location_id' => $location?->id,
                         'department_id' => $department?->id,
                         'user_id' => $user->id,
                         'company_id' => $user->company_id,
-                        'status' => strtolower($assetData['status']),
-                        'health_score' => 100,
+                        'warranty' => $assetData['warranty'] ?? null,
+                        'insurance' => $assetData['insurance'] ?? null,
+                        'health_score' => $assetData['health_score'] ?? 100,
+                        'status' => $assetData['status'] ?? 'active',
                     ]);
+
+                    // Handle tags if provided
+                    if (!empty($assetData['tags']) && is_array($assetData['tags'])) {
+                        $tagIds = [];
+                        foreach ($assetData['tags'] as $tagName) {
+                            $tag = AssetTag::firstOrCreate(
+                                ['name' => $tagName],
+                                ['company_id' => $user->company_id]
+                            );
+                            $tagIds[] = $tag->id;
+                        }
+                        $asset->tags()->attach($tagIds);
+                    }
 
                     // Log activity
                     $asset->activities()->create([
