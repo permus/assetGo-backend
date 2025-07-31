@@ -670,6 +670,176 @@ class AssetController extends Controller
     }
 
     /**
+     * Bulk import assets from JSON payload
+     * Route: POST /api/assets/import-bulk-json
+     * Payload: { assets: [ ... ] }
+     */
+    public function bulkImportAssets(Request $request)
+    {
+        // Validate the request
+        $request->validate([
+            'assets' => 'required|array|min:1',
+            'assets.*.name' => 'required|string|max:255',
+            'assets.*.category' => 'required|string|max:255',
+            'assets.*.facility_id' => 'required|string|max:255',
+            'assets.*.asset_type' => 'required|string|max:255',
+            'assets.*.status' => 'required|string|in:Active,Inactive,Maintenance,Retired',
+            'assets.*.description' => 'nullable|string',
+            'assets.*.serial_number' => 'nullable|string|max:255',
+            'assets.*.model' => 'nullable|string|max:255',
+            'assets.*.manufacturer' => 'nullable|string|max:255',
+            'assets.*.purchase_date' => 'nullable|date',
+            'assets.*.purchase_cost' => 'nullable|numeric|min:0',
+            'assets.*.location' => 'nullable|string|max:255',
+            'assets.*.department' => 'nullable|string|max:255',
+        ]);
+
+        $user = $request->user();
+        $assets = $request->input('assets');
+        $imported = [];
+        $failed = [];
+        $errors = [];
+
+        \DB::beginTransaction();
+        try {
+            foreach ($assets as $index => $assetData) {
+                try {
+                    // Find or create category
+                    $category = AssetCategory::firstOrCreate(
+                        ['name' => $assetData['category']],
+                        [
+                            'description' => $assetData['category'] . ' category',
+                            'icon' => '📦'
+                        ]
+                    );
+
+                    // Find or create location
+                    $location = null;
+                    if (!empty($assetData['location'])) {
+                        $location = Location::firstOrCreate(
+                            [
+                                'name' => $assetData['location'],
+                                'company_id' => $user->company_id
+                            ],
+                            [
+                                'user_id' => $user->id,
+                                'location_type_id' => LocationType::firstOrCreate(['name' => 'Room'])->id,
+                                'description' => $assetData['location'],
+                                'slug' => \Str::slug($assetData['location'])
+                            ]
+                        );
+                    }
+
+                    // Find or create department
+                    $department = null;
+                    if (!empty($assetData['department'])) {
+                        $department = Department::firstOrCreate(
+                            [
+                                'name' => $assetData['department'],
+                                'company_id' => $user->company_id
+                            ],
+                            [
+                                'user_id' => $user->id,
+                                'description' => $assetData['department'],
+                                'code' => strtoupper(substr($assetData['department'], 0, 3))
+                            ]
+                        );
+                    }
+
+                    // Find or create asset type
+                    $assetType = AssetType::firstOrCreate(
+                        ['name' => $assetData['asset_type']],
+                        [
+                            'description' => $assetData['asset_type'] . ' type',
+                            'icon' => '🏷️'
+                        ]
+                    );
+
+                    // Find or create asset status
+                    $assetStatus = AssetStatus::firstOrCreate(
+                        ['name' => $assetData['status']],
+                        [
+                            'description' => $assetData['status'] . ' status',
+                            'color' => $assetData['status'] === 'Active' ? '#10B981' : '#6B7280'
+                        ]
+                    );
+
+                    // Generate unique asset ID
+                    $assetId = 'AST-' . strtoupper(substr($assetData['facility_id'], 0, 3)) . '-' . 
+                              str_pad(Asset::where('company_id', $user->company_id)->count() + 1, 4, '0', STR_PAD_LEFT);
+
+                    // Create the asset
+                    $asset = Asset::create([
+                        'asset_id' => $assetId,
+                        'name' => $assetData['name'],
+                        'description' => $assetData['description'] ?? '',
+                        'category_id' => $category->id,
+                        'type' => $assetType->name,
+                        'serial_number' => $assetData['serial_number'] ?? null,
+                        'model' => $assetData['model'] ?? null,
+                        'manufacturer' => $assetData['manufacturer'] ?? null,
+                        'purchase_date' => $assetData['purchase_date'] ?? null,
+                        'purchase_price' => $assetData['purchase_cost'] ?? null,
+                        'location_id' => $location?->id,
+                        'department_id' => $department?->id,
+                        'user_id' => $user->id,
+                        'company_id' => $user->company_id,
+                        'status' => strtolower($assetData['status']),
+                        'health_score' => 100,
+                    ]);
+
+                    // Log activity
+                    $asset->activities()->create([
+                        'user_id' => $user->id,
+                        'action' => 'created',
+                        'before' => null,
+                        'after' => $asset->toArray(),
+                        'comment' => 'Asset imported via bulk import',
+                    ]);
+
+                    $imported[] = [
+                        'index' => $index + 1,
+                        'asset_id' => $asset->asset_id,
+                        'name' => $asset->name,
+                        'status' => 'success'
+                    ];
+
+                } catch (\Exception $e) {
+                    $failed[] = [
+                        'index' => $index + 1,
+                        'name' => $assetData['name'] ?? 'Unknown',
+                        'error' => $e->getMessage()
+                    ];
+                    $errors[] = "Row " . ($index + 1) . ": " . $e->getMessage();
+                }
+            }
+
+            \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Bulk import completed',
+                'data' => [
+                    'total_processed' => count($assets),
+                    'imported_count' => count($imported),
+                    'failed_count' => count($failed),
+                    'imported' => $imported,
+                    'failed' => $failed,
+                    'errors' => $errors
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Bulk import failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Download asset import template
      * Route: GET /api/assets/import/template
      */

@@ -59,6 +59,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('assets/bulk-delete', [AssetController::class, 'bulkDelete']);
     Route::post('assets/bulk-archive', [AssetController::class, 'bulkArchive']);
     Route::post('assets/import-bulk', [AssetController::class, 'importBulk']);
+    Route::post('assets/import-bulk-json', [AssetController::class, 'bulkImportAssets']);
     Route::get('assets/import/template', [AssetController::class, 'downloadTemplate']);
     Route::post('assets/{asset}/archive', [AssetController::class, 'archive']);
     Route::get('assets/statistics', [AssetController::class, 'statistics']);
