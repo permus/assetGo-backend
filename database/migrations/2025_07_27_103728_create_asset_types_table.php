@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('asset_types', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('icon');
+            $table->string('icon')->default('https://unpkg.com/lucide-static/icons/tag.svg');
             $table->timestamps();
         });
     }

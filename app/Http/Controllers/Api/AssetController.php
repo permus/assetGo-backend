@@ -578,7 +578,10 @@ class AssetController extends Controller
             // Lookup or create asset type
             $typeId = null;
             if (!empty($row['asset_type'])) {
-                $type = \App\Models\AssetType::firstOrCreate(['name' => $row['asset_type']]);
+                $type = \App\Models\AssetType::firstOrCreate(
+                    ['name' => $row['asset_type']],
+                    ['icon' => 'https://unpkg.com/lucide-static/icons/tag.svg']
+                );
                 $typeId = $type->id;
             }
             // Lookup or create category
@@ -721,7 +724,7 @@ class AssetController extends Controller
                             ['name' => $assetData['category']],
                             [
                                 'description' => $assetData['category'] . ' category',
-                                'icon' => '📦'
+                                'icon' => 'https://unpkg.com/lucide-static/icons/package.svg'
                             ]
                         );
                     }
@@ -755,6 +758,9 @@ class AssetController extends Controller
                     if (!empty($assetData['type'])) {
                         $assetType = AssetType::firstOrCreate(
                             ['name' => $assetData['type']],
+                            [
+                                'icon' => 'https://unpkg.com/lucide-static/icons/tag.svg'
+                            ]
                         );
                     }
 
