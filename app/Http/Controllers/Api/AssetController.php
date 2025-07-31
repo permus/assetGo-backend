@@ -1121,6 +1121,259 @@ class AssetController extends Controller
     }
 
     /**
+     * Public API to get assets with optional company filtering
+     * Route: GET /api/assets/public
+     */
+    public function publicIndex(Request $request)
+    {
+        $query = Asset::with(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'company'])
+            ->where('status', 'active')
+            ->withoutTrashed();
+
+        // Filter by company if provided
+        if ($request->filled('company_id')) {
+            $query->where('company_id', $request->company_id);
+        }
+
+        // Filter by company slug if provided
+        if ($request->filled('company_slug')) {
+            $query->whereHas('company', function ($q) use ($request) {
+                $q->where('slug', $request->company_slug);
+            });
+        }
+
+        // Search functionality
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                  ->orWhere('serial_number', 'like', "%$search%")
+                  ->orWhere('description', 'like', "%$search%")
+                  ->orWhereHas('tags', function ($tagQ) use ($search) {
+                      $tagQ->where('name', 'like', "%$search%");
+                  })
+                  ->orWhereHas('category', function ($catQ) use ($search) {
+                      $catQ->where('name', 'like', "%$search%");
+                  });
+            });
+        }
+
+        // Filters
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('location_id')) {
+            $query->where('location_id', $request->location_id);
+        }
+        if ($request->filled('tag_id')) {
+            $query->whereHas('tags', function ($q) use ($request) {
+                $q->where('id', $request->tag_id);
+            });
+        }
+        if ($request->filled('min_value')) {
+            $query->where('purchase_price', '>=', $request->min_value);
+        }
+        if ($request->filled('max_value')) {
+            $query->where('purchase_price', '<=', $request->max_value);
+        }
+
+        // Sorting
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortDir = $request->get('sort_dir', 'desc');
+        $allowedSortFields = ['name', 'serial_number', 'purchase_price', 'created_at', 'updated_at'];
+        
+        if (in_array($sortBy, $allowedSortFields)) {
+            $query->orderBy($sortBy, $sortDir);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        // Pagination
+        $perPage = min($request->get('per_page', 15), 100);
+        $assets = $query->paginate($perPage);
+
+        // Transform the data to include only public information
+        $assets->getCollection()->transform(function ($asset) {
+            return [
+                'id' => $asset->id,
+                'name' => $asset->name,
+                'serial_number' => $asset->serial_number,
+                'description' => $asset->description,
+                'model' => $asset->model,
+                'manufacturer' => $asset->manufacturer,
+                'purchase_date' => $asset->purchase_date,
+                'purchase_price' => $asset->purchase_price,
+                'warranty' => $asset->warranty,
+                'health_score' => $asset->health_score,
+                'status' => $asset->status,
+                'created_at' => $asset->created_at,
+                'updated_at' => $asset->updated_at,
+                'category' => $asset->category ? [
+                    'id' => $asset->category->id,
+                    'name' => $asset->category->name,
+                    'description' => $asset->category->description
+                ] : null,
+                'asset_type' => $asset->assetType ? [
+                    'id' => $asset->assetType->id,
+                    'name' => $asset->assetType->name,
+                    'description' => $asset->assetType->description
+                ] : null,
+                'asset_status' => $asset->assetStatus ? [
+                    'id' => $asset->assetStatus->id,
+                    'name' => $asset->assetStatus->name,
+                    'color' => $asset->assetStatus->color
+                ] : null,
+                'location' => $asset->location ? [
+                    'id' => $asset->location->id,
+                    'name' => $asset->location->name,
+                    'address' => $asset->location->address
+                ] : null,
+                'department' => $asset->department ? [
+                    'id' => $asset->department->id,
+                    'name' => $asset->department->name
+                ] : null,
+                'company' => $asset->company ? [
+                    'id' => $asset->company->id,
+                    'name' => $asset->company->name,
+                    'slug' => $asset->company->slug
+                ] : null,
+                'tags' => $asset->tags->map(function ($tag) {
+                    return [
+                        'id' => $tag->id,
+                        'name' => $tag->name,
+                        'color' => $tag->color
+                    ];
+                }),
+                'images' => $asset->images->map(function ($image) {
+                    return [
+                        'id' => $image->id,
+                        'url' => \Storage::disk('public')->url($image->path),
+                        'alt' => $image->alt_text
+                    ];
+                })
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'assets' => $assets->items(),
+                'pagination' => [
+                    'current_page' => $assets->currentPage(),
+                    'last_page' => $assets->lastPage(),
+                    'per_page' => $assets->perPage(),
+                    'total' => $assets->total(),
+                    'from' => $assets->firstItem(),
+                    'to' => $assets->lastItem(),
+                ],
+                'filters' => $request->all(),
+            ]
+        ]);
+    }
+
+    /**
+     * Public API to get a specific asset by ID
+     * Route: GET /api/assets/{asset}/public
+     */
+    public function publicShow(Asset $asset)
+    {
+        // Only show active, non-archived assets
+        if ($asset->status !== 'active' || $asset->trashed()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Asset not found or not available'
+            ], 404);
+        }
+
+        // Generate QR code if it does not exist
+        if (!$asset->qr_code_path) {
+            $qrPath = $this->qrCodeService->generateAssetQRCode($asset);
+            if ($qrPath) {
+                $asset->qr_code_path = $qrPath;
+                $asset->save();
+            }
+        }
+
+        $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'company']);
+
+        $assetData = [
+            'id' => $asset->id,
+            'name' => $asset->name,
+            'serial_number' => $asset->serial_number,
+            'description' => $asset->description,
+            'model' => $asset->model,
+            'manufacturer' => $asset->manufacturer,
+            'purchase_date' => $asset->purchase_date,
+            'purchase_price' => $asset->purchase_price,
+            'warranty' => $asset->warranty,
+            'health_score' => $asset->health_score,
+            'status' => $asset->status,
+            'created_at' => $asset->created_at,
+            'updated_at' => $asset->updated_at,
+            'qr_code_url' => $asset->qr_code_path ? \Storage::disk('public')->url($asset->qr_code_path) : null,
+            'category' => $asset->category ? [
+                'id' => $asset->category->id,
+                'name' => $asset->category->name,
+                'description' => $asset->category->description
+            ] : null,
+            'asset_type' => $asset->assetType ? [
+                'id' => $asset->assetType->id,
+                'name' => $asset->assetType->name,
+                'description' => $asset->assetType->description
+            ] : null,
+            'asset_status' => $asset->assetStatus ? [
+                'id' => $asset->assetStatus->id,
+                'name' => $asset->assetStatus->name,
+                'color' => $asset->assetStatus->color
+            ] : null,
+            'location' => $asset->location ? [
+                'id' => $asset->location->id,
+                'name' => $asset->location->name,
+                'address' => $asset->location->address,
+                'type' => $asset->location->type ? [
+                    'id' => $asset->location->type->id,
+                    'name' => $asset->location->type->name
+                ] : null
+            ] : null,
+            'department' => $asset->department ? [
+                'id' => $asset->department->id,
+                'name' => $asset->department->name
+            ] : null,
+            'company' => $asset->company ? [
+                'id' => $asset->company->id,
+                'name' => $asset->company->name,
+                'slug' => $asset->company->slug
+            ] : null,
+            'tags' => $asset->tags->map(function ($tag) {
+                return [
+                    'id' => $tag->id,
+                    'name' => $tag->name,
+                    'color' => $tag->color
+                ];
+            }),
+            'images' => $asset->images->map(function ($image) {
+                return [
+                    'id' => $image->id,
+                    'url' => \Storage::disk('public')->url($image->path),
+                    'alt' => $image->alt_text
+                ];
+            })
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'asset' => $assetData,
+            ]
+        ]);
+    }
+
+    /**
      * Get all asset activities across the company with filtering and pagination
      * Route: GET /api/assets/activities
      */

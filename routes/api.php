@@ -30,6 +30,10 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');
 Route::post('/email/resend', [AuthController::class, 'resendVerification']);
 
+// Public asset routes
+Route::get('/assets/public', [AssetController::class, 'publicIndex']);
+Route::get('/assets/{asset}/public', [AssetController::class, 'publicShow']);
+
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     // Auth routes
