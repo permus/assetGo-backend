@@ -141,10 +141,10 @@ POST /api/assets/import-bulk-json
 ### Import Process
 
 1. **Validation**: Validate all required fields and data types
-2. **Entity Creation**: Automatically create or find related entities:
+2. **Entity Validation**: Check if related entities exist:
    - **Categories**: Create if doesn't exist
-   - **Locations**: Create if doesn't exist (company-scoped)
-   - **Departments**: Create if doesn't exist (company-scoped)
+   - **Locations**: Must exist (will show error if not found)
+   - **Departments**: Must exist (will show error if not found)
    - **Asset Types**: Create if doesn't exist
    - **Asset Statuses**: Create if doesn't exist
 3. **Asset ID Generation**: Generate unique asset IDs using format: `AST-{FACILITY_PREFIX}-{SEQUENTIAL_NUMBER}`
@@ -160,27 +160,27 @@ The API generates unique asset IDs using the following format:
 - **Facility Prefix**: First 3 characters of the facility_id (uppercase)
 - **Sequential Number**: 4-digit zero-padded number based on company's asset count
 
-### Entity Auto-Creation
+### Entity Handling
 
-The API automatically creates related entities if they don't exist:
+The API handles related entities as follows:
 
 #### Categories
+- **Auto-creation**: Creates if doesn't exist
 - **Name**: As provided in the request
 - **Description**: "{category} category"
 - **Icon**: Default icon (📦)
 
 #### Locations
-- **Name**: As provided in the request
-- **Company**: User's company
-- **Type**: Default "Room" type
-- **Description**: Same as name
-- **Slug**: URL-friendly version of name
+- **Validation**: Must exist before import
+- **Error**: Shows error if location doesn't exist
+- **Scope**: Company-scoped locations only
+- **Action**: Create locations manually before importing assets
 
 #### Departments
-- **Name**: As provided in the request
-- **Company**: User's company
-- **Description**: Same as name
-- **Code**: First 3 characters of name (uppercase)
+- **Validation**: Must exist before import
+- **Error**: Shows error if department doesn't exist
+- **Scope**: Company-scoped departments only
+- **Action**: Create departments manually before importing assets
 
 #### Asset Types
 - **Name**: As provided in the request
@@ -222,7 +222,9 @@ The API processes all assets even if some fail:
 2. **Invalid status values**: Returns 422 for invalid status
 3. **Invalid date format**: Returns 422 for malformed dates
 4. **Invalid numeric values**: Returns 422 for non-numeric purchase costs
-5. **Database errors**: Returns 500 with error details
+5. **Location not found**: Returns error with specific location name
+6. **Department not found**: Returns error with specific department name
+7. **Database errors**: Returns 500 with error details
 
 ## Testing
 

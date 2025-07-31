@@ -10,10 +10,15 @@ use App\Http\Requests\Asset\TransferAssetRequest;
 use App\Http\Requests\Asset\MaintenanceScheduleRequest;
 use App\Models\Asset;
 use App\Models\AssetCategory;
+use App\Models\AssetStatus;
 use App\Models\AssetTag;
 use App\Models\AssetImage;
 use App\Models\AssetTransfer;
 use App\Models\AssetActivity;
+use App\Models\AssetType;
+use App\Models\Department;
+use App\Models\Location;
+use App\Models\LocationType;
 use App\Services\QRCodeService;
 use Illuminate\Http\Request;
 
@@ -713,37 +718,28 @@ class AssetController extends Controller
                         ]
                     );
 
-                    // Find or create location
+                    // Find location (don't create if doesn't exist)
                     $location = null;
                     if (!empty($assetData['location'])) {
-                        $location = Location::firstOrCreate(
-                            [
-                                'name' => $assetData['location'],
-                                'company_id' => $user->company_id
-                            ],
-                            [
-                                'user_id' => $user->id,
-                                'location_type_id' => LocationType::firstOrCreate(['name' => 'Room'])->id,
-                                'description' => $assetData['location'],
-                                'slug' => \Str::slug($assetData['location'])
-                            ]
-                        );
+                        $location = Location::where('name', $assetData['location'])
+                            ->where('company_id', $user->company_id)
+                            ->first();
+                        
+                        if (!$location) {
+                            throw new \Exception("Location '{$assetData['location']}' does not exist. Please create the location first.");
+                        }
                     }
 
-                    // Find or create department
+                    // Find department (don't create if doesn't exist)
                     $department = null;
                     if (!empty($assetData['department'])) {
-                        $department = Department::firstOrCreate(
-                            [
-                                'name' => $assetData['department'],
-                                'company_id' => $user->company_id
-                            ],
-                            [
-                                'user_id' => $user->id,
-                                'description' => $assetData['department'],
-                                'code' => strtoupper(substr($assetData['department'], 0, 3))
-                            ]
-                        );
+                        $department = Department::where('name', $assetData['department'])
+                            ->where('company_id', $user->company_id)
+                            ->first();
+                        
+                        if (!$department) {
+                            throw new \Exception("Department '{$assetData['department']}' does not exist. Please create the department first.");
+                        }
                     }
 
                     // Find or create asset type
@@ -765,7 +761,7 @@ class AssetController extends Controller
                     );
 
                     // Generate unique asset ID
-                    $assetId = 'AST-' . strtoupper(substr($assetData['facility_id'], 0, 3)) . '-' . 
+                    $assetId = 'AST-' . strtoupper(substr($assetData['facility_id'], 0, 3)) . '-' .
                               str_pad(Asset::where('company_id', $user->company_id)->count() + 1, 4, '0', STR_PAD_LEFT);
 
                     // Create the asset
@@ -882,7 +878,7 @@ class AssetController extends Controller
         \DB::beginTransaction();
         try {
             $before = $asset->toArray();
-            
+
             // Update asset location and department
             $asset->location_id = $request->new_location_id;
             if ($request->filled('new_department_id')) {
@@ -946,7 +942,7 @@ class AssetController extends Controller
     {
         $transferRequest = new TransferAssetRequest();
         $rules = $transferRequest->rules();
-        
+
         return response()->json([
             'validation_rules' => $rules,
             'request_data' => $request->all(),

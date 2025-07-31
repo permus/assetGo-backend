@@ -11,7 +11,28 @@ $baseUrl = 'http://localhost:8000/api'; // Adjust to your Laravel app URL
 $email = 'admin@example.com'; // Replace with a valid user email
 $password = 'password'; // Replace with the user's password
 
-// Test payload
+// Test payload with non-existent location
+$testPayloadWithInvalidLocation = [
+    'assets' => [
+        [
+            'name' => 'Test Asset with Invalid Location',
+            'category' => 'Equipment',
+            'facility_id' => '212',
+            'asset_type' => 'Computer',
+            'status' => 'Active',
+            'description' => 'Test asset with invalid location',
+            'serial_number' => 'SN001',
+            'model' => 'Dell OptiPlex',
+            'manufacturer' => 'Dell',
+            'purchase_date' => '2024-01-15',
+            'purchase_cost' => '1200.00',
+            'location' => 'Non Existent Location', // This location doesn't exist
+            'department' => 'IT'
+        ]
+    ]
+];
+
+// Test payload with valid data
 $testPayload = [
     'assets' => [
         [
@@ -99,8 +120,41 @@ if (!$token) {
 
 echo "✅ Login successful. Token received.\n\n";
 
-// Step 2: Test bulk import
-echo "📦 Testing bulk import...\n";
+// Step 2: Test bulk import with invalid location
+echo "🚫 Testing bulk import with invalid location...\n";
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $baseUrl . '/assets/import-bulk-json');
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($testPayloadWithInvalidLocation));
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    'Authorization: Bearer ' . $token,
+    'Content-Type: application/json',
+    'Accept: application/json'
+]);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+$response = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+echo "HTTP Code: $httpCode\n";
+echo "Response: $response\n\n";
+
+if ($httpCode === 200) {
+    $result = json_decode($response, true);
+    if ($result['success']) {
+        echo "❌ Expected failure but got success!\n";
+    } else {
+        echo "✅ Correctly failed with error: {$result['message']}\n";
+    }
+} else {
+    echo "✅ Correctly failed with HTTP code: $httpCode\n";
+}
+
+echo "\n" . str_repeat("-", 50) . "\n\n";
+
+// Step 3: Test bulk import with valid data
+echo "📦 Testing bulk import with valid data...\n";
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $baseUrl . '/assets/import-bulk-json');
 curl_setopt($ch, CURLOPT_POST, 1);
