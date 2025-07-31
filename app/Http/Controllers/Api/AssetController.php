@@ -1289,13 +1289,6 @@ class AssetController extends Controller
                 'message' => 'Asset not found'
             ], 404);
         }
-        // Only show active, non-archived assets
-        if ($asset->status !== 'active' || $asset->trashed()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Asset not found or not available'
-            ], 404);
-        }
 
         $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'company']);
 
