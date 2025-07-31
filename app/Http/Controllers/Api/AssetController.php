@@ -755,10 +755,6 @@ class AssetController extends Controller
                     if (!empty($assetData['type'])) {
                         $assetType = AssetType::firstOrCreate(
                             ['name' => $assetData['type']],
-                            [
-                                'description' => $assetData['type'] . ' type',
-                                'icon' => '🏷️'
-                            ]
                         );
                     }
 
@@ -876,13 +872,17 @@ class AssetController extends Controller
         if (!file_exists($templatePath)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Template file not found'
+                'message' => 'Template file not found. Please contact administrator.'
             ], 404);
         }
 
-        return response()->download($templatePath, 'asset-import-template.xlsx', [
+        $filename = 'asset-import-template-' . date('Y-m-d') . '.xlsx';
+
+        return response()->download($templatePath, $filename, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="asset-import-template.xlsx"'
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'no-cache, must-revalidate',
+            'Pragma' => 'no-cache'
         ]);
     }
 
