@@ -1280,8 +1280,15 @@ class AssetController extends Controller
      * Public API to get a specific asset by ID
      * Route: GET /api/assets/{asset}/public
      */
-    public function publicShow(Asset $asset)
+    public function publicShow($id)
     {
+        $asset = Asset::find($id);
+        if (!$asset) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Asset not found'
+            ], 404);
+        }
         // Only show active, non-archived assets
         if ($asset->status !== 'active' || $asset->trashed()) {
             return response()->json([
