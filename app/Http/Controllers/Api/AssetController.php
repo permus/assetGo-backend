@@ -1290,15 +1290,6 @@ class AssetController extends Controller
             ], 404);
         }
 
-        // Generate QR code if it does not exist
-        if (!$asset->qr_code_path) {
-            $qrPath = $this->qrCodeService->generateAssetQRCode($asset);
-            if ($qrPath) {
-                $asset->qr_code_path = $qrPath;
-                $asset->save();
-            }
-        }
-
         $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'company']);
 
         $assetData = [
@@ -1315,7 +1306,6 @@ class AssetController extends Controller
             'status' => $asset->status,
             'created_at' => $asset->created_at,
             'updated_at' => $asset->updated_at,
-            'qr_code_url' => $asset->qr_code_path ? \Storage::disk('public')->url($asset->qr_code_path) : null,
             'category' => $asset->category ? [
                 'id' => $asset->category->id,
                 'name' => $asset->category->name,
