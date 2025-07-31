@@ -735,7 +735,7 @@ class AssetController extends Controller
                         $location = Location::where('name', $assetData['location'])
                             ->where('company_id', $user->company_id)
                             ->first();
-                        
+
                         if (!$location) {
                             throw new \Exception("Location '{$assetData['location']}' does not exist. Please create the location first.");
                         }
@@ -1078,7 +1078,7 @@ class AssetController extends Controller
         $sortBy = $request->get('sort_by', 'created_at');
         $sortDir = $request->get('sort_dir', 'desc');
         $allowedSortFields = ['created_at', 'action', 'user_id'];
-        
+
         if (in_array($sortBy, $allowedSortFields)) {
             $query->orderBy($sortBy, $sortDir);
         } else {
@@ -1186,7 +1186,7 @@ class AssetController extends Controller
         $sortBy = $request->get('sort_by', 'created_at');
         $sortDir = $request->get('sort_dir', 'desc');
         $allowedSortFields = ['name', 'serial_number', 'purchase_price', 'created_at', 'updated_at'];
-        
+
         if (in_array($sortBy, $allowedSortFields)) {
             $query->orderBy($sortBy, $sortDir);
         } else {
@@ -1280,7 +1280,7 @@ class AssetController extends Controller
      * Public API to get a specific asset by ID
      * Route: GET /api/assets/{asset}/public
      */
-    public function publicShow($id)
+    public function publicShow($id): \Illuminate\Http\JsonResponse
     {
         $asset = Asset::find($id);
         if (!$asset) {
@@ -1377,7 +1377,7 @@ class AssetController extends Controller
     public function allActivities(Request $request)
     {
         $companyId = $request->user()->company_id;
-        
+
         $query = AssetActivity::with(['user', 'asset'])
             ->whereHas('asset', function ($q) use ($companyId) {
                 $q->where('company_id', $companyId);
@@ -1426,7 +1426,7 @@ class AssetController extends Controller
         $sortBy = $request->get('sort_by', 'created_at');
         $sortDir = $request->get('sort_dir', 'desc');
         $allowedSortFields = ['created_at', 'action', 'user_id', 'asset_id'];
-        
+
         if (in_array($sortBy, $allowedSortFields)) {
             $query->orderBy($sortBy, $sortDir);
         } else {

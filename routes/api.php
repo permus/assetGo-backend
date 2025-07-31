@@ -31,8 +31,7 @@ Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])-
 Route::post('/email/resend', [AuthController::class, 'resendVerification']);
 
 // Public asset routes
-Route::get('/assets/public', [AssetController::class, 'publicIndex']);
-Route::get('/assets/{asset}/public', [AssetController::class, 'publicShow']);
+Route::get('/assets/{id}/public', [AssetController::class, 'publicShow']);
 
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
@@ -95,7 +94,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('assets/{asset}/transfer', [AssetController::class, 'transfer']);
     Route::post('assets/{asset}/restore', [AssetController::class, 'restore']);
     Route::post('assets/bulk-restore', [AssetController::class, 'bulkRestore']);
-    
+
     // Debug route for transfer validation
     Route::post('assets/debug-transfer-validation', [AssetController::class, 'debugTransferValidation']);
 
