@@ -1028,9 +1028,190 @@ class AssetController extends Controller
     }
 
     // Activity history
+    /**
+     * Get asset activity history with filtering, search, and pagination
+     * Route: GET /api/assets/{asset}/activity-history
+     */
     public function activityHistory(Request $request, Asset $asset)
     {
-        $activities = $asset->activities()->with('user')->orderBy('created_at', 'desc')->get();
+        // Check if user has access to this asset
+        if ($asset->company_id !== $request->user()->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied'
+            ], 403);
+        }
+
+        $query = $asset->activities()->with(['user', 'asset']);
+
+        // Search by action or comment
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('action', 'like', "%$search%")
+                  ->orWhere('comment', 'like', "%$search%")
+                  ->orWhereHas('user', function ($userQ) use ($search) {
+                      $userQ->where('name', 'like', "%$search%")
+                            ->orWhere('email', 'like', "%$search%");
+                  });
+            });
+        }
+
+        // Filter by action type
+        if ($request->filled('action')) {
+            $query->where('action', $request->action);
+        }
+
+        // Filter by user
+        if ($request->filled('user_id')) {
+            $query->where('user_id', $request->user_id);
+        }
+
+        // Date range filters
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Sorting
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortDir = $request->get('sort_dir', 'desc');
+        $allowedSortFields = ['created_at', 'action', 'user_id'];
+        
+        if (in_array($sortBy, $allowedSortFields)) {
+            $query->orderBy($sortBy, $sortDir);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        // Pagination
+        $perPage = min($request->get('per_page', 15), 100);
+        $activities = $query->paginate($perPage);
+
+        // Transform the data to include more readable information
+        $activities->getCollection()->transform(function ($activity) {
+            return [
+                'id' => $activity->id,
+                'action' => $activity->action,
+                'comment' => $activity->comment,
+                'before' => $activity->before,
+                'after' => $activity->after,
+                'user' => $activity->user ? [
+                    'id' => $activity->user->id,
+                    'name' => $activity->user->name,
+                    'email' => $activity->user->email
+                ] : null,
+                'created_at' => $activity->created_at,
+                'updated_at' => $activity->updated_at,
+                'formatted_date' => $activity->created_at->format('M d, Y H:i:s'),
+                'time_ago' => $activity->created_at->diffForHumans()
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $activities,
+            'asset' => [
+                'id' => $asset->id,
+                'name' => $asset->name,
+                'serial_number' => $asset->serial_number
+            ]
+        ]);
+    }
+
+    /**
+     * Get all asset activities across the company with filtering and pagination
+     * Route: GET /api/assets/activities
+     */
+    public function allActivities(Request $request)
+    {
+        $companyId = $request->user()->company_id;
+        
+        $query = AssetActivity::with(['user', 'asset'])
+            ->whereHas('asset', function ($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            });
+
+        // Search by action, comment, asset name, or user
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('action', 'like', "%$search%")
+                  ->orWhere('comment', 'like', "%$search%")
+                  ->orWhereHas('asset', function ($assetQ) use ($search) {
+                      $assetQ->where('name', 'like', "%$search%")
+                             ->orWhere('serial_number', 'like', "%$search%");
+                  })
+                  ->orWhereHas('user', function ($userQ) use ($search) {
+                      $userQ->where('name', 'like', "%$search%")
+                            ->orWhere('email', 'like', "%$search%");
+                  });
+            });
+        }
+
+        // Filter by action type
+        if ($request->filled('action')) {
+            $query->where('action', $request->action);
+        }
+
+        // Filter by asset
+        if ($request->filled('asset_id')) {
+            $query->where('asset_id', $request->asset_id);
+        }
+
+        // Filter by user
+        if ($request->filled('user_id')) {
+            $query->where('user_id', $request->user_id);
+        }
+
+        // Date range filters
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Sorting
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortDir = $request->get('sort_dir', 'desc');
+        $allowedSortFields = ['created_at', 'action', 'user_id', 'asset_id'];
+        
+        if (in_array($sortBy, $allowedSortFields)) {
+            $query->orderBy($sortBy, $sortDir);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        // Pagination
+        $perPage = min($request->get('per_page', 15), 100);
+        $activities = $query->paginate($perPage);
+
+        // Transform the data to include more readable information
+        $activities->getCollection()->transform(function ($activity) {
+            return [
+                'id' => $activity->id,
+                'action' => $activity->action,
+                'comment' => $activity->comment,
+                'before' => $activity->before,
+                'after' => $activity->after,
+                'asset' => $activity->asset ? [
+                    'id' => $activity->asset->id,
+                    'name' => $activity->asset->name,
+                    'serial_number' => $activity->asset->serial_number
+                ] : null,
+                'user' => $activity->user ? [
+                    'id' => $activity->user->id,
+                    'name' => $activity->user->name,
+                    'email' => $activity->user->email
+                ] : null,
+                'created_at' => $activity->created_at,
+                'updated_at' => $activity->updated_at,
+                'formatted_date' => $activity->created_at->format('M d, Y H:i:s'),
+                'time_ago' => $activity->created_at->diffForHumans()
+            ];
+        });
+
         return response()->json([
             'success' => true,
             'data' => $activities

@@ -103,6 +103,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     // Activity history
     Route::get('assets/{asset}/activity-history', [AssetController::class, 'activityHistory']);
+    Route::get('assets/activities', [AssetController::class, 'allActivities']);
     Route::get('assets/analytics', [AssetController::class, 'analytics']);
     Route::get('assets/export', [AssetController::class, 'export']);
 
