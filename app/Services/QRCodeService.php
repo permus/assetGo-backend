@@ -200,26 +200,24 @@ class QRCodeService
     public function generateAssetQRCode($asset)
     {
         try {
-            // Create the QR code content (public URL to the asset)
-            $qrContent = $asset->public_url;
-
-            // Generate filename
+            // Use QuickChart.io for QR code generation
+            $qrUrl = $asset->quick_chart_qr_url;
+            
+            // Generate filename for caching
             $filename = 'qrcodes/asset-' . $asset->id . '.png';
-
-            // Generate QR code
-            $qrCode = QrCode::format('png')
-                ->size(300)
-                ->margin(2)
-                ->errorCorrection('M')
-                ->backgroundColor(255, 255, 255)
-                ->color(0, 0, 0)
-                ->generate($qrContent);
-
+            
+            // Download and cache the QR code
+            $qrCodeContent = file_get_contents($qrUrl);
+            
+            if ($qrCodeContent === false) {
+                throw new \Exception('Failed to generate QR code from QuickChart.io');
+            }
+            
             // Save to storage
-            Storage::disk('public')->put($filename, $qrCode);
-
+            Storage::disk('public')->put($filename, $qrCodeContent);
+            
             return $filename;
-
+            
         } catch (\Exception $e) {
             \Log::error('QR Code generation failed: ' . $e->getMessage());
             return null;

@@ -53,7 +53,12 @@ class Asset extends Model
 
     public function getPublicUrlAttribute()
     {
-        return config('app.frontend_url', config('app.url')) . '/assets/' . $this->asset_id;
+        return env('WEBSITE_URL') . '/public/asset/' . $this->id;
+    }
+
+    public function getQuickChartQrUrlAttribute()
+    {
+        return 'https://quickchart.io/qr?text=' . urlencode($this->public_url) . '&margin=1&size=300';
     }
 
     protected static function booted()

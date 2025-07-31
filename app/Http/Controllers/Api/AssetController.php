@@ -123,9 +123,13 @@ class AssetController extends Controller
                 $asset->save();
             }
         }
+        
         $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company', 'maintenanceSchedules', 'activities', 'parent', 'children']);
+        
         $assetArray = $asset->toArray();
         $assetArray['qr_code_url'] = $asset->qr_code_path ? \Storage::disk('public')->url($asset->qr_code_path) : null;
+        $assetArray['quick_chart_qr_url'] = $asset->quick_chart_qr_url;
+        
         return response()->json([
             'success' => true,
             'data' => [
@@ -1905,5 +1909,30 @@ class AssetController extends Controller
                 'children' => $this->buildAssetHierarchyTree($asset->children),
             ];
         });
+    }
+
+    /**
+     * Get QR code for an asset (direct QuickChart.io URL)
+     * Route: GET /api/assets/{asset}/qr-code
+     */
+    public function qrCode(Request $request, Asset $asset)
+    {
+        // Check if user has access to this asset
+        if ($asset->company_id !== $request->user()->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied'
+            ], 403);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'qr_code_url' => $asset->quick_chart_qr_url,
+                'public_url' => $asset->public_url,
+                'asset_id' => $asset->id,
+                'asset_name' => $asset->name
+            ]
+        ]);
     }
 }
