@@ -740,7 +740,7 @@ class AssetController extends Controller
                         $location = Location::where('name', $assetData['location'])
                             ->where('company_id', $user->company_id)
                             ->first();
-
+                        
                         if (!$location) {
                             throw new \Exception("Location '{$assetData['location']}' does not exist. Please create the location first.");
                         }
@@ -2161,5 +2161,184 @@ class AssetController extends Controller
             'datamatrix' => 'Data Matrix (2D barcode)',
             'qr' => 'QR Code (2D barcode)',
         ];
+    }
+
+    /**
+     * Get related assets for a specific asset
+     * Route: GET /api/assets/{asset}/related
+     */
+    public function relatedAssets(Request $request, Asset $asset)
+    {
+        try {
+            // Check if user has access to this asset
+            if ($asset->company_id !== $request->user()->company_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Access denied'
+                ], 403);
+            }
+
+            $limit = $request->get('limit', 10);
+            $type = $request->get('type', 'all'); // all, category, location, department, manufacturer, parent, children
+
+            $query = Asset::where('company_id', $request->user()->company_id)
+                ->where('id', '!=', $asset->id) // Exclude the current asset
+                ->where('status', 'active'); // Only active assets
+
+            // Apply different filtering based on type
+            switch ($type) {
+                case 'category':
+                    $query->where('category_id', $asset->category_id);
+                    break;
+                    
+                case 'location':
+                    $query->where('location_id', $asset->location_id);
+                    break;
+                    
+                case 'department':
+                    $query->where('department_id', $asset->department_id);
+                    break;
+                    
+                case 'manufacturer':
+                    if ($asset->manufacturer) {
+                        $query->where('manufacturer', $asset->manufacturer);
+                    }
+                    break;
+                    
+                case 'parent':
+                    // Assets that have the same parent
+                    $query->where('parent_id', $asset->parent_id);
+                    break;
+                    
+                case 'children':
+                    // Child assets of the current asset
+                    $query->where('parent_id', $asset->id);
+                    break;
+                    
+                case 'siblings':
+                    // Assets with the same parent (excluding the current asset)
+                    if ($asset->parent_id) {
+                        $query->where('parent_id', $asset->parent_id);
+                    }
+                    break;
+                    
+                case 'similar':
+                    // Assets with similar characteristics
+                    $query->where(function($q) use ($asset) {
+                        $q->where('category_id', $asset->category_id)
+                          ->orWhere('location_id', $asset->location_id)
+                          ->orWhere('department_id', $asset->department_id)
+                          ->orWhere('manufacturer', $asset->manufacturer);
+                    });
+                    break;
+                    
+                case 'all':
+                default:
+                    // Get assets with any relation
+                    $query->where(function($q) use ($asset) {
+                        $q->where('category_id', $asset->category_id)
+                          ->orWhere('location_id', $asset->location_id)
+                          ->orWhere('department_id', $asset->department_id)
+                          ->orWhere('manufacturer', $asset->manufacturer)
+                          ->orWhere('parent_id', $asset->parent_id)
+                          ->orWhere('parent_id', $asset->id);
+                    });
+                    break;
+            }
+
+            // Load relationships
+            $relatedAssets = $query->with([
+                'category:id,name',
+                'assetType:id,name',
+                'assetStatus:id,name,color',
+                'department:id,name',
+                'location:id,name',
+                'company:id,name',
+                'tags:id,name',
+                'images:id,asset_id,image_path'
+            ])
+            ->orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get();
+
+            // Transform the data
+            $transformedAssets = $relatedAssets->map(function ($relatedAsset) {
+                return [
+                    'id' => $relatedAsset->id,
+                    'asset_id' => $relatedAsset->asset_id,
+                    'name' => $relatedAsset->name,
+                    'description' => $relatedAsset->description,
+                    'serial_number' => $relatedAsset->serial_number,
+                    'model' => $relatedAsset->model,
+                    'manufacturer' => $relatedAsset->manufacturer,
+                    'purchase_price' => $relatedAsset->purchase_price,
+                    'health_score' => $relatedAsset->health_score,
+                    'status' => $relatedAsset->status,
+                    'created_at' => $relatedAsset->created_at,
+                    'updated_at' => $relatedAsset->updated_at,
+                    'category' => $relatedAsset->category ? [
+                        'id' => $relatedAsset->category->id,
+                        'name' => $relatedAsset->category->name,
+                    ] : null,
+                    'asset_type' => $relatedAsset->assetType ? [
+                        'id' => $relatedAsset->assetType->id,
+                        'name' => $relatedAsset->assetType->name,
+                    ] : null,
+                    'asset_status' => $relatedAsset->assetStatus ? [
+                        'id' => $relatedAsset->assetStatus->id,
+                        'name' => $relatedAsset->assetStatus->name,
+                        'color' => $relatedAsset->assetStatus->color,
+                    ] : null,
+                    'department' => $relatedAsset->department ? [
+                        'id' => $relatedAsset->department->id,
+                        'name' => $relatedAsset->department->name,
+                    ] : null,
+                    'location' => $relatedAsset->location ? [
+                        'id' => $relatedAsset->location->id,
+                        'name' => $relatedAsset->location->name,
+                    ] : null,
+                    'company' => $relatedAsset->company ? [
+                        'id' => $relatedAsset->company->id,
+                        'name' => $relatedAsset->company->name,
+                    ] : null,
+                    'tags' => $relatedAsset->tags->map(function ($tag) {
+                        return [
+                            'id' => $tag->id,
+                            'name' => $tag->name,
+                        ];
+                    }),
+                    'images' => $relatedAsset->images->map(function ($image) {
+                        return [
+                            'id' => $image->id,
+                            'image_path' => $image->image_path,
+                            'image_url' => \Storage::disk('public')->url($image->image_path),
+                        ];
+                    }),
+                    'qr_code_url' => $relatedAsset->quick_chart_qr_url,
+                    'barcode_url' => $this->buildBarcodeUrl($relatedAsset->asset_id, 'code128', 200, 80),
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'current_asset' => [
+                        'id' => $asset->id,
+                        'name' => $asset->name,
+                        'asset_id' => $asset->asset_id,
+                    ],
+                    'related_assets' => $transformedAssets,
+                    'total_count' => $relatedAssets->count(),
+                    'filter_type' => $type,
+                    'limit' => $limit,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get related assets: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
