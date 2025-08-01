@@ -2124,26 +2124,25 @@ class AssetController extends Controller
         // Use Barcode.tec-it.com API which is more reliable for barcodes
         $baseUrl = 'https://barcode.tec-it.com/barcode.ashx';
         
-        $params = [
-            'data' => $text,
-            'code' => $type,
-            'multiplebarcodes' => 'false',
-            'translate-esc' => 'false',
-            'unit' => 'Fit',
-            'dpi' => '96',
-            'imagetype' => 'Png',
-            'rotation' => '0',
-            'color' => '%23000000',
-            'bgcolor' => '%23ffffff',
-            'codepage' => 'Default',
-            'qunit' => '0',
-            'quiet' => '0',
-            'hidehrt' => 'False',
-            'width' => $width,
-            'height' => $height,
-        ];
+        // Build URL manually to avoid double encoding issues
+        $url = $baseUrl . '?data=' . urlencode($text) . 
+               '&code=' . urlencode($type) . 
+               '&multiplebarcodes=false' .
+               '&translate-esc=false' .
+               '&unit=Fit' .
+               '&dpi=96' .
+               '&imagetype=Png' .
+               '&rotation=0' .
+               '&color=%23000000' .
+               '&bgcolor=%23ffffff' .
+               '&codepage=Default' .
+               '&qunit=0' .
+               '&quiet=0' .
+               '&hidehrt=False' .
+               '&width=' . $width .
+               '&height=' . $height;
 
-        return $baseUrl . '?' . http_build_query($params);
+        return $url;
     }
 
     /**
