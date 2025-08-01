@@ -1477,7 +1477,12 @@ class AssetController extends Controller
         $activeAssets = Asset::where('company_id', $companyId)->where('status', 'active')->count();
         $inactiveAssets = Asset::where('company_id', $companyId)->where('status', '!=', 'active')->count();
         
-        // Maintenance statistics
+        // Maintenance count - assets with status "Maintenance" (asset_status_id = 2)
+        $maintenanceAssets = Asset::where('company_id', $companyId)
+            ->where('asset_status_id', 2) // Maintenance status
+            ->count();
+        
+        // Maintenance schedules statistics
         $maintenanceSchedules = \App\Models\AssetMaintenanceSchedule::whereHas('asset', function($q) use ($companyId) {
             $q->where('company_id', $companyId);
         });
@@ -1496,11 +1501,12 @@ class AssetController extends Controller
         $totalHealth = Asset::where('company_id', $companyId)->sum('health_score');
         $averageHealth = $totalAssets > 0 ? round($totalHealth / $totalAssets, 2) : 0;
         
-        // Status breakdown
+        // Status breakdown using asset_status_id
         $statusBreakdown = Asset::where('company_id', $companyId)
-            ->selectRaw('status, COUNT(*) as count')
-            ->groupBy('status')
-            ->pluck('count', 'status')
+            ->join('asset_statuses', 'assets.asset_status_id', '=', 'asset_statuses.id')
+            ->selectRaw('asset_statuses.name, COUNT(*) as count')
+            ->groupBy('asset_statuses.id', 'asset_statuses.name')
+            ->pluck('count', 'name')
             ->toArray();
         
         // Category breakdown
@@ -1521,6 +1527,7 @@ class AssetController extends Controller
                 
                 // Maintenance statistics
                 'maintenance' => [
+                    'assets_under_maintenance' => $maintenanceAssets, // Assets with status "Maintenance"
                     'total_schedules' => $totalMaintenanceSchedules,
                     'active_schedules' => $activeMaintenanceSchedules,
                     'overdue_schedules' => $overdueMaintenanceSchedules,
@@ -1537,7 +1544,7 @@ class AssetController extends Controller
                 'category_breakdown' => $categoryBreakdown,
                 
                 // Legacy field for backward compatibility
-                'maintenance_count' => $activeMaintenanceSchedules,
+                'maintenance_count' => $maintenanceAssets, // Now correctly shows assets under maintenance
             ]
         ]);
     }
@@ -1569,7 +1576,13 @@ class AssetController extends Controller
         // Basic asset counts (only active assets for public API)
         $totalAssets = Asset::where('company_id', $companyId)->where('status', 'active')->count();
         
-        // Maintenance statistics
+        // Maintenance count - assets with status "Maintenance" (asset_status_id = 2) but still active
+        $maintenanceAssets = Asset::where('company_id', $companyId)
+            ->where('status', 'active')
+            ->where('asset_status_id', 2) // Maintenance status
+            ->count();
+        
+        // Maintenance schedules statistics
         $maintenanceSchedules = \App\Models\AssetMaintenanceSchedule::whereHas('asset', function($q) use ($companyId) {
             $q->where('company_id', $companyId)->where('status', 'active');
         });
@@ -1604,6 +1617,7 @@ class AssetController extends Controller
                 'company_id' => $companyId,
                 'total_assets' => $totalAssets,
                 'maintenance' => [
+                    'assets_under_maintenance' => $maintenanceAssets, // Assets with status "Maintenance"
                     'total_schedules' => $totalMaintenanceSchedules,
                     'active_schedules' => $activeMaintenanceSchedules,
                     'overdue_schedules' => $overdueMaintenanceSchedules,

@@ -126,22 +126,28 @@ function testDatabaseQueries() {
     echo "This section would test database queries directly.\n";
     echo "You can run these queries in your database to verify data:\n\n";
     
-    echo "1. Check if maintenance schedules exist:\n";
+    echo "1. Check assets under maintenance (asset_status_id = 2):\n";
+    echo "   SELECT COUNT(*) as assets_under_maintenance FROM assets WHERE asset_status_id = 2;\n\n";
+    
+    echo "2. Check assets by status:\n";
+    echo "   SELECT ast.name as status_name, COUNT(*) as count\n";
+    echo "   FROM assets a\n";
+    echo "   JOIN asset_statuses ast ON a.asset_status_id = ast.id\n";
+    echo "   GROUP BY ast.id, ast.name;\n\n";
+    
+    echo "3. Check if maintenance schedules exist:\n";
     echo "   SELECT COUNT(*) as total_schedules FROM asset_maintenance_schedules;\n\n";
     
-    echo "2. Check maintenance schedules by status:\n";
+    echo "4. Check maintenance schedules by status:\n";
     echo "   SELECT status, COUNT(*) as count FROM asset_maintenance_schedules GROUP BY status;\n\n";
     
-    echo "3. Check maintenance schedules with asset info:\n";
-    echo "   SELECT ams.id, ams.status, ams.schedule_type, a.name as asset_name, a.company_id\n";
-    echo "   FROM asset_maintenance_schedules ams\n";
-    echo "   JOIN assets a ON ams.asset_id = a.id\n";
-    echo "   LIMIT 10;\n\n";
-    
-    echo "4. Check assets with maintenance schedules:\n";
-    echo "   SELECT COUNT(*) as assets_with_maintenance\n";
+    echo "5. Check assets with maintenance status and schedules:\n";
+    echo "   SELECT a.id, a.name, ast.name as status_name, \n";
+    echo "          (SELECT COUNT(*) FROM asset_maintenance_schedules ams WHERE ams.asset_id = a.id) as schedule_count\n";
     echo "   FROM assets a\n";
-    echo "   WHERE EXISTS (SELECT 1 FROM asset_maintenance_schedules ams WHERE ams.asset_id = a.id);\n";
+    echo "   JOIN asset_statuses ast ON a.asset_status_id = ast.id\n";
+    echo "   WHERE a.asset_status_id = 2\n";
+    echo "   LIMIT 10;\n";
 }
 
 /**
@@ -196,6 +202,7 @@ function printStatisticsResponse($response) {
             if (isset($stats['maintenance'])) {
                 echo "\n🔧 Maintenance Statistics:\n";
                 $maintenance = $stats['maintenance'];
+                echo "   Assets Under Maintenance: " . ($maintenance['assets_under_maintenance'] ?? 'N/A') . "\n";
                 echo "   Total Schedules: " . ($maintenance['total_schedules'] ?? 'N/A') . "\n";
                 echo "   Active Schedules: " . ($maintenance['active_schedules'] ?? 'N/A') . "\n";
                 echo "   Overdue Schedules: " . ($maintenance['overdue_schedules'] ?? 'N/A') . "\n";
