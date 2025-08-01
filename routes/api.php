@@ -96,6 +96,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('assets/{asset}/restore', [AssetController::class, 'restore']);
     Route::post('assets/bulk-restore', [AssetController::class, 'bulkRestore']);
     Route::get('assets/{asset}/qr-code', [AssetController::class, 'qrCode']);
+    Route::get('assets/{asset}/barcode', [AssetController::class, 'barcode']);
+    Route::get('assets/barcode-types', [AssetController::class, 'barcodeTypes']);
 
     // Debug route for transfer validation
     Route::post('assets/debug-transfer-validation', [AssetController::class, 'debugTransferValidation']);

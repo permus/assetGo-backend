@@ -129,6 +129,7 @@ class AssetController extends Controller
         $assetArray = $asset->toArray();
         $assetArray['qr_code_url'] = $asset->qr_code_path ? \Storage::disk('public')->url($asset->qr_code_path) : null;
         $assetArray['quick_chart_qr_url'] = $asset->quick_chart_qr_url;
+        $assetArray['barcode_url'] = $this->buildBarcodeUrl($asset->asset_id, 'code128', 300, 100);
 
         return response()->json([
             'success' => true,
@@ -2047,5 +2048,111 @@ class AssetController extends Controller
                 'asset_name' => $asset->name
             ]
         ]);
+    }
+
+    /**
+     * Generate barcode for an asset using asset_id
+     * Route: GET /api/assets/{asset}/barcode
+     */
+    public function barcode(Request $request, Asset $asset)
+    {
+        try {
+            // Check if user has access to this asset
+            if ($asset->company_id !== $request->user()->company_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Access denied'
+                ], 403);
+            }
+
+            $type = $request->get('type', 'code128');
+            $width = $request->get('width', 300);
+            $height = $request->get('height', 100);
+
+            // Build QuickChart.io URL for barcode
+            $barcodeUrl = $this->buildBarcodeUrl($asset->asset_id, $type, $width, $height);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'asset_id' => $asset->id,
+                    'asset_name' => $asset->name,
+                    'asset_identifier' => $asset->asset_id,
+                    'barcode_type' => $type,
+                    'barcode_url' => $barcodeUrl,
+                    'width' => $width,
+                    'height' => $height,
+                    'available_types' => $this->getAvailableBarcodeTypes()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate barcode: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get available barcode types
+     * Route: GET /api/assets/barcode-types
+     */
+    public function barcodeTypes()
+    {
+        try {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'barcode_types' => $this->getAvailableBarcodeTypes()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get barcode types: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Build QuickChart.io URL for barcode generation
+     */
+    private function buildBarcodeUrl($text, $type = 'code128', $width = 300, $height = 100)
+    {
+        $baseUrl = 'https://quickchart.io/barcode';
+        
+        $params = [
+            'c' => $text,
+            'chs' => $width . 'x' . $height,
+            'chld' => 'L|0', // Error correction level and margin
+            'choe' => 'UTF-8', // Output encoding
+        ];
+
+        // Add barcode type parameter if not code128 (default)
+        if ($type !== 'code128') {
+            $params['cht'] = $type;
+        }
+
+        return $baseUrl . '?' . http_build_query($params);
+    }
+
+    /**
+     * Get available barcode types
+     */
+    private function getAvailableBarcodeTypes()
+    {
+        return [
+            'code128' => 'Code 128 (Most common, supports alphanumeric)',
+            'code39' => 'Code 39 (Alphanumeric, widely used)',
+            'ean13' => 'EAN-13 (13-digit product codes)',
+            'ean8' => 'EAN-8 (8-digit product codes)',
+            'upca' => 'UPC-A (12-digit product codes)',
+            'upce' => 'UPC-E (6-digit product codes)',
+            'itf14' => 'ITF-14 (14-digit shipping codes)',
+            'datamatrix' => 'Data Matrix (2D barcode)',
+            'qr' => 'QR Code (2D barcode)',
+        ];
     }
 }
