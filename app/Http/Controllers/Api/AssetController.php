@@ -155,7 +155,7 @@ class AssetController extends Controller
             $assetData['company_id'] = $request->user()->company_id;
             $assetData['user_id'] = $request->user()->id;
             $assetData['asset_id'] = $assetId;
-            $assetData['status'] = $data['status'] ?? 'active';
+            $assetData['status'] = $data['status'] ?? null;
             $asset = Asset::create($assetData);
 
             // Handle tags
@@ -1488,7 +1488,7 @@ class AssetController extends Controller
         $totalHealth = Asset::where('company_id', $companyId)->sum('health_score');
         $averageHealth = $totalAssets > 0 ? round($totalHealth / $totalAssets, 2) : 0;
 
-        
+
 
         // Category breakdown
         $categoryBreakdown = Asset::where('company_id', $companyId)

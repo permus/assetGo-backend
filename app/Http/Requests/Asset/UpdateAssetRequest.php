@@ -33,7 +33,7 @@ class UpdateAssetRequest extends FormRequest
             'warranty' => 'nullable|string|max:255',
             'insurance' => 'nullable|string|max:255',
             'health_score' => 'nullable|numeric|min:0|max:100',
-            'status' => 'nullable|string|max:50',
+            'status' => 'nullable',
             'tags' => 'nullable|array',
             'tags.*' => 'string|max:255',
             'images' => 'nullable|array',
