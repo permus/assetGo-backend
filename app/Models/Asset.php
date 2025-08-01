@@ -93,7 +93,7 @@ class Asset extends Model
 
     public function assetStatus()
     {
-        return $this->belongsTo(AssetStatus::class, 'status', 'name');
+        return $this->belongsTo(AssetStatus::class, 'status', 'id');
     }
 
     public function department()
@@ -220,4 +220,4 @@ class Asset extends Model
     {
         return $this->hasMany(AssetMaintenanceSchedule::class);
     }
-} 
+}
