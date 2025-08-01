@@ -2123,17 +2123,15 @@ class AssetController extends Controller
     {
         $baseUrl = 'https://quickchart.io/barcode';
         
+        // For QuickChart.io barcode API, we need to specify the type in the URL
+        if ($type !== 'code128') {
+            $baseUrl .= '/' . $type;
+        }
+        
         $params = [
             'c' => $text,
             'chs' => $width . 'x' . $height,
-            'chld' => 'L|0', // Error correction level and margin
-            'choe' => 'UTF-8', // Output encoding
         ];
-
-        // Add barcode type parameter if not code128 (default)
-        if ($type !== 'code128') {
-            $params['cht'] = $type;
-        }
 
         return $baseUrl . '?' . http_build_query($params);
     }
