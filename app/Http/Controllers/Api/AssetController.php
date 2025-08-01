@@ -1471,22 +1471,147 @@ class AssetController extends Controller
     public function statistics(Request $request)
     {
         $companyId = $request->user()->company_id;
+        
+        // Basic asset counts
         $totalAssets = Asset::where('company_id', $companyId)->count();
         $activeAssets = Asset::where('company_id', $companyId)->where('status', 'active')->count();
-        $maintenanceCount = \App\Models\AssetMaintenanceSchedule::whereHas('asset', function($q) use ($companyId) {
-            $q->withTrashed()->where('company_id', $companyId);
-        })->where('status', 'active')->count();
+        $inactiveAssets = Asset::where('company_id', $companyId)->where('status', '!=', 'active')->count();
+        
+        // Maintenance statistics
+        $maintenanceSchedules = \App\Models\AssetMaintenanceSchedule::whereHas('asset', function($q) use ($companyId) {
+            $q->where('company_id', $companyId);
+        });
+        
+        $totalMaintenanceSchedules = $maintenanceSchedules->count();
+        $activeMaintenanceSchedules = $maintenanceSchedules->where('status', 'active')->count();
+        $overdueMaintenanceSchedules = $maintenanceSchedules->where('next_due', '<', now())->count();
+        
+        // Assets with maintenance schedules
+        $assetsWithMaintenance = Asset::where('company_id', $companyId)
+            ->whereHas('maintenanceSchedules')
+            ->count();
+        
+        // Financial statistics
         $totalValue = Asset::where('company_id', $companyId)->sum('purchase_price');
         $totalHealth = Asset::where('company_id', $companyId)->sum('health_score');
+        $averageHealth = $totalAssets > 0 ? round($totalHealth / $totalAssets, 2) : 0;
+        
+        // Status breakdown
+        $statusBreakdown = Asset::where('company_id', $companyId)
+            ->selectRaw('status, COUNT(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
+        
+        // Category breakdown
+        $categoryBreakdown = Asset::where('company_id', $companyId)
+            ->join('asset_categories', 'assets.category_id', '=', 'asset_categories.id')
+            ->selectRaw('asset_categories.name, COUNT(*) as count')
+            ->groupBy('asset_categories.id', 'asset_categories.name')
+            ->pluck('count', 'name')
+            ->toArray();
 
         return response()->json([
             'success' => true,
             'data' => [
+                // Basic counts
                 'total_assets' => $totalAssets,
                 'active_assets' => $activeAssets,
-                'maintenance' => $maintenanceCount,
+                'inactive_assets' => $inactiveAssets,
+                
+                // Maintenance statistics
+                'maintenance' => [
+                    'total_schedules' => $totalMaintenanceSchedules,
+                    'active_schedules' => $activeMaintenanceSchedules,
+                    'overdue_schedules' => $overdueMaintenanceSchedules,
+                    'assets_with_maintenance' => $assetsWithMaintenance,
+                ],
+                
+                // Financial statistics
                 'total_asset_value' => $totalValue,
                 'total_asset_health' => $totalHealth,
+                'average_health_score' => $averageHealth,
+                
+                // Breakdowns
+                'status_breakdown' => $statusBreakdown,
+                'category_breakdown' => $categoryBreakdown,
+                
+                // Legacy field for backward compatibility
+                'maintenance_count' => $activeMaintenanceSchedules,
+            ]
+        ]);
+    }
+
+    /**
+     * Public API to get asset statistics
+     * Route: GET /api/assets/public/statistics
+     */
+    public function publicStatistics(Request $request)
+    {
+        // Filter by company if provided
+        $companyId = null;
+        if ($request->filled('company_id')) {
+            $companyId = $request->company_id;
+        } elseif ($request->filled('company_slug')) {
+            $company = \App\Models\Company::where('slug', $request->company_slug)->first();
+            if ($company) {
+                $companyId = $company->id;
+            }
+        }
+        
+        if (!$companyId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Company ID or slug is required'
+            ], 400);
+        }
+        
+        // Basic asset counts (only active assets for public API)
+        $totalAssets = Asset::where('company_id', $companyId)->where('status', 'active')->count();
+        
+        // Maintenance statistics
+        $maintenanceSchedules = \App\Models\AssetMaintenanceSchedule::whereHas('asset', function($q) use ($companyId) {
+            $q->where('company_id', $companyId)->where('status', 'active');
+        });
+        
+        $totalMaintenanceSchedules = $maintenanceSchedules->count();
+        $activeMaintenanceSchedules = $maintenanceSchedules->where('status', 'active')->count();
+        $overdueMaintenanceSchedules = $maintenanceSchedules->where('next_due', '<', now())->count();
+        
+        // Assets with maintenance schedules
+        $assetsWithMaintenance = Asset::where('company_id', $companyId)
+            ->where('status', 'active')
+            ->whereHas('maintenanceSchedules')
+            ->count();
+        
+        // Financial statistics
+        $totalValue = Asset::where('company_id', $companyId)->where('status', 'active')->sum('purchase_price');
+        $totalHealth = Asset::where('company_id', $companyId)->where('status', 'active')->sum('health_score');
+        $averageHealth = $totalAssets > 0 ? round($totalHealth / $totalAssets, 2) : 0;
+        
+        // Category breakdown
+        $categoryBreakdown = Asset::where('company_id', $companyId)
+            ->where('status', 'active')
+            ->join('asset_categories', 'assets.category_id', '=', 'asset_categories.id')
+            ->selectRaw('asset_categories.name, COUNT(*) as count')
+            ->groupBy('asset_categories.id', 'asset_categories.name')
+            ->pluck('count', 'name')
+            ->toArray();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'company_id' => $companyId,
+                'total_assets' => $totalAssets,
+                'maintenance' => [
+                    'total_schedules' => $totalMaintenanceSchedules,
+                    'active_schedules' => $activeMaintenanceSchedules,
+                    'overdue_schedules' => $overdueMaintenanceSchedules,
+                    'assets_with_maintenance' => $assetsWithMaintenance,
+                ],
+                'total_asset_value' => $totalValue,
+                'average_health_score' => $averageHealth,
+                'category_breakdown' => $categoryBreakdown,
             ]
         ]);
     }

@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\DepartmentController;
 
 // Public asset routes
 Route::get('/assets/{id}/public', [AssetController::class, 'publicShow']);
+Route::get('/assets/public/statistics', [AssetController::class, 'publicStatistics']);
 
 
 // Public routes
