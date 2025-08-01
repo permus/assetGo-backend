@@ -2117,20 +2117,30 @@ class AssetController extends Controller
     }
 
     /**
-     * Build QuickChart.io URL for barcode generation
+     * Build barcode URL using a reliable barcode service
      */
     private function buildBarcodeUrl($text, $type = 'code128', $width = 300, $height = 100)
     {
-        $baseUrl = 'https://quickchart.io/barcode';
-        
-        // For QuickChart.io barcode API, we need to specify the type in the URL
-        if ($type !== 'code128') {
-            $baseUrl .= '/' . $type;
-        }
+        // Use Barcode.tec-it.com API which is more reliable for barcodes
+        $baseUrl = 'https://barcode.tec-it.com/barcode.ashx';
         
         $params = [
-            'c' => $text,
-            'chs' => $width . 'x' . $height,
+            'data' => $text,
+            'code' => $type,
+            'multiplebarcodes' => 'false',
+            'translate-esc' => 'false',
+            'unit' => 'Fit',
+            'dpi' => '96',
+            'imagetype' => 'Png',
+            'rotation' => '0',
+            'color' => '%23000000',
+            'bgcolor' => '%23ffffff',
+            'codepage' => 'Default',
+            'qunit' => '0',
+            'quiet' => '0',
+            'hidehrt' => 'False',
+            'width' => $width,
+            'height' => $height,
         ];
 
         return $baseUrl . '?' . http_build_query($params);
