@@ -1488,13 +1488,7 @@ class AssetController extends Controller
         $totalHealth = Asset::where('company_id', $companyId)->sum('health_score');
         $averageHealth = $totalAssets > 0 ? round($totalHealth / $totalAssets, 2) : 0;
 
-        // Status breakdown using asset_status_id
-        $statusBreakdown = Asset::where('company_id', $companyId)
-            ->join('asset_statuses', 'assets.asset_status_id', '=', 'asset_statuses.id')
-            ->selectRaw('asset_statuses.name, COUNT(*) as count')
-            ->groupBy('asset_statuses.id', 'asset_statuses.name')
-            ->pluck('count', 'name')
-            ->toArray();
+        
 
         // Category breakdown
         $categoryBreakdown = Asset::where('company_id', $companyId)
@@ -1521,7 +1515,6 @@ class AssetController extends Controller
                 'average_health_score' => $averageHealth,
 
                 // Breakdowns
-                'status_breakdown' => $statusBreakdown,
                 'category_breakdown' => $categoryBreakdown,
 
                 // Legacy field for backward compatibility
