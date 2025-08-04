@@ -2341,4 +2341,101 @@ class AssetController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get asset chart data (depreciation chart)
+     * Route: GET /api/assets/{asset}/chart-data
+     */
+    public function chartData(Request $request, Asset $asset)
+    {
+        try {
+            // Check if user has access to this asset
+            if ($asset->company_id !== $request->user()->company_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Access denied'
+                ], 403);
+            }
+
+            // Calculate asset chart
+            $depreciationMonths = [];
+            $depreciationValues = [];
+            $currentIndex = '';
+
+            if (
+                is_numeric($asset->purchase_price) &&
+                is_numeric($asset->depreciation) &&
+                is_numeric($asset->depreciation_life) &&
+                $asset->depreciation_life > 0
+            ) {
+                $purchaseDate = date('Y-m', strtotime($asset->created_at));
+
+                // Ensure asset life is at least 1 to prevent division by zero
+                $lifeInMonths = max(1, $asset->depreciation_life - 1);
+
+                $startDate = strtotime($purchaseDate);
+                $endDate = strtotime("+$lifeInMonths months", $startDate);
+
+                $depreciationPerMonth = ($asset->purchase_price - $asset->depreciation) / $lifeInMonths;
+                $remainingValue = $asset->purchase_price;
+
+                $depreciationValues[] = $remainingValue;
+                $depreciationMonths[] = 1;
+
+                $index = 2;
+                $monthIndex = 0;
+
+                while ($startDate < $endDate) {
+                    // Track current month index
+                    if (date('Y-m') === date('Y-m', $startDate)) {
+                        $currentIndex = $monthIndex;
+                    }
+
+                    $remainingValue -= $depreciationPerMonth;
+
+                    $depreciationMonths[] = $index;
+                    $depreciationValues[] = $remainingValue;
+
+                    $startDate = strtotime('+1 month', $startDate);
+                    $index++;
+                    $monthIndex++;
+                }
+
+                // If asset life has ended, set index to last
+                if (time() > $endDate) {
+                    $currentIndex = $monthIndex;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'asset' => [
+                        'id' => $asset->id,
+                        'name' => $asset->name,
+                        'asset_id' => $asset->asset_id,
+                        'purchase_price' => $asset->purchase_price,
+                        'depreciation' => $asset->depreciation,
+                        'depreciation_life' => $asset->depreciation_life,
+                        'created_at' => $asset->created_at,
+                    ],
+                    'chart_data' => [
+                        'depreciation_months' => $depreciationMonths,
+                        'depreciation_values' => $depreciationValues,
+                        'current_index' => $currentIndex,
+                        'has_data' => !empty($depreciationMonths),
+                        'total_months' => count($depreciationMonths),
+                        'depreciation_per_month' => isset($depreciationPerMonth) ? $depreciationPerMonth : null,
+                        'life_in_months' => isset($lifeInMonths) ? $lifeInMonths : null,
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get chart data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

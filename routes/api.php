@@ -99,6 +99,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('assets/{asset}/barcode', [AssetController::class, 'barcode']);
     Route::get('assets/barcode-types', [AssetController::class, 'barcodeTypes']);
     Route::get('assets/{asset}/related', [AssetController::class, 'relatedAssets']);
+    Route::get('assets/{asset}/chart-data', [AssetController::class, 'chartData']);
 
     // Debug route for transfer validation
     Route::post('assets/debug-transfer-validation', [AssetController::class, 'debugTransferValidation']);

@@ -22,6 +22,7 @@ class Asset extends Model
         'purchase_date',
         'purchase_price',
         'depreciation',
+        'depreciation_life',
         'location_id',
         'department_id',
         'user_id',
@@ -38,6 +39,7 @@ class Asset extends Model
         'purchase_date' => 'date',
         'purchase_price' => 'decimal:2',
         'depreciation' => 'decimal:2',
+        'depreciation_life' => 'integer',
         'health_score' => 'decimal:2',
     ];
 

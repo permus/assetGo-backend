@@ -24,6 +24,7 @@ class StoreAssetRequest extends FormRequest
             'purchase_date' => 'nullable|date|before_or_equal:today',
             'purchase_price' => 'nullable|numeric|min:0.01',
             'depreciation' => 'nullable|numeric',
+            'depreciation_life' => 'nullable|integer|min:1',
             'location_id' => 'nullable|exists:locations,id',
             'department_id' => 'nullable|integer',
             'parent_id' => 'nullable|exists:assets,id',
