@@ -127,6 +127,8 @@ class User extends Authenticatable implements MustVerifyEmail
         return $permissions;
     }
 
+
+
     /**
      * Send the password reset notification.
      *

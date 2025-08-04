@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\AssetTypeController;
 use App\Http\Controllers\Api\AssetStatusController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\TeamController;
 
 /*
 |--------------------------------------------------------------------------
@@ -95,6 +96,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('roles/available-permissions', [RoleController::class, 'getAvailablePermissions']);
     Route::post('roles/assign-to-user', [RoleController::class, 'assignToUser']);
     Route::post('roles/remove-from-user', [RoleController::class, 'removeFromUser']);
+
+    // Team routes (team members are users with user_type = 'team')
+    Route::apiResource('teams', TeamController::class);
+    Route::post('teams/{id}/resend-invitation', [TeamController::class, 'resendInvitation']);
+    Route::get('teams/statistics', [TeamController::class, 'statistics']);
+    Route::get('teams/available-roles', [TeamController::class, 'getAvailableRoles']);
 
     // Custom asset endpoints
     Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);

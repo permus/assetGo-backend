@@ -11,6 +11,8 @@ use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Models\User;
 use App\Models\Company;
+use App\Models\Role;
+use App\Models\Permission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -35,7 +37,7 @@ class AuthController extends Controller
                 'last_name' => $request->last_name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'user_type' => $request->user_type ?? 'admin',
+                'user_type' => $request->user_type ?? 'owner',
                 'created_by' => 0,
             ]);
 
@@ -49,6 +51,9 @@ class AuthController extends Controller
 
             // Update user with company_id
             $user->update(['company_id' => $company->id]);
+
+            // Create default roles for the company
+            $this->createDefaultRoles($company);
 
             // Send email verification notification
             $user->sendEmailVerificationNotification();
@@ -96,14 +101,89 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        // Get user permissions based on user type
+        $permissions = [];
+        if ($user->user_type === 'team') {
+            // For team users, get permissions from their roles
+            $permissions = $user->getAllPermissions();
+        } else {
+            // For company users (owners, etc.), return all permissions as true
+            $permissions = [
+                'assets' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'locations' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'work_orders' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'teams' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'maintenance' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'inventory' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'sensors' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'ai_features' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'reports' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+            ];
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
             'data' => [
-                'user' => $user->load('company'),
+                'user' => $user->load(['company', 'roles.permissions']),
                 'token' => $token,
                 'token_type' => 'Bearer',
-                'email_verified' => true
+                'email_verified' => true,
+                'permissions' => $permissions
             ]
         ]);
     }
@@ -320,5 +400,234 @@ class AuthController extends Controller
             'success' => true,
             'message' => 'Verification email sent to your email address'
         ]);
+    }
+
+    /**
+     * Create default roles for a company
+     */
+    private function createDefaultRoles(Company $company): void
+    {
+        $defaultRoles = [
+            [
+                'name' => 'Admin',
+                'description' => 'Full access to all features and settings',
+                'permissions' => [
+                    'assets' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => true,
+                        'can_export' => true,
+                    ],
+                    'locations' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => true,
+                        'can_export' => true,
+                    ],
+                    'work_orders' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => true,
+                        'can_export' => true,
+                    ],
+                    'teams' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => true,
+                        'can_export' => true,
+                    ],
+                    'maintenance' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => true,
+                        'can_export' => true,
+                    ],
+                    'inventory' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => true,
+                        'can_export' => true,
+                    ],
+                    'sensors' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => true,
+                        'can_export' => true,
+                    ],
+                    'ai_features' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => true,
+                        'can_export' => true,
+                    ],
+                    'reports' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => true,
+                        'can_export' => true,
+                    ],
+                ]
+            ],
+            [
+                'name' => 'Technician',
+                'description' => 'Can view and edit assets, locations, and work orders',
+                'permissions' => [
+                    'assets' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => false,
+                        'can_export' => true,
+                    ],
+                    'locations' => [
+                        'can_view' => true,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'work_orders' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'teams' => [
+                        'can_view' => true,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'maintenance' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'inventory' => [
+                        'can_view' => true,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'sensors' => [
+                        'can_view' => true,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'ai_features' => [
+                        'can_view' => true,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'reports' => [
+                        'can_view' => true,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                ]
+            ],
+            [
+                'name' => 'User',
+                'description' => 'Basic access to view assets and locations',
+                'permissions' => [
+                    'assets' => [
+                        'can_view' => true,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'locations' => [
+                        'can_view' => true,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'work_orders' => [
+                        'can_view' => false,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'teams' => [
+                        'can_view' => false,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'maintenance' => [
+                        'can_view' => false,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'inventory' => [
+                        'can_view' => false,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'sensors' => [
+                        'can_view' => false,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'ai_features' => [
+                        'can_view' => false,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'reports' => [
+                        'can_view' => false,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                ]
+            ],
+        ];
+
+        foreach ($defaultRoles as $roleData) {
+            $role = Role::create([
+                'name' => $roleData['name'],
+                'description' => $roleData['description'],
+                'company_id' => $company->id,
+            ]);
+
+            Permission::create([
+                'role_id' => $role->id,
+                'permissions' => $roleData['permissions'],
+            ]);
+        }
     }
 }
