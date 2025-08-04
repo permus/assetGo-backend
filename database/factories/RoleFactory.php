@@ -38,27 +38,14 @@ class RoleFactory extends Factory
     }
 
     /**
-     * Create an administrator role
+     * Create an admin role
      */
-    public function administrator(): static
+    public function admin(): static
     {
         return $this->state(function (array $attributes) {
             return [
-                'name' => 'Administrator',
+                'name' => 'Admin',
                 'description' => 'Full access to all features and settings',
-            ];
-        });
-    }
-
-    /**
-     * Create a manager role
-     */
-    public function manager(): static
-    {
-        return $this->state(function (array $attributes) {
-            return [
-                'name' => 'Manager',
-                'description' => 'Can manage assets and locations, limited user management',
             ];
         });
     }
@@ -71,20 +58,20 @@ class RoleFactory extends Factory
         return $this->state(function (array $attributes) {
             return [
                 'name' => 'Technician',
-                'description' => 'Can view and edit assets, limited location access',
+                'description' => 'Can view and edit assets, locations, and work orders',
             ];
         });
     }
 
     /**
-     * Create a viewer role
+     * Create a user role
      */
-    public function viewer(): static
+    public function user(): static
     {
         return $this->state(function (array $attributes) {
             return [
-                'name' => 'Viewer',
-                'description' => 'Read-only access to assets and locations',
+                'name' => 'User',
+                'description' => 'Basic access to view assets and locations',
             ];
         });
     }

@@ -241,13 +241,7 @@ class RoleController extends Controller
     public function getAvailablePermissions(): JsonResponse
     {
         $permissions = [
-            'location' => [
-                'can_view' => false,
-                'can_create' => false,
-                'can_edit' => false,
-                'can_delete' => false,
-                'can_export' => false,
-            ],
+           
             'assets' => [
                 'can_view' => false,
                 'can_create' => false,
@@ -255,14 +249,49 @@ class RoleController extends Controller
                 'can_delete' => false,
                 'can_export' => false,
             ],
-            'users' => [
+            'locations' => [
                 'can_view' => false,
                 'can_create' => false,
                 'can_edit' => false,
                 'can_delete' => false,
                 'can_export' => false,
             ],
-            'roles' => [
+            'work_orders' => [
+                'can_view' => false,
+                'can_create' => false,
+                'can_edit' => false,
+                'can_delete' => false,
+                'can_export' => false,
+            ],
+            'teams' => [
+                'can_view' => false,
+                'can_create' => false,
+                'can_edit' => false,
+                'can_delete' => false,
+                'can_export' => false,
+            ],
+            'maintenance' => [
+                'can_view' => false,
+                'can_create' => false,
+                'can_edit' => false,
+                'can_delete' => false,
+                'can_export' => false,
+            ],
+            'inventory' => [
+                'can_view' => false,
+                'can_create' => false,
+                'can_edit' => false,
+                'can_delete' => false,
+                'can_export' => false,
+            ],
+            'sensors' => [
+                'can_view' => false,
+                'can_create' => false,
+                'can_edit' => false,
+                'can_delete' => false,
+                'can_export' => false,
+            ],
+            'ai_features' => [
                 'can_view' => false,
                 'can_create' => false,
                 'can_edit' => false,
@@ -276,6 +305,7 @@ class RoleController extends Controller
                 'can_delete' => false,
                 'can_export' => false,
             ],
+          
         ];
 
         return response()->json([

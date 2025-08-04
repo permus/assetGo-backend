@@ -30,16 +30,9 @@ class RoleSeeder extends Seeder
     {
         $roles = [
             [
-                'name' => 'Administrator',
+                'name' => 'Admin',
                 'description' => 'Full access to all features and settings',
                 'permissions' => [
-                    'location' => [
-                        'can_view' => true,
-                        'can_create' => true,
-                        'can_edit' => true,
-                        'can_delete' => true,
-                        'can_export' => true,
-                    ],
                     'assets' => [
                         'can_view' => true,
                         'can_create' => true,
@@ -47,14 +40,49 @@ class RoleSeeder extends Seeder
                         'can_delete' => true,
                         'can_export' => true,
                     ],
-                    'users' => [
+                    'locations' => [
                         'can_view' => true,
                         'can_create' => true,
                         'can_edit' => true,
                         'can_delete' => true,
                         'can_export' => true,
                     ],
-                    'roles' => [
+                    'work_orders' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => true,
+                        'can_export' => true,
+                    ],
+                    'teams' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => true,
+                        'can_export' => true,
+                    ],
+                    'maintenance' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => true,
+                        'can_export' => true,
+                    ],
+                    'inventory' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => true,
+                        'can_export' => true,
+                    ],
+                    'sensors' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => true,
+                        'can_export' => true,
+                    ],
+                    'ai_features' => [
                         'can_view' => true,
                         'can_create' => true,
                         'can_edit' => true,
@@ -68,60 +96,14 @@ class RoleSeeder extends Seeder
                         'can_delete' => true,
                         'can_export' => true,
                     ],
-                ]
-            ],
-            [
-                'name' => 'Manager',
-                'description' => 'Can manage assets and locations, limited user management',
-                'permissions' => [
-                    'location' => [
-                        'can_view' => true,
-                        'can_create' => true,
-                        'can_edit' => true,
-                        'can_delete' => false,
-                        'can_export' => true,
-                    ],
-                    'assets' => [
-                        'can_view' => true,
-                        'can_create' => true,
-                        'can_edit' => true,
-                        'can_delete' => false,
-                        'can_export' => true,
-                    ],
-                    'users' => [
-                        'can_view' => true,
-                        'can_create' => false,
-                        'can_edit' => false,
-                        'can_delete' => false,
-                        'can_export' => false,
-                    ],
-                    'roles' => [
-                        'can_view' => false,
-                        'can_create' => false,
-                        'can_edit' => false,
-                        'can_delete' => false,
-                        'can_export' => false,
-                    ],
-                    'reports' => [
-                        'can_view' => true,
-                        'can_create' => false,
-                        'can_edit' => false,
-                        'can_delete' => false,
-                        'can_export' => true,
-                    ],
+                    
                 ]
             ],
             [
                 'name' => 'Technician',
-                'description' => 'Can view and edit assets, limited location access',
+                'description' => 'Can view and edit assets, locations, and work orders',
                 'permissions' => [
-                    'location' => [
-                        'can_view' => true,
-                        'can_create' => false,
-                        'can_edit' => false,
-                        'can_delete' => false,
-                        'can_export' => false,
-                    ],
+                
                     'assets' => [
                         'can_view' => true,
                         'can_create' => false,
@@ -129,15 +111,50 @@ class RoleSeeder extends Seeder
                         'can_delete' => false,
                         'can_export' => false,
                     ],
-                    'users' => [
-                        'can_view' => false,
+                    'locations' => [
+                        'can_view' => true,
                         'can_create' => false,
                         'can_edit' => false,
                         'can_delete' => false,
                         'can_export' => false,
                     ],
-                    'roles' => [
-                        'can_view' => false,
+                    'work_orders' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'teams' => [
+                        'can_view' => true,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'maintenance' => [
+                        'can_view' => true,
+                        'can_create' => true,
+                        'can_edit' => true,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'inventory' => [
+                        'can_view' => true,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'sensors' => [
+                        'can_view' => true,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'ai_features' => [
+                        'can_view' => true,
                         'can_create' => false,
                         'can_edit' => false,
                         'can_delete' => false,
@@ -150,19 +167,14 @@ class RoleSeeder extends Seeder
                         'can_delete' => false,
                         'can_export' => false,
                     ],
+                   
                 ]
             ],
             [
-                'name' => 'Viewer',
-                'description' => 'Read-only access to assets and locations',
+                'name' => 'User',
+                'description' => 'Basic access to view assets and locations',
                 'permissions' => [
-                    'location' => [
-                        'can_view' => true,
-                        'can_create' => false,
-                        'can_edit' => false,
-                        'can_delete' => false,
-                        'can_export' => false,
-                    ],
+                    
                     'assets' => [
                         'can_view' => true,
                         'can_create' => false,
@@ -170,14 +182,49 @@ class RoleSeeder extends Seeder
                         'can_delete' => false,
                         'can_export' => false,
                     ],
-                    'users' => [
+                    'locations' => [
+                        'can_view' => true,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'work_orders' => [
                         'can_view' => false,
                         'can_create' => false,
                         'can_edit' => false,
                         'can_delete' => false,
                         'can_export' => false,
                     ],
-                    'roles' => [
+                    'teams' => [
+                        'can_view' => false,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'maintenance' => [
+                        'can_view' => false,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'inventory' => [
+                        'can_view' => false,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'sensors' => [
+                        'can_view' => false,
+                        'can_create' => false,
+                        'can_edit' => false,
+                        'can_delete' => false,
+                        'can_export' => false,
+                    ],
+                    'ai_features' => [
                         'can_view' => false,
                         'can_create' => false,
                         'can_edit' => false,
@@ -191,6 +238,7 @@ class RoleSeeder extends Seeder
                         'can_delete' => false,
                         'can_export' => false,
                     ],
+                
                 ]
             ],
         ];
