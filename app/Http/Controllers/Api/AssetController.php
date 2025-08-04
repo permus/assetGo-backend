@@ -2438,4 +2438,166 @@ class AssetController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get asset health & performance chart data
+     * Route: GET /api/assets/{asset}/health-performance-chart
+     */
+    public function healthPerformanceChart(Request $request, Asset $asset)
+    {
+        try {
+            // Check if user has access to this asset
+            if ($asset->company_id !== $request->user()->company_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Access denied'
+                ], 403);
+            }
+
+            // Get time range from request (default to last 12 months)
+            $months = $request->get('months', 12);
+            $months = min(max($months, 1), 60); // Limit between 1 and 60 months
+
+            // Calculate health & performance data
+            $healthData = [];
+            $performanceData = [];
+            $maintenanceData = [];
+            $dates = [];
+            $currentIndex = '';
+
+            // Get asset activities for health tracking
+            $activities = $asset->activities()
+                ->where('created_at', '>=', now()->subMonths($months))
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            // Get maintenance schedules for performance tracking
+            $maintenanceSchedules = $asset->maintenanceSchedules()
+                ->where('created_at', '>=', now()->subMonths($months))
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            // Generate monthly data points
+            $startDate = now()->subMonths($months)->startOfMonth();
+            $endDate = now()->endOfMonth();
+            $currentDate = $startDate->copy();
+
+            $monthIndex = 0;
+            $baseHealthScore = $asset->health_score ?? 100;
+            $currentHealthScore = $baseHealthScore;
+
+            while ($currentDate <= $endDate) {
+                $monthKey = $currentDate->format('Y-m');
+                $dates[] = $monthKey;
+
+                // Calculate health score based on activities and maintenance
+                $monthActivities = $activities->filter(function ($activity) use ($currentDate) {
+                    return $activity->created_at->format('Y-m') === $currentDate->format('Y-m');
+                });
+
+                $monthMaintenance = $maintenanceSchedules->filter(function ($schedule) use ($currentDate) {
+                    return $schedule->created_at->format('Y-m') === $currentDate->format('Y-m');
+                });
+
+                // Health score calculation
+                $healthImpact = 0;
+                foreach ($monthActivities as $activity) {
+                    switch ($activity->action) {
+                        case 'maintenance_completed':
+                            $healthImpact += 5; // Positive impact
+                            break;
+                        case 'maintenance_overdue':
+                            $healthImpact -= 10; // Negative impact
+                            break;
+                        case 'repair':
+                            $healthImpact -= 15; // Significant negative impact
+                            break;
+                        case 'inspection_passed':
+                            $healthImpact += 3; // Small positive impact
+                            break;
+                        case 'inspection_failed':
+                            $healthImpact -= 8; // Negative impact
+                            break;
+                        default:
+                            $healthImpact += 0; // No impact
+                    }
+                }
+
+                // Performance calculation based on maintenance schedules
+                $performanceScore = 100;
+                foreach ($monthMaintenance as $schedule) {
+                    if ($schedule->status === 'completed') {
+                        $performanceScore += 5;
+                    } elseif ($schedule->status === 'overdue') {
+                        $performanceScore -= 15;
+                    } elseif ($schedule->status === 'scheduled') {
+                        $performanceScore += 2;
+                    }
+                }
+
+                // Apply health impact
+                $currentHealthScore = max(0, min(100, $currentHealthScore + $healthImpact));
+
+                // Natural degradation over time (small decrease per month)
+                $currentHealthScore = max(0, $currentHealthScore - 0.5);
+
+                $healthData[] = round($currentHealthScore, 1);
+                $performanceData[] = max(0, min(100, $performanceScore));
+                $maintenanceData[] = $monthMaintenance->count();
+
+                // Track current month index
+                if ($currentDate->format('Y-m') === now()->format('Y-m')) {
+                    $currentIndex = $monthIndex;
+                }
+
+                $currentDate->addMonth();
+                $monthIndex++;
+            }
+
+            // Calculate performance metrics
+            $avgHealthScore = count($healthData) > 0 ? round(array_sum($healthData) / count($healthData), 1) : 0;
+            $avgPerformanceScore = count($performanceData) > 0 ? round(array_sum($performanceData) / count($performanceData), 1) : 0;
+            $totalMaintenanceCount = array_sum($maintenanceData);
+            $healthTrend = count($healthData) > 1 ? ($healthData[count($healthData) - 1] - $healthData[0]) : 0;
+            $performanceTrend = count($performanceData) > 1 ? ($performanceData[count($performanceData) - 1] - $performanceData[0]) : 0;
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'asset' => [
+                        'id' => $asset->id,
+                        'name' => $asset->name,
+                        'asset_id' => $asset->asset_id,
+                        'health_score' => $asset->health_score,
+                        'status' => $asset->status,
+                        'created_at' => $asset->created_at,
+                    ],
+                    'chart_data' => [
+                        'dates' => $dates,
+                        'health_scores' => $healthData,
+                        'performance_scores' => $performanceData,
+                        'maintenance_counts' => $maintenanceData,
+                        'current_index' => $currentIndex,
+                        'has_data' => !empty($healthData),
+                        'total_months' => count($dates),
+                        'metrics' => [
+                            'average_health_score' => $avgHealthScore,
+                            'average_performance_score' => $avgPerformanceScore,
+                            'total_maintenance_count' => $totalMaintenanceCount,
+                            'health_trend' => $healthTrend,
+                            'performance_trend' => $performanceTrend,
+                            'current_health_score' => end($healthData) ?: $asset->health_score,
+                            'current_performance_score' => end($performanceData) ?: 100,
+                        ]
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get health & performance chart data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
