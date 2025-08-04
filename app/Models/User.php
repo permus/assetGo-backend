@@ -76,6 +76,58 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Get the roles that the user has
+     */
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class, 'user_roles');
+    }
+
+    /**
+     * Check if user has a specific role
+     */
+    public function hasRole($roleName)
+    {
+        return $this->roles()->where('name', $roleName)->exists();
+    }
+
+    /**
+     * Check if user has a specific permission through any of their roles
+     */
+    public function hasPermission($module, $action)
+    {
+        return $this->roles()->whereHas('permissions', function ($query) use ($module, $action) {
+            $query->whereRaw("JSON_EXTRACT(permissions, '$.{$module}.{$action}') = true");
+        })->exists();
+    }
+
+    /**
+     * Get all permissions for the user through their roles
+     */
+    public function getAllPermissions()
+    {
+        $permissions = [];
+        
+        foreach ($this->roles as $role) {
+            if ($role->permissions) {
+                $rolePermissions = $role->permissions->permissions;
+                foreach ($rolePermissions as $module => $actions) {
+                    if (!isset($permissions[$module])) {
+                        $permissions[$module] = [];
+                    }
+                    foreach ($actions as $action => $value) {
+                        if ($value === true) {
+                            $permissions[$module][$action] = true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return $permissions;
+    }
+
+    /**
      * Send the password reset notification.
      *
      * @param  string  $token

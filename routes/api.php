@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\AssetCategoryController;
 use App\Http\Controllers\Api\AssetTypeController;
 use App\Http\Controllers\Api\AssetStatusController;
 use App\Http\Controllers\Api\DepartmentController;
+use App\Http\Controllers\Api\RoleController;
 
 /*
 |--------------------------------------------------------------------------
@@ -88,6 +89,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     // Department routes
     Route::apiResource('departments', DepartmentController::class);
     Route::get('departments-list', [DepartmentController::class, 'list']);
+
+    // Role and Permission routes
+    Route::apiResource('roles', RoleController::class);
+    Route::get('roles/available-permissions', [RoleController::class, 'getAvailablePermissions']);
+    Route::post('roles/assign-to-user', [RoleController::class, 'assignToUser']);
+    Route::post('roles/remove-from-user', [RoleController::class, 'removeFromUser']);
 
     // Custom asset endpoints
     Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);

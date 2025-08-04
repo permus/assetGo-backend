@@ -44,4 +44,12 @@ class Company extends Model
     {
         return $this->hasMany(User::class, 'company_id');
     }
+
+    /**
+     * Get all roles belonging to this company
+     */
+    public function roles()
+    {
+        return $this->hasMany(Role::class);
+    }
 }
