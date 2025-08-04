@@ -342,4 +342,15 @@ class Location extends Model
         }
         return $query;
     }
+
+    /**
+     * Scope for filtering by hierarchy level
+     */
+    public function scopeByHierarchyLevel($query, $hierarchyLevel)
+    {
+        if ($hierarchyLevel !== null) {
+            return $query->where('hierarchy_level', $hierarchyLevel);
+        }
+        return $query;
+    }
 }

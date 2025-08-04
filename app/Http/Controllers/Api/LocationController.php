@@ -35,11 +35,33 @@ class LocationController extends Controller
             ->forCompany($user->company_id)
             ->search($request->get('search'))
             ->byType($request->get('type_id'))
-            ->byParent($request->get('parent_id'));
+            ->byParent($request->get('parent_id'))
+            ->byHierarchyLevel($request->get('hierarchy_level'));
 
-        // Order by hierarchy and name
-        $query->orderBy('hierarchy_level')
-              ->orderBy('name');
+        // Handle sorting
+        $sortBy = $request->get('sort_by', 'hierarchy_level');
+        $sortDirection = $request->get('sort_direction', 'asc');
+        
+        // Validate sort direction
+        $sortDirection = in_array(strtolower($sortDirection), ['asc', 'desc']) ? strtolower($sortDirection) : 'asc';
+        
+        // Handle different sort fields
+        switch ($sortBy) {
+            case 'created':
+                $query->orderBy('created_at', $sortDirection);
+                break;
+            case 'updated':
+                $query->orderBy('updated_at', $sortDirection);
+                break;
+            case 'name':
+                $query->orderBy('name', $sortDirection);
+                break;
+            case 'hierarchy_level':
+            default:
+                $query->orderBy('hierarchy_level', $sortDirection)
+                      ->orderBy('name', 'asc'); // Secondary sort by name
+                break;
+        }
 
         $locations = $query->paginate($perPage);
 
@@ -59,6 +81,11 @@ class LocationController extends Controller
                     'search' => $request->get('search'),
                     'type_id' => $request->get('type_id'),
                     'parent_id' => $request->get('parent_id'),
+                    'hierarchy_level' => $request->get('hierarchy_level'),
+                ],
+                'sorting' => [
+                    'sort_by' => $sortBy,
+                    'sort_direction' => $sortDirection,
                 ]
             ]
         ]);
