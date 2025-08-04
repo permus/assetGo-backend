@@ -31,6 +31,7 @@ class Location extends Model
         'public_url',
         'has_children',
         'qr_code_url',
+        'quick_chart_qr_url',
     ];
 
     /**
@@ -198,7 +199,7 @@ class Location extends Model
      */
     public function getPublicUrlAttribute()
     {
-        return config('app.frontend_url', config('app.url')) . '/locations/' . $this->slug;
+        return env('WEBSITE_URL') . '/public/location/' . $this->id;
     }
 
     /**
@@ -214,11 +215,18 @@ class Location extends Model
      */
     public function getQrCodeUrlAttribute()
     {
-        if (!$this->qr_code_path) {
-            return null;
+        if ($this->qr_code_path) {
+            return \Storage::disk('public')->url($this->qr_code_path);
         }
-        
-        return asset('storage/' . $this->qr_code_path);
+        return null;
+    }
+
+    /**
+     * Get QuickChart QR code URL attribute
+     */
+    public function getQuickChartQrUrlAttribute()
+    {
+        return 'https://quickchart.io/qr?text=' . urlencode($this->public_url) . '&margin=1&size=300';
     }
 
     /**

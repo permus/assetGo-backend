@@ -118,11 +118,15 @@ class LocationController extends Controller
 
             DB::commit();
 
+            $locationArray = $location->load(['type', 'parent', 'creator', 'assetSummary'])->toArray();
+            $locationArray['qr_code_url'] = $location->qr_code_path ? \Storage::disk('public')->url($location->qr_code_path) : null;
+            $locationArray['quick_chart_qr_url'] = $location->quick_chart_qr_url;
+
             return response()->json([
                 'success' => true,
                 'message' => 'Location created successfully',
                 'data' => [
-                    'location' => $location->load(['type', 'parent', 'creator', 'assetSummary']),
+                    'location' => $locationArray,
                     'asset_summary' => $location->getAssetSummaryData()
                 ]
             ], 201);
@@ -158,10 +162,14 @@ class LocationController extends Controller
             'assetSummary'
         ]);
 
+        $locationArray = $location->toArray();
+        $locationArray['qr_code_url'] = $location->qr_code_path ? \Storage::disk('public')->url($location->qr_code_path) : null;
+        $locationArray['quick_chart_qr_url'] = $location->quick_chart_qr_url;
+
         return response()->json([
             'success' => true,
             'data' => [
-                'location' => $location,
+                'location' => $locationArray,
                 'ancestors' => $location->ancestors(),
                 'children_count' => $location->children()->count(),
                 'descendants_count' => $location->descendants()->count(),
@@ -190,11 +198,15 @@ class LocationController extends Controller
 
             DB::commit();
 
+            $locationArray = $location->fresh()->load(['type', 'parent', 'creator', 'assetSummary'])->toArray();
+            $locationArray['qr_code_url'] = $location->qr_code_path ? \Storage::disk('public')->url($location->qr_code_path) : null;
+            $locationArray['quick_chart_qr_url'] = $location->quick_chart_qr_url;
+
             return response()->json([
                 'success' => true,
                 'message' => 'Location updated successfully',
                 'data' => [
-                    'location' => $location->fresh()->load(['type', 'parent', 'creator', 'assetSummary']),
+                    'location' => $locationArray,
                     'asset_summary' => $location->getAssetSummaryData()
                 ]
             ]);
@@ -410,7 +422,8 @@ class LocationController extends Controller
                             'message' => 'QR code generated successfully',
                             'data' => [
                                 'qr_code_path' => $qrPath,
-                                'qr_code_url' => asset('storage/' . $qrPath)
+                                'qr_code_url' => \Storage::disk('public')->url($qrPath),
+                                'quick_chart_qr_url' => $location->quick_chart_qr_url
                             ]
                         ]);
                     }
