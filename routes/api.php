@@ -130,6 +130,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('assets/activities', [AssetController::class, 'allActivities']);
     Route::get('assets/analytics', [AssetController::class, 'analytics']);
     Route::get('assets/export', [AssetController::class, 'export']);
+    Route::get('assets/export-excel', [AssetController::class, 'exportExcel']);
 
     // Smart Asset Import endpoints
     // Route::post('assets/import/upload', [\App\Http\Controllers\Api\AssetImportController::class, 'upload']);

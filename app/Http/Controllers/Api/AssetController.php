@@ -1754,6 +1754,91 @@ class AssetController extends Controller
     }
 
     /**
+     * Export assets to Excel with custom format
+     */
+    public function exportExcel(Request $request)
+    {
+        $companyId = $request->user()->company_id;
+        
+        // Get all assets for the company without any conditions or pagination
+        $assets = Asset::with(['category', 'location.parent.parent'])
+            ->where('company_id', $companyId)
+            ->withoutTrashed()
+            ->get();
+
+        // Prepare data for Excel export
+        $exportData = [];
+        
+        // Add headers
+        $exportData[] = [
+            'Asset ID Number',
+            'S/M Type',
+            'Building',
+            'Location', 
+            'Floor',
+            'Asset Description',
+            'Brand/Make',
+            'Model No',
+            'Capacity/Rating'
+        ];
+
+        // Process each asset
+        foreach ($assets as $asset) {
+            // Determine location hierarchy
+            $building = '';
+            $location = '';
+            $floor = '';
+            
+            if ($asset->location) {
+                $locationModel = $asset->location;
+                $ancestors = $locationModel->ancestors();
+                $ancestorCount = $ancestors->count();
+                
+                if ($ancestorCount == 0) {
+                    // No parent - location is building
+                    $building = $locationModel->name;
+                } elseif ($ancestorCount == 1) {
+                    // 1 parent - parent is building, current is location
+                    $building = $ancestors->first()->name;
+                    $location = $locationModel->name;
+                } elseif ($ancestorCount >= 2) {
+                    // 2+ parents - 1st parent is building, 2nd is location, current is floor
+                    $building = $ancestors->first()->name;
+                    $location = $ancestors->get(1)->name;
+                    $floor = $locationModel->name;
+                }
+            }
+
+            $exportData[] = [
+                $asset->asset_id ?? '',
+                $asset->category->name ?? '',
+                $building,
+                $location,
+                $floor,
+                $asset->description ?? '',
+                $asset->manufacturer ?? $asset->serial_number ?? '',
+                $asset->model ?? '',
+                '' // Capacity/Rating - not available in current model, left empty
+            ];
+        }
+
+        // Create temporary file for Excel export
+        $fileName = 'assets_export_' . date('Y_m_d_H_i_s') . '.xlsx';
+        
+        try {
+            return \Maatwebsite\Excel\Facades\Excel::download(
+                new \App\Exports\AssetsExcelExport($exportData),
+                $fileName
+            );
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate Excel export: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Bulk archive (soft delete) assets
      */
     public function bulkArchive(Request $request)
