@@ -768,7 +768,11 @@ class AssetController extends Controller
                             ],
                             [
                                 'user_id' => $user->id,
-                                'description' => 'Building: ' . $assetData['building']
+                                'description' => 'Building: ' . $assetData['building'],
+                                'icon' => 'https://unpkg.com/lucide-static/icons/building-2.svg',
+                                'qr_code_path' => null,
+                                'address' => null,
+                                'location_type_id' => null
                             ]
                         );
                     }
@@ -784,7 +788,11 @@ class AssetController extends Controller
                             ],
                             [
                                 'user_id' => $user->id,
-                                'description' => 'Location: ' . $assetData['location']
+                                'description' => 'Location: ' . $assetData['location'],
+                                'icon' => 'https://unpkg.com/lucide-static/icons/map-pin.svg',
+                                'qr_code_path' => null,
+                                'address' => null,
+                                'location_type_id' => null
                             ]
                         );
                         
@@ -792,18 +800,22 @@ class AssetController extends Controller
                         $parentLocation = $location;
                     }
                     
-                    // If floor is provided, create or find floor under location
+                                        // If floor is provided, create or find floor under location
                     if (!empty($assetData['floor'])) {
                         $location = Location::firstOrCreate(
                             [
                                 'name' => $assetData['floor'],
                                 'company_id' => $user->company_id,
                                 'parent_id' => $parentLocation ? $parentLocation->id : null,
-                                'hierarchy_level' => 2  
+                                'hierarchy_level' => 2
                             ],
                             [
                                 'user_id' => $user->id,
-                                'description' => 'Floor: ' . $assetData['floor']
+                                'description' => 'Floor: ' . $assetData['floor'],
+                                'icon' => 'https://unpkg.com/lucide-static/icons/layers.svg',
+                                'qr_code_path' => null,
+                                'address' => null,
+                                'location_type_id' => null
                             ]
                         );
                     }

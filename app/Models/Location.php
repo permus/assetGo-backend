@@ -19,6 +19,7 @@ class Location extends Model
         'slug',
         'address',
         'description',
+        'icon',
         'qr_code_path',
         'hierarchy_level',
     ];
