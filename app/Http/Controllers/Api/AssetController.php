@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exports\AssetsExcelExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Asset\StoreAssetRequest;
 use App\Http\Requests\Asset\UpdateAssetRequest;
@@ -21,6 +22,7 @@ use App\Models\Location;
 use App\Models\LocationType;
 use App\Services\QRCodeService;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AssetController extends Controller
 {
@@ -494,7 +496,7 @@ class AssetController extends Controller
                 if (!class_exists('Maatwebsite\\Excel\\Facades\\Excel')) {
                     throw new \Exception('Excel import not supported. Install maatwebsite/excel.');
                 }
-                $rows = \Maatwebsite\Excel\Facades\Excel::toArray(null, $file)[0];
+                $rows = Excel::toArray(null, $file)[0];
                 $header = array_map('trim', array_shift($rows));
                 $rows = array_map(function($row) use ($header) {
                     return array_combine($header, $row);
@@ -756,7 +758,7 @@ class AssetController extends Controller
                     // Handle hierarchical location structure
                     $location = null;
                     $parentLocation = null;
-                    
+
                     // If building is provided, create or find building location
                     if (!empty($assetData['building'])) {
                         $parentLocation = Location::firstOrCreate(
@@ -775,7 +777,7 @@ class AssetController extends Controller
                             ]
                         );
                     }
-                    
+
                     // If location is provided, create or find location under building
                     if (!empty($assetData['location'])) {
                         $location = Location::firstOrCreate(
@@ -793,11 +795,11 @@ class AssetController extends Controller
                                 'location_type_id' => null
                             ]
                         );
-                        
+
                         // Update parent location reference
                         $parentLocation = $location;
                     }
-                    
+
                                         // If floor is provided, create or find floor under location
                     if (!empty($assetData['floor'])) {
                         $location = Location::firstOrCreate(
@@ -1737,14 +1739,14 @@ class AssetController extends Controller
         ];
         $callback = function() use ($assets, $columns) {
             $file = fopen('php://output', 'w');
-            
+
             // Custom headers with "Capacity/Rating" instead of "capacity"
             $headers = [
                 'id', 'asset_id', 'name', 'description', 'category_id', 'type', 'serial_number', 'model', 'manufacturer',
                 'Capacity/Rating', 'purchase_date', 'purchase_price', 'depreciation', 'location_id', 'department_id', 'user_id', 'company_id',
                 'warranty', 'insurance', 'health_score', 'status', 'archive_reason', 'deleted_at', 'created_at', 'updated_at'
             ];
-            
+
             fputcsv($file, $headers);
             foreach ($assets as $asset) {
                 $row = [];
@@ -1764,7 +1766,7 @@ class AssetController extends Controller
     public function exportExcel(Request $request)
     {
         $companyId = $request->user()->company_id;
-        
+
         // Get all assets for the company without any conditions or pagination
         $assets = Asset::with(['category', 'location.parent.parent'])
             ->where('company_id', $companyId)
@@ -1773,13 +1775,13 @@ class AssetController extends Controller
 
         // Prepare data for Excel export
         $exportData = [];
-        
+
         // Add headers
         $exportData[] = [
             'Asset ID Number',
             'S/M Type',
             'Building',
-            'Location', 
+            'Location',
             'Floor',
             'Asset Description',
             'Brand/Make',
@@ -1793,12 +1795,12 @@ class AssetController extends Controller
             $building = '';
             $location = '';
             $floor = '';
-            
+
             if ($asset->location) {
                 $locationModel = $asset->location;
                 $ancestors = $locationModel->ancestors();
                 $ancestorCount = $ancestors->count();
-                
+
                 if ($ancestorCount == 0) {
                     // No parent - location is building
                     $building = $locationModel->name;
@@ -1823,16 +1825,16 @@ class AssetController extends Controller
                 $asset->description ?? '',
                 $asset->manufacturer ?? $asset->serial_number ?? '',
                 $asset->model ?? '',
-                '' // Capacity/Rating - not available in current model, left empty
+                $asset->capacity ?? '',
             ];
         }
 
         // Create temporary file for Excel export
         $fileName = 'assets_export_' . date('Y_m_d_H_i_s') . '.xlsx';
-        
+
         try {
-            return \Maatwebsite\Excel\Facades\Excel::download(
-                new \App\Exports\AssetsExcelExport($exportData),
+            return Excel::download(
+                new AssetsExcelExport($exportData),
                 $fileName
             );
         } catch (\Exception $e) {
@@ -2296,10 +2298,10 @@ class AssetController extends Controller
     {
         // Use Barcode.tec-it.com API which is more reliable for barcodes
         $baseUrl = 'https://barcode.tec-it.com/barcode.ashx';
-        
+
         // Build URL manually to avoid double encoding issues
-        $url = $baseUrl . '?data=' . urlencode($text) . 
-               '&code=' . urlencode($type) . 
+        $url = $baseUrl . '?data=' . urlencode($text) .
+               '&code=' . urlencode($type) .
                '&multiplebarcodes=false' .
                '&translate-esc=false' .
                '&unit=Fit' .
@@ -2363,38 +2365,38 @@ class AssetController extends Controller
                 case 'category':
                     $query->where('category_id', $asset->category_id);
                     break;
-                    
+
                 case 'location':
                     $query->where('location_id', $asset->location_id);
                     break;
-                    
+
                 case 'department':
                     $query->where('department_id', $asset->department_id);
                     break;
-                    
+
                 case 'manufacturer':
                     if ($asset->manufacturer) {
                         $query->where('manufacturer', $asset->manufacturer);
                     }
                     break;
-                    
+
                 case 'parent':
                     // Assets that have the same parent
                     $query->where('parent_id', $asset->parent_id);
                     break;
-                    
+
                 case 'children':
                     // Child assets of the current asset
                     $query->where('parent_id', $asset->id);
                     break;
-                    
+
                 case 'siblings':
                     // Assets with the same parent (excluding the current asset)
                     if ($asset->parent_id) {
                         $query->where('parent_id', $asset->parent_id);
                     }
                     break;
-                    
+
                 case 'similar':
                     // Assets with similar characteristics
                     $query->where(function($q) use ($asset) {
@@ -2404,7 +2406,7 @@ class AssetController extends Controller
                           ->orWhere('manufacturer', $asset->manufacturer);
                     });
                     break;
-                    
+
                 case 'all':
                 default:
                     // Get assets with any relation
