@@ -853,7 +853,7 @@ class AssetController extends Controller
                         'name' => $assetData['name'],
                         'description' => $assetData['asset_description'] ?? $assetData['description'] ?? '',
                         'category_id' => $category?->id ?? $smTypeCategory?->id,
-                        'type' => $assetType?->name ?? $assetData['type'],
+                        'type' => $assetType?->name ?? $assetData['type'] ?? null,
                         'serial_number' => $assetData['serial_number'] ?? null,
                         'model' => $assetData['model'] ?? null,
                         'manufacturer' => $assetData['brand_make'] ?? $assetData['manufacturer'] ?? null,
