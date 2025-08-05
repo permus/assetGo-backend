@@ -92,10 +92,10 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('departments-list', [DepartmentController::class, 'list']);
 
     // Role and Permission routes
-    Route::apiResource('roles', RoleController::class);
     Route::get('roles/available-permissions', [RoleController::class, 'getAvailablePermissions']);
     Route::post('roles/assign-to-user', [RoleController::class, 'assignToUser']);
     Route::post('roles/remove-from-user', [RoleController::class, 'removeFromUser']);
+    Route::apiResource('roles', RoleController::class);
 
     // Team routes (team members are users with user_type = 'team')
     Route::apiResource('teams', TeamController::class);
