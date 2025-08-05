@@ -61,14 +61,16 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('location-types', [LocationController::class, 'types']);
     Route::get('locations/possible-parents/{locationId?}', [LocationController::class, 'possibleParents']);
 
-    // Custom asset endpoints
+    // Custom asset endpoints (must be before apiResource to avoid route conflicts)
     Route::post('assets/bulk-delete', [AssetController::class, 'bulkDelete']);
     Route::post('assets/bulk-archive', [AssetController::class, 'bulkArchive']);
     Route::post('assets/import-bulk', [AssetController::class, 'importBulk']);
     Route::post('assets/import-bulk-json', [AssetController::class, 'bulkImportAssets']);
     Route::get('assets/import/template', [AssetController::class, 'downloadTemplate']);
-    Route::post('assets/{asset}/archive', [AssetController::class, 'archive']);
     Route::get('assets/statistics', [AssetController::class, 'statistics']);
+    Route::get('assets/export', [AssetController::class, 'export']);
+    Route::get('assets/export-excel', [AssetController::class, 'exportExcel']);
+    Route::post('assets/{asset}/archive', [AssetController::class, 'archive']);
     Route::get('assets-hierarchy', [AssetController::class, 'hierarchy']);
     Route::get('assets/possible-parents/{assetId?}', [AssetController::class, 'possibleParents']);
     Route::post('assets/move', [AssetController::class, 'move']);
@@ -129,8 +131,6 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('assets/{asset}/activity-history', [AssetController::class, 'activityHistory']);
     Route::get('assets/activities', [AssetController::class, 'allActivities']);
     Route::get('assets/analytics', [AssetController::class, 'analytics']);
-    Route::get('assets/export', [AssetController::class, 'export']);
-    Route::get('assets/export-excel', [AssetController::class, 'exportExcel']);
 
     // Smart Asset Import endpoints
     // Route::post('assets/import/upload', [\App\Http\Controllers\Api\AssetImportController::class, 'upload']);
