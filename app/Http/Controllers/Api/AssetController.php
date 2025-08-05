@@ -841,6 +841,14 @@ class AssetController extends Controller
                                 'icon' => 'https://unpkg.com/lucide-static/icons/tag.svg'
                             ]
                         );
+                    } else {
+                        // Default to "Fixed Assets" if no type provided
+                        $assetType = AssetType::firstOrCreate(
+                            ['name' => 'Fixed Assets'],
+                            [
+                                'icon' => 'https://unpkg.com/lucide-static/icons/tag.svg'
+                            ]
+                        );
                     }
 
                     // Find or create asset status
