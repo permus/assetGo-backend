@@ -146,8 +146,8 @@ class AssetController extends Controller
     {
         \DB::beginTransaction();
         try {
-            // Generate unique asset ID
-            $assetId = 'AST-' . strtoupper(uniqid());
+            // Use provided asset_id or generate unique asset ID
+            $assetId = $request->input('asset_id') ?? 'AST-' . strtoupper(uniqid());
 
             // Remove company_id from validated data if present
             $data = $request->validated();
@@ -866,6 +866,11 @@ class AssetController extends Controller
                     // Use provided asset_id or generate unique asset ID
                     $assetId = $assetData['asset_id'] ?? 'AST-' . strtoupper(substr($user->company_id, 0, 3)) . '-' .
                               str_pad(Asset::where('company_id', $user->company_id)->count() + 1, 4, '0', STR_PAD_LEFT);
+                    
+                    // Double-check asset_id uniqueness within company
+                    if (Asset::where('asset_id', $assetId)->where('company_id', $user->company_id)->exists()) {
+                        throw new \Exception("Asset ID '{$assetId}' already exists in this company.");
+                    }
 
                     // Create the asset
                     $asset = Asset::create([

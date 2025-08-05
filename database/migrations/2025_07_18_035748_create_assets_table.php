@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('assets', function (Blueprint $table) {
             $table->id();
-            $table->string('asset_id')->unique(); // Unique Asset ID
+            $table->string('asset_id'); // Asset ID (unique per company)
             $table->string('name');
             $table->text('description')->nullable();
             $table->unsignedBigInteger('category_id')->nullable();
@@ -38,7 +38,8 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             
-
+            // Add composite unique constraint for asset_id per company
+            $table->unique(['asset_id', 'company_id'], 'assets_asset_id_company_id_unique');
         });
     }
 

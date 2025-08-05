@@ -16,6 +16,7 @@ class UpdateAssetRequest extends FormRequest
         $assetId = $this->route('asset') ? $this->route('asset')->id : null;
         return [
             'name' => 'sometimes|required|string|max:100',
+            'asset_id' => 'nullable|string|max:255|unique:assets,asset_id,' . $assetId . ',id,company_id,' . ($this->user() ? $this->user()->company_id : 'NULL'),
             'description' => 'nullable|string|max:500',
             'category_id' => 'nullable|exists:asset_categories,id',
             'type' => 'nullable',

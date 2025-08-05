@@ -15,6 +15,7 @@ class StoreAssetRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:100',
+            'asset_id' => 'nullable|string|max:255|unique:assets,asset_id,NULL,id,company_id,' . ($this->user() ? $this->user()->company_id : 'NULL'),
             'description' => 'nullable|string|max:500',
             'category_id' => 'nullable|exists:asset_categories,id',
             'type' => 'nullable',
