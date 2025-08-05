@@ -769,7 +769,6 @@ class AssetController extends Controller
                             [
                                 'user_id' => $user->id,
                                 'description' => 'Building: ' . $assetData['building'],
-                                'icon' => 'https://unpkg.com/lucide-static/icons/building-2.svg',
                                 'qr_code_path' => null,
                                 'address' => null,
                                 'location_type_id' => null
@@ -789,7 +788,6 @@ class AssetController extends Controller
                             [
                                 'user_id' => $user->id,
                                 'description' => 'Location: ' . $assetData['location'],
-                                'icon' => 'https://unpkg.com/lucide-static/icons/map-pin.svg',
                                 'qr_code_path' => null,
                                 'address' => null,
                                 'location_type_id' => null
@@ -812,7 +810,6 @@ class AssetController extends Controller
                             [
                                 'user_id' => $user->id,
                                 'description' => 'Floor: ' . $assetData['floor'],
-                                'icon' => 'https://unpkg.com/lucide-static/icons/layers.svg',
                                 'qr_code_path' => null,
                                 'address' => null,
                                 'location_type_id' => null
