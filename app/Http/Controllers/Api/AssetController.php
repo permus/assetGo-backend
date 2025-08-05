@@ -1828,7 +1828,7 @@ class AssetController extends Controller
                 $asset->description ?? '',
                 $asset->manufacturer ?? $asset->serial_number ?? '',
                 $asset->model ?? '',
-                '' // Capacity/Rating - not available in current model, left empty
+                $asset->capacity ?? '',
             ];
         }
 
