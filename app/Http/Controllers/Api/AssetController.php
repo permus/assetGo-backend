@@ -695,6 +695,7 @@ class AssetController extends Controller
         $request->validate([
             'assets' => 'required|array|min:1',
             'assets.*.name' => 'required|string|max:100',
+            'assets.*.asset_id' => 'nullable|string|max:255|unique:assets,asset_id,NULL,id,company_id,' . ($request->user() ? $request->user()->company_id : 'NULL'),
             'assets.*.description' => 'nullable|string|max:500',
             'assets.*.asset_description' => 'nullable|string|max:500',
             'assets.*.category' => 'nullable|string|max:255',
@@ -862,8 +863,8 @@ class AssetController extends Controller
                         );
                     }
 
-                    // Generate unique asset ID
-                    $assetId = 'AST-' . strtoupper(substr($user->company_id, 0, 3)) . '-' .
+                    // Use provided asset_id or generate unique asset ID
+                    $assetId = $assetData['asset_id'] ?? 'AST-' . strtoupper(substr($user->company_id, 0, 3)) . '-' .
                               str_pad(Asset::where('company_id', $user->company_id)->count() + 1, 4, '0', STR_PAD_LEFT);
 
                     // Create the asset
