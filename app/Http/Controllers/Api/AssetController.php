@@ -694,15 +694,22 @@ class AssetController extends Controller
             'assets' => 'required|array|min:1',
             'assets.*.name' => 'required|string|max:100',
             'assets.*.description' => 'nullable|string|max:500',
+            'assets.*.asset_description' => 'nullable|string|max:500',
             'assets.*.category' => 'nullable|string|max:255',
+            'assets.*.s_m_type' => 'nullable|string|max:255',
             'assets.*.type' => 'nullable|string|max:255',
             'assets.*.serial_number' => 'nullable|string|max:255|unique:assets,serial_number,NULL,id,company_id,' . ($request->user() ? $request->user()->company_id : 'NULL'),
             'assets.*.model' => 'nullable|string|max:255',
             'assets.*.manufacturer' => 'nullable|string|max:255',
+            'assets.*.brand_make' => 'nullable|string|max:255',
+            'assets.*.capacity' => 'nullable|string|max:255',
             'assets.*.purchase_date' => 'nullable|date|before_or_equal:today',
-            'assets.*.purchase_price' => 'nullable|numeric|min:0.01',
+            'assets.*.purchase_price' => 'nullable|numeric|min:0',
             'assets.*.depreciation' => 'nullable|numeric',
+            'assets.*.building' => 'nullable|string|max:255',
             'assets.*.location' => 'nullable|string|max:255',
+            'assets.*.floor' => 'nullable|string|max:255',
+            'assets.*.location_id' => 'nullable|integer|exists:locations,id',
             'assets.*.department' => 'nullable|string|max:255',
             'assets.*.warranty' => 'nullable|string|max:255',
             'assets.*.insurance' => 'nullable|string|max:255',
@@ -734,16 +741,71 @@ class AssetController extends Controller
                         );
                     }
 
-                    // Find location (don't create if doesn't exist)
+                    // Find or create S/M Type as asset category
+                    $smTypeCategory = null;
+                    if (!empty($assetData['s_m_type'])) {
+                        $smTypeCategory = AssetCategory::firstOrCreate(
+                            ['name' => $assetData['s_m_type']],
+                            [
+                                'description' => $assetData['s_m_type'] . ' S/M Type category',
+                                'icon' => 'https://unpkg.com/lucide-static/icons/thumbs-up.svg'
+                            ]
+                        );
+                    }
+
+                    // Handle hierarchical location structure
                     $location = null;
+                    $parentLocation = null;
+                    
+                    // If building is provided, create or find building location
+                    if (!empty($assetData['building'])) {
+                        $parentLocation = Location::firstOrCreate(
+                            [
+                                'name' => $assetData['building'],
+                                'company_id' => $user->company_id,
+                                'parent_id' => null, // Building is top level
+                                'hierarchy_level' => 0
+                            ],
+                            [
+                                'user_id' => $user->id,
+                                'description' => 'Building: ' . $assetData['building']
+                            ]
+                        );
+                    }
+                    
+                    // If location is provided, create or find location under building
                     if (!empty($assetData['location'])) {
-                        $location = Location::where('name', $assetData['location'])
-                            ->where('company_id', $user->company_id)
-                            ->first();
+                        $location = Location::firstOrCreate(
+                            [
+                                'name' => $assetData['location'],
+                                'company_id' => $user->company_id,
+                                'parent_id' => $parentLocation ? $parentLocation->id : null,
+                                'hierarchy_level' => 1
+                            ],
+                            [
+                                'user_id' => $user->id,
+                                'description' => 'Location: ' . $assetData['location']
+                            ]
+                        );
                         
-                        if (!$location) {
-                            throw new \Exception("Location '{$assetData['location']}' does not exist. Please create the location first.");
-                        }
+                        // Update parent location reference
+                        $parentLocation = $location;
+                    }
+                    
+                    // If floor is provided, create or find floor under location
+                    if (!empty($assetData['floor'])) {
+                        $location = Location::firstOrCreate(
+                            [
+                                'name' => $assetData['floor'],
+                                'company_id' => $user->company_id,
+                                'parent_id' => $parentLocation ? $parentLocation->id : null,
+                                'hierarchy_level' => 2  
+                            ],
+                            [
+                                'user_id' => $user->id,
+                                'description' => 'Floor: ' . $assetData['floor']
+                            ]
+                        );
                     }
 
                     // Find or create department
@@ -789,16 +851,17 @@ class AssetController extends Controller
                     $asset = Asset::create([
                         'asset_id' => $assetId,
                         'name' => $assetData['name'],
-                        'description' => $assetData['description'] ?? '',
-                        'category_id' => $category?->id,
+                        'description' => $assetData['asset_description'] ?? $assetData['description'] ?? '',
+                        'category_id' => $category?->id ?? $smTypeCategory?->id,
                         'type' => $assetType?->name ?? $assetData['type'],
                         'serial_number' => $assetData['serial_number'] ?? null,
                         'model' => $assetData['model'] ?? null,
-                        'manufacturer' => $assetData['manufacturer'] ?? null,
+                        'manufacturer' => $assetData['brand_make'] ?? $assetData['manufacturer'] ?? null,
+                        'capacity' => $assetData['capacity'] ?? null,
                         'purchase_date' => $assetData['purchase_date'] ?? null,
                         'purchase_price' => $assetData['purchase_price'] ?? null,
                         'depreciation' => $assetData['depreciation'] ?? null,
-                        'location_id' => $location?->id,
+                        'location_id' => $location?->id ?? null,
                         'department_id' => $department?->id,
                         'user_id' => $user->id,
                         'company_id' => $user->company_id,
@@ -1652,12 +1715,20 @@ class AssetController extends Controller
         ];
         $columns = [
             'id', 'asset_id', 'name', 'description', 'category_id', 'type', 'serial_number', 'model', 'manufacturer',
-            'purchase_date', 'purchase_price', 'depreciation', 'location_id', 'department_id', 'user_id', 'company_id',
+            'capacity', 'purchase_date', 'purchase_price', 'depreciation', 'location_id', 'department_id', 'user_id', 'company_id',
             'warranty', 'insurance', 'health_score', 'status', 'archive_reason', 'deleted_at', 'created_at', 'updated_at'
         ];
         $callback = function() use ($assets, $columns) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, $columns);
+            
+            // Custom headers with "Capacity/Rating" instead of "capacity"
+            $headers = [
+                'id', 'asset_id', 'name', 'description', 'category_id', 'type', 'serial_number', 'model', 'manufacturer',
+                'Capacity/Rating', 'purchase_date', 'purchase_price', 'depreciation', 'location_id', 'department_id', 'user_id', 'company_id',
+                'warranty', 'insurance', 'health_score', 'status', 'archive_reason', 'deleted_at', 'created_at', 'updated_at'
+            ];
+            
+            fputcsv($file, $headers);
             foreach ($assets as $asset) {
                 $row = [];
                 foreach ($columns as $col) {

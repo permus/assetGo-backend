@@ -21,6 +21,7 @@ class StoreAssetRequest extends FormRequest
             'serial_number' => 'nullable|string|max:255|unique:assets,serial_number,NULL,id,company_id,' . ($this->user() ? $this->user()->company_id : 'NULL'),
             'model' => 'nullable|string|max:255',
             'manufacturer' => 'nullable|string|max:255',
+            'capacity' => 'nullable|string|max:255',
             'purchase_date' => 'nullable|date|before_or_equal:today',
             'purchase_price' => 'nullable|numeric|min:0.01',
             'depreciation' => 'nullable|numeric',

@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('serial_number')->nullable()->unique();
             $table->string('model')->nullable();
             $table->string('manufacturer')->nullable();
+            $table->string('capacity')->nullable();
             $table->date('purchase_date')->nullable();
             $table->decimal('purchase_price', 15, 2)->nullable();
             $table->decimal('depreciation', 15, 2)->nullable();
@@ -36,6 +37,8 @@ return new class extends Migration
             $table->json('meta')->nullable(); // For extensibility
             $table->timestamps();
             $table->softDeletes();
+            
+
         });
     }
 

@@ -19,6 +19,7 @@ class Asset extends Model
         'serial_number',
         'model',
         'manufacturer',
+        'capacity',
         'purchase_date',
         'purchase_price',
         'depreciation',
@@ -43,7 +44,7 @@ class Asset extends Model
         'health_score' => 'decimal:2',
     ];
 
-    protected $appends = ['qr_code_url', 'public_url', 'full_path', 'has_children'];
+    protected $appends = ['qr_code_url', 'public_url', 'full_path', 'has_children', 'location_hierarchy'];
 
     public function getQrCodeUrlAttribute()
     {
@@ -149,6 +150,14 @@ class Asset extends Model
         return $this->children()->exists();
     }
 
+    public function getLocationHierarchyAttribute()
+    {
+        if ($this->location) {
+            return $this->location->complete_hierarchy;
+        }
+        return null;
+    }
+
     public function wouldCreateCircularReference($newParentId)
     {
         if (!$newParentId || $newParentId == $this->id) {
@@ -185,8 +194,10 @@ class Asset extends Model
 
     public function location()
     {
-        return $this->belongsTo(Location::class);
+        return $this->belongsTo(Location::class)->with('ancestorsWithDetails');
     }
+
+
 
     public function user()
     {

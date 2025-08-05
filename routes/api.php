@@ -105,7 +105,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     // Custom asset endpoints
     Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);
-    Route::post('assets/import/bulk', [AssetController::class, 'bulkImport']);
+    // Route::post('assets/import/bulk', [AssetController::class, 'bulkImport']);
     Route::post('assets/{asset}/transfer', [AssetController::class, 'transfer']);
     Route::post('assets/{asset}/restore', [AssetController::class, 'restore']);
     Route::post('assets/bulk-restore', [AssetController::class, 'bulkRestore']);
@@ -132,14 +132,14 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('assets/export', [AssetController::class, 'export']);
 
     // Smart Asset Import endpoints
-    Route::post('assets/import/upload', [\App\Http\Controllers\Api\AssetImportController::class, 'upload']);
-    Route::post('assets/import/analyze', [\App\Http\Controllers\Api\AssetImportController::class, 'analyze']);
-    Route::get('assets/import/mappings/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'getMappings']);
-    Route::put('assets/import/mappings/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'saveMappings']);
-    Route::post('assets/import/conflicts/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'detectConflicts']);
-    Route::post('assets/import/resolve-conflicts/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'resolveConflicts']);
-    Route::post('assets/import/execute/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'executeImport']);
-    Route::get('assets/import/progress/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'importProgress']);
+    // Route::post('assets/import/upload', [\App\Http\Controllers\Api\AssetImportController::class, 'upload']);
+    // Route::post('assets/import/analyze', [\App\Http\Controllers\Api\AssetImportController::class, 'analyze']);
+    // Route::get('assets/import/mappings/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'getMappings']);
+    // Route::put('assets/import/mappings/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'saveMappings']);
+    // Route::post('assets/import/conflicts/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'detectConflicts']);
+    // Route::post('assets/import/resolve-conflicts/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'resolveConflicts']);
+    // Route::post('assets/import/execute/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'executeImport']);
+    // Route::get('assets/import/progress/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'importProgress']);
     Route::get('assets/import/template', [\App\Http\Controllers\Api\AssetImportController::class, 'downloadTemplate']);
 
 });

@@ -36,7 +36,7 @@ POST /api/assets/import-bulk-json
 | `assets[].model` | string | Asset model | Optional, max 255 characters |
 | `assets[].manufacturer` | string | Manufacturer | Optional, max 255 characters |
 | `assets[].purchase_date` | date | Purchase date | Optional, valid date format, not in future |
-| `assets[].purchase_price` | numeric | Purchase price | Optional, numeric, minimum 0.01 |
+| `assets[].purchase_price` | numeric | Purchase price | Optional, numeric, minimum 0 |
 | `assets[].depreciation` | numeric | Depreciation value | Optional, numeric |
 | `assets[].location` | string | Location name | Optional, max 255 characters |
 | `assets[].department` | string | Department name | Optional, max 255 characters |
@@ -155,8 +155,8 @@ POST /api/assets/import-bulk-json
 1. **Validation**: Validate all required fields and data types
 2. **Entity Handling**: Handle related entities as follows:
    - **Categories**: Create if doesn't exist
-   - **Locations**: Must exist (will show error if not found)
-   - **Departments**: Must exist (will show error if not found)
+   - **Locations**: Create if doesn't exist (with default "Office" type)
+   - **Departments**: Create if doesn't exist
    - **Asset Types**: Create if doesn't exist
    - **Asset Statuses**: Create if doesn't exist
    - **Tags**: Create if doesn't exist (company-scoped)
@@ -185,10 +185,12 @@ The API handles related entities as follows:
 - **Icon**: Default icon (📦)
 
 #### Locations
-- **Validation**: Must exist before import
-- **Error**: Shows error if location doesn't exist
+- **Auto-creation**: Creates if doesn't exist
+- **Name**: As provided in the request
+- **Type**: Default "Office" location type
+- **Description**: "{location} location"
 - **Scope**: Company-scoped locations only
-- **Action**: Create locations manually before importing assets
+- **User**: Created by the importing user
 
 #### Departments
 - **Validation**: Must exist before import
@@ -245,7 +247,7 @@ The API processes all assets even if some fail:
 3. **Invalid numeric values**: Returns 422 for non-numeric purchase prices
 4. **Duplicate serial numbers**: Returns 422 for duplicate serial numbers within company
 5. **Invalid health score**: Returns 422 for health scores outside 0-100 range
-6. **Location not found**: Returns error with specific location name
+6. **Location auto-created**: Locations are automatically created if they don't exist
 7. **Department not found**: Returns error with specific department name
 8. **Database errors**: Returns 500 with error details
 

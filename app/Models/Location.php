@@ -32,6 +32,7 @@ class Location extends Model
         'has_children',
         'qr_code_url',
         'quick_chart_qr_url',
+        'complete_hierarchy',
     ];
 
     /**
@@ -138,6 +139,57 @@ class Location extends Model
         }
 
         return $ancestors;
+    }
+
+    /**
+     * Get all ancestors with eager loading
+     */
+    public function ancestorsWithDetails()
+    {
+        return $this->belongsTo(Location::class, 'parent_id')->with('ancestorsWithDetails');
+    }
+
+    /**
+     * Get complete location hierarchy as array
+     */
+    public function getCompleteHierarchyAttribute()
+    {
+        $hierarchy = [];
+        $current = $this;
+
+        // Add current location
+        $hierarchy[] = [
+            'id' => $current->id,
+            'name' => $current->name,
+            'slug' => $current->slug,
+            'hierarchy_level' => $current->hierarchy_level,
+            'parent_id' => $current->parent_id,
+            'description' => $current->description,
+            'address' => $current->address,
+            'full_path' => $current->full_path
+        ];
+
+        // Add all ancestors
+        $ancestors = $this->ancestors();
+        foreach ($ancestors as $ancestor) {
+            $hierarchy[] = [
+                'id' => $ancestor->id,
+                'name' => $ancestor->name,
+                'slug' => $ancestor->slug,
+                'hierarchy_level' => $ancestor->hierarchy_level,
+                'parent_id' => $ancestor->parent_id,
+                'description' => $ancestor->description,
+                'address' => $ancestor->address,
+                'full_path' => $ancestor->full_path
+            ];
+        }
+
+        // Sort by hierarchy level (root to leaf)
+        usort($hierarchy, function($a, $b) {
+            return $a['hierarchy_level'] - $b['hierarchy_level'];
+        });
+
+        return $hierarchy;
     }
 
     /**
