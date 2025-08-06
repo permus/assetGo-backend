@@ -2726,17 +2726,8 @@ class AssetController extends Controller
     {
         $originalMemoryLimit = ini_get('memory_limit');
         
-        // Set memory limit based on available system memory
+        // Set consistent memory limit to 512MB
         $memoryLimit = '512M';
-        if (function_exists('memory_get_usage')) {
-            $currentUsage = memory_get_usage(true);
-            $availableMemory = $this->parseMemoryLimit(ini_get('memory_limit'));
-            
-            // If current usage is high, increase limit more aggressively
-            if ($currentUsage > ($availableMemory * 0.7)) {
-                $memoryLimit = '1024M';
-            }
-        }
         
         ini_set('memory_limit', $memoryLimit);
         ini_set('max_execution_time', 600); // 10 minutes
@@ -2763,6 +2754,33 @@ class AssetController extends Controller
         }
         
         return $value;
+    }
+
+    /**
+     * Safely restore memory limit without causing errors
+     */
+    private function safeRestoreMemoryLimit(string $originalLimit): void
+    {
+        try {
+            $currentUsage = memory_get_usage(true);
+            $originalBytes = $this->parseMemoryLimit($originalLimit);
+            
+            // Only restore if we have enough headroom (current usage + 50MB buffer)
+            $bufferBytes = 50 * 1024 * 1024; // 50MB buffer
+            $requiredBytes = $currentUsage + $bufferBytes;
+            
+            if ($originalBytes >= $requiredBytes) {
+                ini_set('memory_limit', $originalLimit);
+            } else {
+                // Keep a safe memory limit that accommodates current usage
+                $safeLimit = max($originalBytes, $requiredBytes);
+                $safeLimitMB = ceil($safeLimit / (1024 * 1024));
+                ini_set('memory_limit', $safeLimitMB . 'M');
+            }
+        } catch (\Exception $e) {
+            // If anything fails, just leave the current memory limit as is
+            // This prevents the application from crashing
+        }
     }
 
     /**
@@ -2878,13 +2896,14 @@ class AssetController extends Controller
             }
 
         } catch (\Exception $e) {
-            // Restore original memory limit
-            ini_set('memory_limit', $originalMemoryLimit);
+            // Clean up memory before restoring limit
+            gc_collect_cycles();
+            $this->safeRestoreMemoryLimit($originalMemoryLimit);
             throw new \Exception('Error parsing file: ' . $e->getMessage());
         } finally {
-            // Always restore memory limit and force cleanup
-            ini_set('memory_limit', $originalMemoryLimit);
+            // Always clean up and safely restore memory limit
             gc_collect_cycles();
+            $this->safeRestoreMemoryLimit($originalMemoryLimit);
         }
 
         return [

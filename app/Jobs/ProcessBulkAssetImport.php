@@ -45,7 +45,7 @@ class ProcessBulkAssetImport implements ShouldQueue
      */
     public function handle(): void
     {
-        // Increase memory limit for bulk import processing
+        // Set memory limit to 512MB for bulk import processing
         $originalMemoryLimit = ini_get('memory_limit');
         ini_set('memory_limit', '512M');
         
@@ -120,9 +120,9 @@ class ProcessBulkAssetImport implements ShouldQueue
             $this->importJob->markAsFailed($e->getMessage());
             throw $e;
         } finally {
-            // Always restore memory limit
-            ini_set('memory_limit', $originalMemoryLimit);
+            // Always clean up and safely restore memory limit
             gc_collect_cycles();
+            $this->safeRestoreMemoryLimit($originalMemoryLimit);
         }
     }
 
@@ -357,6 +357,53 @@ class ProcessBulkAssetImport implements ShouldQueue
         }
 
         return $location;
+    }
+
+    /**
+     * Safely restore memory limit without causing errors
+     */
+    private function safeRestoreMemoryLimit(string $originalLimit): void
+    {
+        try {
+            $currentUsage = memory_get_usage(true);
+            $originalBytes = $this->parseMemoryLimit($originalLimit);
+            
+            // Only restore if we have enough headroom (current usage + 50MB buffer)
+            $bufferBytes = 50 * 1024 * 1024; // 50MB buffer
+            $requiredBytes = $currentUsage + $bufferBytes;
+            
+            if ($originalBytes >= $requiredBytes) {
+                ini_set('memory_limit', $originalLimit);
+            } else {
+                // Keep a safe memory limit that accommodates current usage
+                $safeLimit = max($originalBytes, $requiredBytes);
+                $safeLimitMB = ceil($safeLimit / (1024 * 1024));
+                ini_set('memory_limit', $safeLimitMB . 'M');
+            }
+        } catch (\Exception $e) {
+            // If anything fails, just leave the current memory limit as is
+        }
+    }
+
+    /**
+     * Parse memory limit string to bytes
+     */
+    private function parseMemoryLimit(string $limit): int
+    {
+        $limit = trim($limit);
+        $last = strtolower($limit[strlen($limit)-1]);
+        $value = (int) $limit;
+        
+        switch($last) {
+            case 'g':
+                $value *= 1024;
+            case 'm':
+                $value *= 1024;
+            case 'k':
+                $value *= 1024;
+        }
+        
+        return $value;
     }
 
     /**
