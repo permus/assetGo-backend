@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class AssetImportJob extends Model
@@ -61,7 +62,7 @@ class AssetImportJob extends Model
     }
 
     /**
-     * Get the progress percentage
+     * Get the progress percentage with stability checks
      */
     public function getProgressPercentageAttribute(): float
     {
@@ -69,7 +70,12 @@ class AssetImportJob extends Model
             return 0;
         }
 
-        return round(($this->processed_assets / $this->total_assets) * 100, 2);
+        // Ensure processed_assets doesn't exceed total_assets
+        $processed = min($this->processed_assets, $this->total_assets);
+        $percentage = round(($processed / $this->total_assets) * 100, 2);
+        
+        // Ensure percentage is between 0 and 100
+        return max(0, min(100, $percentage));
     }
 
     /**
@@ -89,34 +95,54 @@ class AssetImportJob extends Model
     }
 
     /**
-     * Update progress
+     * Update progress with atomic database operations to prevent race conditions
      */
     public function updateProgress(int $processed, int $successful = null, int $failed = null, array $errors = null): void
     {
-        $this->processed_assets = $processed;
-        
-        if ($successful !== null) {
-            $this->successful_imports = $successful;
-        }
-        
-        if ($failed !== null) {
-            $this->failed_imports = $failed;
-        }
-        
-        if ($errors !== null) {
-            $this->errors = $errors;
-        }
+        // Use database transaction to ensure atomic updates
+        \DB::transaction(function () use ($processed, $successful, $failed, $errors) {
+            // Lock the row to prevent concurrent updates
+            $job = self::where('id', $this->id)->lockForUpdate()->first();
+            
+            if (!$job) {
+                return; // Job was deleted
+            }
 
-        // Update status based on progress
-        if ($processed >= $this->total_assets) {
-            $this->status = 'completed';
-            $this->completed_at = now();
-        } elseif ($this->status === 'pending') {
-            $this->status = 'processing';
-            $this->started_at = now();
-        }
+            // Only update if processed count is greater than current (prevents going backwards)
+            if ($processed >= $job->processed_assets) {
+                $updateData = [
+                    'processed_assets' => $processed,
+                    'updated_at' => now()
+                ];
+                
+                if ($successful !== null) {
+                    $updateData['successful_imports'] = $successful;
+                }
+                
+                if ($failed !== null) {
+                    $updateData['failed_imports'] = $failed;
+                }
+                
+                if ($errors !== null) {
+                    $updateData['errors'] = json_encode($errors);
+                }
 
-        $this->save();
+                // Update status based on progress
+                if ($processed >= $job->total_assets) {
+                    $updateData['status'] = 'completed';
+                    $updateData['completed_at'] = now();
+                } elseif ($job->status === 'pending') {
+                    $updateData['status'] = 'processing';
+                    $updateData['started_at'] = now();
+                }
+
+                // Perform atomic update
+                self::where('id', $this->id)->update($updateData);
+                
+                // Refresh the model instance
+                $this->refresh();
+            }
+        });
     }
 
     /**

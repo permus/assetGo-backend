@@ -50,11 +50,25 @@ class ProcessBulkAssetImport implements ShouldQueue
         ini_set('memory_limit', '512M');
         
         try {
-            Log::info("Starting bulk asset import job: {$this->importJob->job_id}");
+            // Ensure only one worker processes this job
+            \DB::transaction(function () {
+                $job = AssetImportJob::where('id', $this->importJob->id)
+                    ->lockForUpdate()
+                    ->first();
+                
+                if (!$job || $job->status !== 'pending') {
+                    throw new \Exception("Job {$this->importJob->job_id} is already being processed or completed");
+                }
+                
+                $job->update([
+                    'status' => 'processing',
+                    'started_at' => now()
+                ]);
+                
+                $this->importJob = $job;
+            });
 
-            $this->importJob->status = 'processing';
-            $this->importJob->started_at = now();
-            $this->importJob->save();
+            Log::info("Starting bulk asset import job: {$this->importJob->job_id}");
 
             $user = $this->importJob->user;
             $assetsData = $this->importJob->import_data;
@@ -98,9 +112,13 @@ class ProcessBulkAssetImport implements ShouldQueue
                     
                     $processed++;
                     
-                    // Update progress every 10 assets or at the end
-                    if ($processed % 10 === 0 || $processed === $totalAssets) {
+                    // Update progress every 25 assets or at the end to reduce race conditions
+                    if ($processed % 25 === 0 || $processed === $totalAssets) {
+                        $oldProcessed = $this->importJob->processed_assets;
                         $this->importJob->updateProgress($processed, $successful, $failed, $errors);
+                        
+                        // Log progress updates for debugging
+                        Log::info("Progress updated for job {$this->importJob->job_id}: {$oldProcessed} -> {$processed}/{$totalAssets} (" . round(($processed/$totalAssets)*100, 2) . "%)");
                     }
                 }
                 

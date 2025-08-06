@@ -846,6 +846,7 @@ class AssetController extends Controller
     {
         $user = $request->user();
 
+        // Always fetch fresh data from database to avoid cache issues
         $importJob = AssetImportJob::where('job_id', $jobId)
             ->where('user_id', $user->id)
             ->where('company_id', $user->company_id)
@@ -858,6 +859,17 @@ class AssetController extends Controller
             ], 404);
         }
 
+        // Refresh the model to get latest database values
+        $importJob->refresh();
+
+        // Calculate progress percentage manually for debugging
+        $manualPercentage = $importJob->total_assets > 0 
+            ? round(($importJob->processed_assets / $importJob->total_assets) * 100, 2) 
+            : 0;
+
+        // Log progress for debugging unstable counts
+        \Log::info("Progress check for job {$importJob->job_id}: {$importJob->processed_assets}/{$importJob->total_assets} = {$manualPercentage}%");
+
         $response = [
             'success' => true,
             'data' => [
@@ -868,12 +880,14 @@ class AssetController extends Controller
                 'successful_imports' => $importJob->successful_imports,
                 'failed_imports' => $importJob->failed_imports,
                 'progress_percentage' => $importJob->progress_percentage,
+                'manual_percentage' => $manualPercentage, // For debugging
                 'is_completed' => $importJob->is_completed,
                 'is_processing' => $importJob->is_processing,
                 'started_at' => $importJob->started_at?->toISOString(),
                 'completed_at' => $importJob->completed_at?->toISOString(),
                 'errors' => $importJob->errors ?? [],
-                'imported_assets' => $importJob->imported_assets ?? []
+                'imported_assets' => $importJob->imported_assets ?? [],
+                'last_updated' => $importJob->updated_at?->toISOString()
             ]
         ];
 
