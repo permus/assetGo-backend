@@ -9,8 +9,10 @@ use App\Http\Requests\Asset\UpdateAssetRequest;
 use App\Http\Requests\Asset\BulkImportAssetRequest;
 use App\Http\Requests\Asset\TransferAssetRequest;
 use App\Http\Requests\Asset\MaintenanceScheduleRequest;
+use App\Jobs\ProcessBulkAssetImport;
 use App\Models\Asset;
 use App\Models\AssetCategory;
+use App\Models\AssetImportJob;
 use App\Models\AssetStatus;
 use App\Models\AssetTag;
 use App\Models\AssetImage;
@@ -685,7 +687,82 @@ class AssetController extends Controller
     }
 
     /**
-     * Bulk import assets from JSON payload
+     * Bulk import assets from Excel file using queue
+     * Route: POST /api/assets/import-bulk-excel
+     * Payload: { file: Excel file }
+     */
+    public function bulkImportAssetsFromExcel(Request $request)
+    {
+        // Validate the request
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:20480', // 20MB max
+        ]);
+
+        $user = $request->user();
+        $file = $request->file('file');
+
+        try {
+            // Parse Excel file and convert to JSON format
+            $parseResult = $this->parseExcelFileToAssets($file);
+            $assets = $parseResult['assets'];
+            $totalRowsProcessed = $parseResult['total_rows_processed'];
+            $skippedRows = $parseResult['skipped_rows'];
+
+            if (empty($assets)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No valid asset data found in the file. Please check the file format and ensure headers are in row 1 or 2: Asset ID Number, S/M Type, Building, Location, Floor, Asset Description, Brand/Make, Model No, Capacity/Rating.',
+                    'details' => [
+                        'total_rows_processed' => $totalRowsProcessed,
+                        'skipped_rows' => $skippedRows,
+                        'valid_assets' => 0
+                    ]
+                ], 400);
+            }
+
+            // Create import job record
+            $importJob = AssetImportJob::create([
+                'user_id' => $user->id,
+                'company_id' => $user->company_id,
+                'status' => 'pending',
+                'total_assets' => count($assets),
+                'import_data' => $assets,
+            ]);
+
+            // Dispatch the job to the queue
+            ProcessBulkAssetImport::dispatch($importJob);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Excel file processed and import job queued successfully. Use the job_id to track progress.',
+                'data' => [
+                    'job_id' => $importJob->job_id,
+                    'total_assets' => $importJob->total_assets,
+                    'status' => $importJob->status,
+                    'progress_url' => url("/api/assets/import-progress/{$importJob->job_id}"),
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_size' => $file->getSize(),
+                    'file_stats' => [
+                        'total_rows_processed' => $totalRowsProcessed,
+                        'valid_assets_found' => count($assets),
+                        'skipped_rows' => $skippedRows,
+                        'header_detection' => $parseResult['header_row_detected'] ?? 'row 1'
+                    ],
+                    'sample_data' => array_slice($assets, 0, 3) // Show first 3 assets as sample
+                ]
+            ], 202); // HTTP 202 Accepted
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process Excel file: ' . $e->getMessage(),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Bulk import assets from JSON payload using queue
      * Route: POST /api/assets/import-bulk-json
      * Payload: { assets: [ ... ] }
      */
@@ -693,15 +770,15 @@ class AssetController extends Controller
     {
         // Validate the request
         $request->validate([
-            'assets' => 'required|array|min:1',
+            'assets' => 'required|array|min:1|max:50000', // Limit to 50k assets
             'assets.*.name' => 'required|string|max:100',
-            'assets.*.asset_id' => 'nullable|string|max:255|unique:assets,asset_id,NULL,id,company_id,' . ($request->user() ? $request->user()->company_id : 'NULL'),
+            'assets.*.asset_id' => 'nullable|string|max:255',
             'assets.*.description' => 'nullable|string|max:500',
             'assets.*.asset_description' => 'nullable|string|max:500',
             'assets.*.category' => 'nullable|string|max:255',
             'assets.*.s_m_type' => 'nullable|string|max:255',
             'assets.*.type' => 'nullable|string|max:255',
-            'assets.*.serial_number' => 'nullable|string|max:255|unique:assets,serial_number,NULL,id,company_id,' . ($request->user() ? $request->user()->company_id : 'NULL'),
+            'assets.*.serial_number' => 'nullable|string|max:255',
             'assets.*.model' => 'nullable|string|max:255',
             'assets.*.manufacturer' => 'nullable|string|max:255',
             'assets.*.brand_make' => 'nullable|string|max:255',
@@ -716,248 +793,99 @@ class AssetController extends Controller
             'assets.*.department' => 'nullable|string|max:255',
             'assets.*.warranty' => 'nullable|string|max:255',
             'assets.*.insurance' => 'nullable|string|max:255',
-            'assets.*.health_score' => 'nullable|numeric|min:0|max:100',
-            'assets.*.status' => 'nullable|string|max:50',
+            'assets.*.health_score' => 'nullable|numeric|between:0,100',
+            'assets.*.status' => 'nullable|string|in:active,inactive,maintenance,disposed',
             'assets.*.tags' => 'nullable|array',
-            'assets.*.tags.*' => 'string|max:255',
+            'assets.*.tags.*' => 'string|max:50',
         ]);
 
         $user = $request->user();
         $assets = $request->input('assets');
-        $imported = [];
-        $failed = [];
-        $errors = [];
 
-        \DB::beginTransaction();
         try {
-            foreach ($assets as $index => $assetData) {
-                try {
-                    // Find or create category
-                    $category = null;
-                    if (!empty($assetData['category'])) {
-                        $category = AssetCategory::firstOrCreate(
-                            ['name' => $assetData['category']],
-                            [
-                                'description' => $assetData['category'] . ' category',
-                                'icon' => 'https://unpkg.com/lucide-static/icons/package.svg'
-                            ]
-                        );
-                    }
+            // Create import job record
+            $importJob = AssetImportJob::create([
+                'user_id' => $user->id,
+                'company_id' => $user->company_id,
+                'status' => 'pending',
+                'total_assets' => count($assets),
+                'import_data' => $assets,
+            ]);
 
-                    // Find or create S/M Type as asset category
-                    $smTypeCategory = null;
-                    if (!empty($assetData['s_m_type'])) {
-                        $smTypeCategory = AssetCategory::firstOrCreate(
-                            ['name' => $assetData['s_m_type']],
-                            [
-                                'description' => $assetData['s_m_type'] . ' S/M Type category',
-                                'icon' => 'https://unpkg.com/lucide-static/icons/thumbs-up.svg'
-                            ]
-                        );
-                    }
-
-                    // Handle hierarchical location structure
-                    $location = null;
-                    $parentLocation = null;
-
-                    // If building is provided, create or find building location
-                    if (!empty($assetData['building'])) {
-                        $parentLocation = Location::firstOrCreate(
-                            [
-                                'name' => $assetData['building'],
-                                'company_id' => $user->company_id,
-                                'parent_id' => null, // Building is top level
-                                'hierarchy_level' => 0
-                            ],
-                            [
-                                'user_id' => $user->id,
-                                'description' => 'Building: ' . $assetData['building'],
-                                'qr_code_path' => null,
-                                'address' => null,
-                                'location_type_id' => null
-                            ]
-                        );
-                    }
-
-                    // If location is provided, create or find location under building
-                    if (!empty($assetData['location'])) {
-                        $location = Location::firstOrCreate(
-                            [
-                                'name' => $assetData['location'],
-                                'company_id' => $user->company_id,
-                                'parent_id' => $parentLocation ? $parentLocation->id : null,
-                                'hierarchy_level' => 1
-                            ],
-                            [
-                                'user_id' => $user->id,
-                                'description' => 'Location: ' . $assetData['location'],
-                                'qr_code_path' => null,
-                                'address' => null,
-                                'location_type_id' => null
-                            ]
-                        );
-
-                        // Update parent location reference
-                        $parentLocation = $location;
-                    }
-
-                                        // If floor is provided, create or find floor under location
-                    if (!empty($assetData['floor'])) {
-                        $location = Location::firstOrCreate(
-                            [
-                                'name' => $assetData['floor'],
-                                'company_id' => $user->company_id,
-                                'parent_id' => $parentLocation ? $parentLocation->id : null,
-                                'hierarchy_level' => 2
-                            ],
-                            [
-                                'user_id' => $user->id,
-                                'description' => 'Floor: ' . $assetData['floor'],
-                                'qr_code_path' => null,
-                                'address' => null,
-                                'location_type_id' => null
-                            ]
-                        );
-                    }
-
-                    // Find or create department
-                    $department = null;
-                    if (!empty($assetData['department'])) {
-                        $department = Department::firstOrCreate(
-                            [
-                                'name' => $assetData['department'],
-                                'company_id' => $user->company_id,
-                                'user_id' => $user->id
-                            ],
-                        );
-                    }
-
-                    // Find or create asset type
-                    $assetType = null;
-                    if (!empty($assetData['type'])) {
-                        $assetType = AssetType::firstOrCreate(
-                            ['name' => $assetData['type']],
-                            [
-                                'icon' => 'https://unpkg.com/lucide-static/icons/tag.svg'
-                            ]
-                        );
-                    } else {
-                        // Default to "Fixed Assets" if no type provided
-                        $assetType = AssetType::firstOrCreate(
-                            ['name' => 'Fixed Assets'],
-                            [
-                                'icon' => 'https://unpkg.com/lucide-static/icons/tag.svg'
-                            ]
-                        );
-                    }
-
-                    // Find or create asset status
-                    $assetStatus = null;
-                    if (!empty($assetData['status'])) {
-                        $assetStatus = AssetStatus::firstOrCreate(
-                            ['name' => $assetData['status']],
-                            [
-                                'description' => $assetData['status'] . ' status',
-                                'color' => $assetData['status'] === 'Active' ? '#10B981' : '#6B7280'
-                            ]
-                        );
-                    }
-
-                    // Use provided asset_id or generate unique asset ID
-                    $assetId = $assetData['asset_id'] ?? 'AST-' . strtoupper(substr($user->company_id, 0, 3)) . '-' .
-                              str_pad(Asset::where('company_id', $user->company_id)->count() + 1, 4, '0', STR_PAD_LEFT);
-                    
-                    // Double-check asset_id uniqueness within company
-                    if (Asset::where('asset_id', $assetId)->where('company_id', $user->company_id)->exists()) {
-                        throw new \Exception("Asset ID '{$assetId}' already exists in this company.");
-                    }
-
-                    // Create the asset
-                    $asset = Asset::create([
-                        'asset_id' => $assetId,
-                        'name' => $assetData['name'],
-                        'description' => $assetData['asset_description'] ?? $assetData['description'] ?? '',
-                        'category_id' => $category?->id ?? $smTypeCategory?->id,
-                        'type' => $assetType?->name ?? $assetData['type'] ?? null,
-                        'serial_number' => $assetData['serial_number'] ?? null,
-                        'model' => $assetData['model'] ?? null,
-                        'manufacturer' => $assetData['brand_make'] ?? $assetData['manufacturer'] ?? null,
-                        'capacity' => $assetData['capacity'] ?? null,
-                        'purchase_date' => $assetData['purchase_date'] ?? null,
-                        'purchase_price' => $assetData['purchase_price'] ?? null,
-                        'depreciation' => $assetData['depreciation'] ?? null,
-                        'location_id' => $location?->id ?? null,
-                        'department_id' => $department?->id,
-                        'user_id' => $user->id,
-                        'company_id' => $user->company_id,
-                        'warranty' => $assetData['warranty'] ?? null,
-                        'insurance' => $assetData['insurance'] ?? null,
-                        'health_score' => $assetData['health_score'] ?? 100,
-                        'status' => $assetData['status'] ?? 'active',
-                    ]);
-
-                    // Handle tags if provided
-                    if (!empty($assetData['tags']) && is_array($assetData['tags'])) {
-                        $tagIds = [];
-                        foreach ($assetData['tags'] as $tagName) {
-                            $tag = AssetTag::firstOrCreate(
-                                ['name' => $tagName],
-                                ['company_id' => $user->company_id]
-                            );
-                            $tagIds[] = $tag->id;
-                        }
-                        $asset->tags()->attach($tagIds);
-                    }
-
-                    // Log activity
-                    $asset->activities()->create([
-                        'user_id' => $user->id,
-                        'action' => 'created',
-                        'before' => null,
-                        'after' => $asset->toArray(),
-                        'comment' => 'Asset imported via bulk import',
-                    ]);
-
-                    $imported[] = [
-                        'index' => $index + 1,
-                        'asset_id' => $asset->asset_id,
-                        'name' => $asset->name,
-                        'status' => 'success'
-                    ];
-
-                } catch (\Exception $e) {
-                    $failed[] = [
-                        'index' => $index + 1,
-                        'name' => $assetData['name'] ?? 'Unknown',
-                        'error' => $e->getMessage()
-                    ];
-                    $errors[] = "Row " . ($index + 1) . ": " . $e->getMessage();
-                }
-            }
-
-            \DB::commit();
+            // Dispatch the job to the queue
+            ProcessBulkAssetImport::dispatch($importJob);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Bulk import completed',
+                'message' => 'Import job queued successfully. Use the job_id to track progress.',
                 'data' => [
-                    'total_processed' => count($assets),
-                    'imported_count' => count($imported),
-                    'failed_count' => count($failed),
-                    'imported' => $imported,
-                    'failed' => $failed,
-                    'errors' => $errors
+                    'job_id' => $importJob->job_id,
+                    'total_assets' => $importJob->total_assets,
+                    'status' => $importJob->status,
+                    'progress_url' => url("/api/assets/import-progress/{$importJob->job_id}")
                 ]
-            ]);
+            ], 202); // HTTP 202 Accepted
 
         } catch (\Exception $e) {
-            \DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Bulk import failed',
-                'error' => $e->getMessage()
+                'message' => 'Failed to queue import job',
+                'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Check import progress
+     * Route: GET /api/assets/import-progress/{job_id}
+     */
+    public function importProgress(Request $request, $jobId)
+    {
+        $user = $request->user();
+        
+        $importJob = AssetImportJob::where('job_id', $jobId)
+            ->where('user_id', $user->id)
+            ->where('company_id', $user->company_id)
+            ->first();
+
+        if (!$importJob) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Import job not found or unauthorized access'
+            ], 404);
+        }
+
+        $response = [
+            'success' => true,
+            'data' => [
+                'job_id' => $importJob->job_id,
+                'status' => $importJob->status,
+                'total_assets' => $importJob->total_assets,
+                'processed_assets' => $importJob->processed_assets,
+                'successful_imports' => $importJob->successful_imports,
+                'failed_imports' => $importJob->failed_imports,
+                'progress_percentage' => $importJob->progress_percentage,
+                'is_completed' => $importJob->is_completed,
+                'is_processing' => $importJob->is_processing,
+                'started_at' => $importJob->started_at?->toISOString(),
+                'completed_at' => $importJob->completed_at?->toISOString(),
+                'errors' => $importJob->errors ?? [],
+                'imported_assets' => $importJob->imported_assets ?? []
+            ]
+        ];
+
+        // Add error message if job failed
+        if ($importJob->status === 'failed') {
+            $response['data']['error_message'] = $importJob->error_message;
+        }
+
+        // Set appropriate status code
+        $statusCode = 200;
+        if ($importJob->status === 'processing') {
+            $statusCode = 202; // Accepted - still processing
+        }
+
+        return response()->json($response, $statusCode);
     }
 
     /**
@@ -2779,6 +2707,255 @@ class AssetController extends Controller
                 'success' => false,
                 'message' => 'Failed to get health & performance chart data: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Parse Excel file and convert to assets JSON format
+     */
+    private function parseExcelFileToAssets($file): array
+    {
+        $ext = strtolower($file->getClientOriginalExtension());
+        $assets = [];
+        $totalRowsProcessed = 0;
+        $skippedRows = 0;
+        $headerRowDetected = 'row 1';
+
+        try {
+            if (in_array($ext, ['xlsx', 'xls'])) {
+                // Use Laravel Excel for Excel files
+                if (!class_exists('Maatwebsite\\Excel\\Facades\\Excel')) {
+                    throw new \Exception('Laravel Excel package is required for Excel file processing.');
+                }
+
+                $data = Excel::toArray(null, $file)[0] ?? [];
+                
+                if (count($data) < 1) {
+                    throw new \Exception('File is empty or contains no data.');
+                }
+
+                // Detect header row (either row 1 or row 2)
+                $headerRowIndex = $this->detectHeaderRow($data);
+                $headerRowDetected = $headerRowIndex === 0 ? 'row 1' : 'row 2';
+                $headers = array_map('trim', $data[$headerRowIndex]);
+                
+                // Process data rows (start from the row after headers)
+                $dataStartIndex = $headerRowIndex + 1;
+                for ($i = $dataStartIndex; $i < count($data); $i++) {
+                    $row = $data[$i];
+                    $totalRowsProcessed++;
+                    
+                    if (empty(array_filter($row))) {
+                        $skippedRows++;
+                        continue; // Skip empty rows
+                    }
+
+                    $asset = $this->mapExcelRowToAsset($headers, $row, $i + 1); // +1 for 1-based row numbering
+                    if ($asset) {
+                        $assets[] = $asset;
+                    } else {
+                        $skippedRows++;
+                    }
+                }
+
+            } elseif ($ext === 'csv') {
+                // Handle CSV files
+                $handle = fopen($file->getRealPath(), 'r');
+                if (!$handle) {
+                    throw new \Exception('Unable to read CSV file.');
+                }
+
+                $allRows = [];
+                while (($row = fgetcsv($handle)) !== false) {
+                    $allRows[] = $row;
+                }
+                fclose($handle);
+
+                if (empty($allRows)) {
+                    throw new \Exception('CSV file is empty.');
+                }
+
+                // Detect header row
+                $headerRowIndex = $this->detectHeaderRow($allRows);
+                $headerRowDetected = $headerRowIndex === 0 ? 'row 1' : 'row 2';
+                $headers = array_map('trim', $allRows[$headerRowIndex]);
+
+                // Process data rows
+                $dataStartIndex = $headerRowIndex + 1;
+                for ($i = $dataStartIndex; $i < count($allRows); $i++) {
+                    $row = $allRows[$i];
+                    $totalRowsProcessed++;
+                    
+                    if (empty(array_filter($row))) {
+                        $skippedRows++;
+                        continue; // Skip empty rows
+                    }
+
+                    $asset = $this->mapExcelRowToAsset($headers, $row, $i + 1);
+                    if ($asset) {
+                        $assets[] = $asset;
+                    } else {
+                        $skippedRows++;
+                    }
+                }
+            }
+
+        } catch (\Exception $e) {
+            throw new \Exception('Error parsing file: ' . $e->getMessage());
+        }
+
+        return [
+            'assets' => $assets,
+            'total_rows_processed' => $totalRowsProcessed,
+            'skipped_rows' => $skippedRows,
+            'header_row_detected' => $headerRowDetected
+        ];
+    }
+
+    /**
+     * Detect which row contains the headers (row 1 or row 2)
+     */
+    private function detectHeaderRow(array $data): int
+    {
+        $expectedHeaders = [
+            'Asset ID Number',
+            'S/M Type', 
+            'Building',
+            'Location',
+            'Floor',
+            'Asset Description',
+            'Brand/Make',
+            'Model No',
+            'Capacity/Rating'
+        ];
+
+        // Check if row 1 (index 0) contains headers
+        if (isset($data[0])) {
+            $row1Headers = array_map('trim', $data[0]);
+            $row1Matches = $this->countHeaderMatches($row1Headers, $expectedHeaders);
+            
+            // If row 1 has good header matches (at least 4 out of 9), use it
+            if ($row1Matches >= 4) {
+                return 0; // Row 1
+            }
+        }
+
+        // Check if row 2 (index 1) contains headers
+        if (isset($data[1])) {
+            $row2Headers = array_map('trim', $data[1]);
+            $row2Matches = $this->countHeaderMatches($row2Headers, $expectedHeaders);
+            
+            // If row 2 has good header matches, use it
+            if ($row2Matches >= 4) {
+                return 1; // Row 2
+            }
+        }
+
+        // If neither row has good matches, default to row 1
+        return 0;
+    }
+
+    /**
+     * Count how many expected headers match the given row
+     */
+    private function countHeaderMatches(array $rowHeaders, array $expectedHeaders): int
+    {
+        $matches = 0;
+        
+        foreach ($expectedHeaders as $expectedHeader) {
+            foreach ($rowHeaders as $rowHeader) {
+                if (stripos($rowHeader, $expectedHeader) !== false || 
+                    stripos($expectedHeader, $rowHeader) !== false) {
+                    $matches++;
+                    break;
+                }
+            }
+        }
+        
+        return $matches;
+    }
+
+    /**
+     * Map Excel row to asset JSON format
+     */
+    private function mapExcelRowToAsset(array $headers, array $row, int $rowNumber): ?array
+    {
+        try {
+            // Expected headers mapping - flexible matching for variations
+            $headerMapping = [];
+            
+            foreach ($headers as $index => $header) {
+                $cleanHeader = trim($header);
+                
+                // Flexible header matching
+                if (stripos($cleanHeader, 'Asset ID') !== false || stripos($cleanHeader, 'AssetID') !== false) {
+                    $headerMapping[$index] = 'asset_id';
+                } elseif (stripos($cleanHeader, 'S/M Type') !== false || stripos($cleanHeader, 'SM Type') !== false || stripos($cleanHeader, 'Type') !== false) {
+                    $headerMapping[$index] = 's_m_type';
+                } elseif (stripos($cleanHeader, 'Building') !== false) {
+                    $headerMapping[$index] = 'building';
+                } elseif (stripos($cleanHeader, 'Location') !== false && stripos($cleanHeader, 'Building') === false) {
+                    $headerMapping[$index] = 'location';
+                } elseif (stripos($cleanHeader, 'Floor') !== false) {
+                    $headerMapping[$index] = 'floor';
+                } elseif (stripos($cleanHeader, 'Asset Description') !== false || stripos($cleanHeader, 'Description') !== false) {
+                    $headerMapping[$index] = 'asset_description';
+                } elseif (stripos($cleanHeader, 'Brand') !== false || stripos($cleanHeader, 'Make') !== false || stripos($cleanHeader, 'Brand/Make') !== false) {
+                    $headerMapping[$index] = 'brand_make';
+                } elseif (stripos($cleanHeader, 'Model') !== false) {
+                    $headerMapping[$index] = 'model';
+                } elseif (stripos($cleanHeader, 'Capacity') !== false || stripos($cleanHeader, 'Rating') !== false) {
+                    $headerMapping[$index] = 'capacity';
+                }
+            }
+
+            $asset = [];
+            
+            // Map each column to the expected field
+            foreach ($headerMapping as $index => $fieldName) {
+                $value = isset($row[$index]) ? trim($row[$index]) : null;
+                
+                if (!empty($value) && $value !== '') {
+                    $asset[$fieldName] = $value;
+                }
+            }
+
+            // Validate required fields - Asset Description is mandatory
+            if (empty($asset['asset_description'])) {
+                \Log::info("Skipping row {$rowNumber}: Asset Description is required");
+                return null;
+            }
+
+            // Check if Asset ID already exists - if so, skip this asset
+            if (!empty($asset['asset_id'])) {
+                $existingAsset = Asset::where('asset_id', $asset['asset_id'])
+                    ->where('company_id', request()->user()->company_id)
+                    ->first();
+                    
+                if ($existingAsset) {
+                    \Log::info("Skipping row {$rowNumber}: Asset ID '{$asset['asset_id']}' already exists");
+                    return null;
+                }
+            }
+
+            // Set the name field from asset_description (required by our system)
+            $asset['name'] = $asset['asset_description'];
+
+            // Set defaults for system fields
+            $asset['status'] = 'active';
+            $asset['health_score'] = 100;
+
+            // Clean up empty values
+            $asset = array_filter($asset, function($value) {
+                return $value !== null && $value !== '' && $value !== 0;
+            });
+
+            return $asset;
+
+        } catch (\Exception $e) {
+            // Log the error but continue processing other rows
+            \Log::warning("Error processing row {$rowNumber}: " . $e->getMessage());
+            return null;
         }
     }
 }
