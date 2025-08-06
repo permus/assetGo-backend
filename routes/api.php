@@ -62,27 +62,20 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('locations/possible-parents/{locationId?}', [LocationController::class, 'possibleParents']);
 
     // Custom asset endpoints (must be before apiResource to avoid route conflicts)
-    // Import/Export routes (highest priority)
-    Route::post('assets/import-bulk-excel', [AssetController::class, 'bulkImportAssetsFromExcel']);
-    Route::post('assets/import-bulk-json', [AssetController::class, 'bulkImportAssets']);
-    Route::post('assets/import-bulk', [AssetController::class, 'importBulk']);
-    Route::get('assets/import-progress/{jobId}', [AssetController::class, 'importProgress']);
-    Route::get('assets/import/template', [AssetController::class, 'downloadTemplate']);
-    Route::get('assets/export-excel', [AssetController::class, 'exportExcel']);
-    Route::get('assets/export', [AssetController::class, 'export']);
-    
-    // Statistics and hierarchy routes
-    Route::get('assets/statistics', [AssetController::class, 'statistics']);
-    Route::get('assets-hierarchy', [AssetController::class, 'hierarchy']);
-    Route::get('assets/possible-parents/{assetId?}', [AssetController::class, 'possibleParents']);
-    
-    // Bulk operations
     Route::post('assets/bulk-delete', [AssetController::class, 'bulkDelete']);
     Route::post('assets/bulk-archive', [AssetController::class, 'bulkArchive']);
-    Route::post('assets/move', [AssetController::class, 'move']);
-    
-    // Single asset operations
+    Route::post('assets/import-bulk', [AssetController::class, 'importBulk']);
+    Route::post('assets/import-bulk-excel', [AssetController::class, 'bulkImportAssetsFromExcel']);
+    Route::post('assets/import-bulk-json', [AssetController::class, 'bulkImportAssets']);
+    Route::get('assets/import-progress/{jobId}', [AssetController::class, 'importProgress']);
+    Route::get('assets/import/template', [AssetController::class, 'downloadTemplate']);
+    Route::get('assets/statistics', [AssetController::class, 'statistics']);
+    Route::get('assets/export', [AssetController::class, 'export']);
+    Route::get('assets/export-excel', [AssetController::class, 'exportExcel']);
     Route::post('assets/{asset}/archive', [AssetController::class, 'archive']);
+    Route::get('assets-hierarchy', [AssetController::class, 'hierarchy']);
+    Route::get('assets/possible-parents/{assetId?}', [AssetController::class, 'possibleParents']);
+    Route::post('assets/move', [AssetController::class, 'move']);
     // Asset resource routes
     Route::apiResource('assets', AssetController::class);
 
