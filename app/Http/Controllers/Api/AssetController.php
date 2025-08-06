@@ -842,7 +842,7 @@ class AssetController extends Controller
     public function importProgress(Request $request, $jobId)
     {
         $user = $request->user();
-        
+
         $importJob = AssetImportJob::where('job_id', $jobId)
             ->where('user_id', $user->id)
             ->where('company_id', $user->company_id)
@@ -1495,9 +1495,12 @@ class AssetController extends Controller
         $inactiveAssets = Asset::where('company_id', $companyId)->where('status', '!=', 'active')->count();
 
         $maintenanceStatus = AssetStatus::where('name', 'Maintenance')->first();
-        $maintenanceAssets = Asset::where('company_id', $companyId)
-            ->where('status', $maintenanceStatus->id) // Maintenance status
-            ->count();
+        $maintenanceAssets = 0;
+        if ($maintenanceStatus) {
+            $maintenanceAssets = Asset::where('company_id', $companyId)
+                ->where('status', $maintenanceStatus->id) // Maintenance status
+                ->count();
+        }
 
 
         // Financial statistics
@@ -2728,23 +2731,29 @@ class AssetController extends Controller
                     throw new \Exception('Laravel Excel package is required for Excel file processing.');
                 }
 
-                $data = Excel::toArray(null, $file)[0] ?? [];
-                
+                // Always use the first sheet (Sheet 0)
+                $allSheets = Excel::toArray(null, $file);
+
+                if (empty($allSheets)) {
+                    throw new \Exception('No sheets found in Excel file');
+                }
+
+                $data = $allSheets[0] ?? [];
+
                 if (count($data) < 1) {
                     throw new \Exception('File is empty or contains no data.');
                 }
 
                 // Detect header row (either row 1 or row 2)
                 $headerRowIndex = $this->detectHeaderRow($data);
-                $headerRowDetected = $headerRowIndex === 0 ? 'row 1' : 'row 2';
                 $headers = array_map('trim', $data[$headerRowIndex]);
-                
+
                 // Process data rows (start from the row after headers)
                 $dataStartIndex = $headerRowIndex + 1;
                 for ($i = $dataStartIndex; $i < count($data); $i++) {
                     $row = $data[$i];
                     $totalRowsProcessed++;
-                    
+
                     if (empty(array_filter($row))) {
                         $skippedRows++;
                         continue; // Skip empty rows
@@ -2785,7 +2794,7 @@ class AssetController extends Controller
                 for ($i = $dataStartIndex; $i < count($allRows); $i++) {
                     $row = $allRows[$i];
                     $totalRowsProcessed++;
-                    
+
                     if (empty(array_filter($row))) {
                         $skippedRows++;
                         continue; // Skip empty rows
@@ -2812,14 +2821,62 @@ class AssetController extends Controller
         ];
     }
 
-    /**
+        /**
      * Detect which row contains the headers (row 1 or row 2)
      */
     private function detectHeaderRow(array $data): int
     {
-        $expectedHeaders = [
+        $scores = [];
+
+        // Score row 1 (index 0)
+        if (isset($data[0])) {
+            $scores[0] = $this->scoreHeaderMatch($data[0]);
+        }
+
+        // Score row 2 (index 1)
+        if (isset($data[1])) {
+            $scores[1] = $this->scoreHeaderMatch($data[1]);
+        }
+
+        // Return the row with the highest score
+        if (!empty($scores)) {
+            $bestRow = array_keys($scores, max($scores))[0];
+            return $bestRow;
+        }
+
+        // Default to row 1 if no scores
+        return 0;
+    }
+
+        /**
+     * Count how many expected headers match the given row
+     */
+    private function countHeaderMatches(array $rowHeaders, array $expectedHeaders): int
+    {
+        $matches = 0;
+
+        foreach ($expectedHeaders as $expectedHeader) {
+            foreach ($rowHeaders as $rowHeader) {
+                if (stripos($rowHeader, $expectedHeader) !== false ||
+                    stripos($expectedHeader, $rowHeader) !== false) {
+                    $matches++;
+                    break;
+                }
+            }
+        }
+
+        return $matches;
+    }
+
+    /**
+     * Score how well a row matches our expected headers (for sheet selection)
+     */
+    private function scoreHeaderMatch(array $row): int
+    {
+        $score = 0;
+        $targetHeaders = [
             'Asset ID Number',
-            'S/M Type', 
+            'S/M Type',
             'Building',
             'Location',
             'Floor',
@@ -2829,50 +2886,32 @@ class AssetController extends Controller
             'Capacity/Rating'
         ];
 
-        // Check if row 1 (index 0) contains headers
-        if (isset($data[0])) {
-            $row1Headers = array_map('trim', $data[0]);
-            $row1Matches = $this->countHeaderMatches($row1Headers, $expectedHeaders);
-            
-            // If row 1 has good header matches (at least 4 out of 9), use it
-            if ($row1Matches >= 4) {
-                return 0; // Row 1
+        foreach ($row as $cell) {
+            $cell = trim($cell ?? '');
+            if (empty($cell)) continue;
+
+            // Exact matches get higher scores
+            if (in_array($cell, $targetHeaders)) {
+                $score += 10;
+                continue;
             }
-        }
 
-        // Check if row 2 (index 1) contains headers
-        if (isset($data[1])) {
-            $row2Headers = array_map('trim', $data[1]);
-            $row2Matches = $this->countHeaderMatches($row2Headers, $expectedHeaders);
-            
-            // If row 2 has good header matches, use it
-            if ($row2Matches >= 4) {
-                return 1; // Row 2
-            }
-        }
-
-        // If neither row has good matches, default to row 1
-        return 0;
-    }
-
-    /**
-     * Count how many expected headers match the given row
-     */
-    private function countHeaderMatches(array $rowHeaders, array $expectedHeaders): int
-    {
-        $matches = 0;
-        
-        foreach ($expectedHeaders as $expectedHeader) {
-            foreach ($rowHeaders as $rowHeader) {
-                if (stripos($rowHeader, $expectedHeader) !== false || 
-                    stripos($expectedHeader, $rowHeader) !== false) {
-                    $matches++;
+            // Partial matches get lower scores
+            foreach ($targetHeaders as $target) {
+                if (stripos($cell, $target) !== false || stripos($target, $cell) !== false) {
+                    $score += 5;
                     break;
                 }
             }
+
+            // Special scoring for key identifiers
+            if (stripos($cell, 'Asset ID') !== false) $score += 15;
+            if (stripos($cell, 'S/M Type') !== false) $score += 15;
+            if (stripos($cell, 'Asset Description') !== false) $score += 15;
+            if (stripos($cell, 'Brand/Make') !== false) $score += 10;
         }
-        
-        return $matches;
+
+        return $score;
     }
 
     /**
@@ -2883,38 +2922,56 @@ class AssetController extends Controller
         try {
             // Expected headers mapping - flexible matching for variations
             $headerMapping = [];
-            
+
             foreach ($headers as $index => $header) {
                 $cleanHeader = trim($header);
-                
-                // Flexible header matching
+
+                // Flexible header matching - more specific patterns first
                 if (stripos($cleanHeader, 'Asset ID') !== false || stripos($cleanHeader, 'AssetID') !== false) {
                     $headerMapping[$index] = 'asset_id';
-                } elseif (stripos($cleanHeader, 'S/M Type') !== false || stripos($cleanHeader, 'SM Type') !== false || stripos($cleanHeader, 'Type') !== false) {
+                } elseif (stripos($cleanHeader, 'Asset Number') !== false) {
+                    $headerMapping[$index] = 'asset_id'; // Map Asset Number to asset_id
+                } elseif (stripos($cleanHeader, 'Asset Description') !== false) {
+                    $headerMapping[$index] = 'asset_description';
+                } elseif (stripos($cleanHeader, 'S/M Type') !== false || stripos($cleanHeader, 'SM Type') !== false) {
                     $headerMapping[$index] = 's_m_type';
-                } elseif (stripos($cleanHeader, 'Building') !== false) {
+                } elseif (stripos($cleanHeader, 'System Type') !== false) {
+                    $headerMapping[$index] = 's_m_type'; // Map System Type to s_m_type as well
+                } elseif (stripos($cleanHeader, 'Asset Category') !== false) {
+                    $headerMapping[$index] = 's_m_type'; // Map Asset Category to s_m_type
+                } elseif (stripos($cleanHeader, 'Building') !== false && stripos($cleanHeader, 'Tower') === false) {
                     $headerMapping[$index] = 'building';
+                } elseif (stripos($cleanHeader, 'Site') !== false) {
+                    $headerMapping[$index] = 'location'; // Map Site to location
                 } elseif (stripos($cleanHeader, 'Location') !== false && stripos($cleanHeader, 'Building') === false) {
                     $headerMapping[$index] = 'location';
                 } elseif (stripos($cleanHeader, 'Floor') !== false) {
                     $headerMapping[$index] = 'floor';
-                } elseif (stripos($cleanHeader, 'Asset Description') !== false || stripos($cleanHeader, 'Description') !== false) {
-                    $headerMapping[$index] = 'asset_description';
-                } elseif (stripos($cleanHeader, 'Brand') !== false || stripos($cleanHeader, 'Make') !== false || stripos($cleanHeader, 'Brand/Make') !== false) {
+                } elseif (stripos($cleanHeader, 'Description') !== false && stripos($cleanHeader, 'Asset') === false) {
+                    $headerMapping[$index] = 'asset_description'; // Fallback for just "Description"
+                } elseif (stripos($cleanHeader, 'Brand/Make') !== false || stripos($cleanHeader, 'Brand\/Make') !== false) {
                     $headerMapping[$index] = 'brand_make';
+                } elseif (stripos($cleanHeader, 'Brand') !== false || stripos($cleanHeader, 'Make') !== false) {
+                    $headerMapping[$index] = 'brand_make';
+                } elseif (stripos($cleanHeader, 'Model No') !== false) {
+                    $headerMapping[$index] = 'model';
                 } elseif (stripos($cleanHeader, 'Model') !== false) {
                     $headerMapping[$index] = 'model';
+                } elseif (stripos($cleanHeader, 'Capacity/Rating') !== false || stripos($cleanHeader, 'Capacity\/Rating') !== false) {
+                    $headerMapping[$index] = 'capacity';
+                } elseif (stripos($cleanHeader, 'Asset Capacity') !== false) {
+                    $headerMapping[$index] = 'capacity'; // Map Asset Capacity to capacity
                 } elseif (stripos($cleanHeader, 'Capacity') !== false || stripos($cleanHeader, 'Rating') !== false) {
                     $headerMapping[$index] = 'capacity';
                 }
             }
 
-            $asset = [];
-            
+                        $asset = [];
+
             // Map each column to the expected field
             foreach ($headerMapping as $index => $fieldName) {
                 $value = isset($row[$index]) ? trim($row[$index]) : null;
-                
+
                 if (!empty($value) && $value !== '') {
                     $asset[$fieldName] = $value;
                 }
@@ -2922,7 +2979,6 @@ class AssetController extends Controller
 
             // Validate required fields - Asset Description is mandatory
             if (empty($asset['asset_description'])) {
-                \Log::info("Skipping row {$rowNumber}: Asset Description is required");
                 return null;
             }
 
@@ -2931,9 +2987,8 @@ class AssetController extends Controller
                 $existingAsset = Asset::where('asset_id', $asset['asset_id'])
                     ->where('company_id', request()->user()->company_id)
                     ->first();
-                    
+
                 if ($existingAsset) {
-                    \Log::info("Skipping row {$rowNumber}: Asset ID '{$asset['asset_id']}' already exists");
                     return null;
                 }
             }

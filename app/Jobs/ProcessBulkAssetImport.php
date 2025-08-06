@@ -10,6 +10,7 @@ use App\Models\AssetTag;
 use App\Models\AssetType;
 use App\Models\Department;
 use App\Models\Location;
+use App\Models\LocationType;
 use App\Models\User;
 use App\Services\QRCodeService;
 use Illuminate\Bus\Queueable;
@@ -256,6 +257,16 @@ class ProcessBulkAssetImport implements ShouldQueue
 
         // If building is provided, create or find building location
         if (!empty($assetData['building'])) {
+            // Get default building location type
+            $buildingLocationType = LocationType::where('hierarchy_level', 1)
+                ->where('name', 'Office Building')
+                ->first();
+            
+            if (!$buildingLocationType) {
+                // Fallback to any level 1 location type
+                $buildingLocationType = LocationType::where('hierarchy_level', 1)->first();
+            }
+
             $parentLocation = Location::firstOrCreate(
                 [
                     'name' => $assetData['building'],
@@ -267,14 +278,24 @@ class ProcessBulkAssetImport implements ShouldQueue
                     'description' => 'Building: ' . $assetData['building'],
                     'qr_code_path' => null,
                     'address' => null,
-                    'location_type_id' => null,
-                    'hierarchy_level' => 0
+                    'location_type_id' => $buildingLocationType?->id ?? 1,
+                    'hierarchy_level' => 1
                 ]
             );
         }
 
         // If location is provided, create or find location under building
         if (!empty($assetData['location'])) {
+            // Get location type for rooms/areas (hierarchy level 3)
+            $roomLocationType = LocationType::where('hierarchy_level', 3)
+                ->where('name', 'Office')
+                ->first();
+                
+            if (!$roomLocationType) {
+                // Fallback to any level 3 location type
+                $roomLocationType = LocationType::where('hierarchy_level', 3)->first();
+            }
+
             $location = Location::firstOrCreate(
                 [
                     'name' => $assetData['location'],
@@ -286,8 +307,8 @@ class ProcessBulkAssetImport implements ShouldQueue
                     'description' => 'Location: ' . $assetData['location'],
                     'qr_code_path' => null,
                     'address' => null,
-                    'location_type_id' => null,
-                    'hierarchy_level' => 1
+                    'location_type_id' => $roomLocationType?->id ?? 1,
+                    'hierarchy_level' => $parentLocation ? 3 : 2
                 ]
             );
 
@@ -297,6 +318,16 @@ class ProcessBulkAssetImport implements ShouldQueue
 
         // If floor is provided, create or find floor under location
         if (!empty($assetData['floor'])) {
+            // Get floor location type (hierarchy level 2)
+            $floorLocationType = LocationType::where('hierarchy_level', 2)
+                ->where('name', 'Floor')
+                ->first();
+                
+            if (!$floorLocationType) {
+                // Fallback to any level 2 location type
+                $floorLocationType = LocationType::where('hierarchy_level', 2)->first();
+            }
+
             $location = Location::firstOrCreate(
                 [
                     'name' => $assetData['floor'],
@@ -308,7 +339,7 @@ class ProcessBulkAssetImport implements ShouldQueue
                     'description' => 'Floor: ' . $assetData['floor'],
                     'qr_code_path' => null,
                     'address' => null,
-                    'location_type_id' => null,
+                    'location_type_id' => $floorLocationType?->id ?? 1,
                     'hierarchy_level' => 2
                 ]
             );
