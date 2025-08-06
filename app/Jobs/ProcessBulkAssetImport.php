@@ -15,18 +15,20 @@ use App\Models\User;
 use App\Services\QRCodeService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-class ProcessBulkAssetImport implements ShouldQueue
+class ProcessBulkAssetImport implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $timeout = 1800; // 30 minutes
     public $tries = 3;
+    public $uniqueFor = 3600; // Job is unique for 1 hour
 
     protected $importJob;
     protected $qrCodeService;
@@ -38,6 +40,14 @@ class ProcessBulkAssetImport implements ShouldQueue
     {
         $this->importJob = $importJob;
         $this->qrCodeService = app(QRCodeService::class);
+    }
+
+    /**
+     * Get the unique ID for the job to prevent duplicates
+     */
+    public function uniqueId(): string
+    {
+        return $this->importJob->job_id;
     }
 
     /**
@@ -56,14 +66,22 @@ class ProcessBulkAssetImport implements ShouldQueue
                     ->lockForUpdate()
                     ->first();
                 
-                if (!$job || $job->status !== 'pending') {
-                    throw new \Exception("Job {$this->importJob->job_id} is already being processed or completed");
+                if (!$job) {
+                    throw new \Exception("Job {$this->importJob->job_id} not found");
                 }
                 
-                $job->update([
-                    'status' => 'processing',
-                    'started_at' => now()
-                ]);
+                // Only prevent processing if job is completed, failed, or cancelled
+                if (in_array($job->status, ['completed', 'failed', 'cancelled'])) {
+                    throw new \Exception("Job {$this->importJob->job_id} is already completed or failed");
+                }
+                
+                // If job is pending, mark it as processing
+                if ($job->status === 'pending') {
+                    $job->update([
+                        'status' => 'processing',
+                        'started_at' => now()
+                    ]);
+                }
                 
                 $this->importJob = $job;
             });
@@ -151,12 +169,29 @@ class ProcessBulkAssetImport implements ShouldQueue
     {
         // Generate unique asset ID
         $assetId = $assetData['asset_id'] ?? null;
-        if (!$assetId) {
+        
+        // Check if asset ID is empty, null, or "N/A" (case insensitive)
+        if (!$assetId || trim($assetId) === '' || strtoupper(trim($assetId)) === 'N/A') {
             $assetId = 'AST-' . strtoupper(substr(uniqid(), -8));
             
-            // Ensure uniqueness
+            // Ensure uniqueness within the company
             while (Asset::where('asset_id', $assetId)->where('company_id', $user->company_id)->exists()) {
                 $assetId = 'AST-' . strtoupper(substr(uniqid(), -8));
+            }
+        } else {
+            // If asset ID is provided but already exists, make it unique
+            $originalAssetId = trim($assetId);
+            $counter = 1;
+            
+            while (Asset::where('asset_id', $assetId)->where('company_id', $user->company_id)->exists()) {
+                $assetId = $originalAssetId . '-' . $counter;
+                $counter++;
+                
+                // Prevent infinite loop - if counter gets too high, generate new ID
+                if ($counter > 9999) {
+                    $assetId = 'AST-' . strtoupper(substr(uniqid(), -8));
+                    break;
+                }
             }
         }
 
