@@ -2714,10 +2714,59 @@ class AssetController extends Controller
     }
 
     /**
+     * Optimize memory settings for large file processing
+     */
+    private function optimizeMemoryForLargeFiles(): string
+    {
+        $originalMemoryLimit = ini_get('memory_limit');
+        
+        // Set memory limit based on available system memory
+        $memoryLimit = '512M';
+        if (function_exists('memory_get_usage')) {
+            $currentUsage = memory_get_usage(true);
+            $availableMemory = $this->parseMemoryLimit(ini_get('memory_limit'));
+            
+            // If current usage is high, increase limit more aggressively
+            if ($currentUsage > ($availableMemory * 0.7)) {
+                $memoryLimit = '1024M';
+            }
+        }
+        
+        ini_set('memory_limit', $memoryLimit);
+        ini_set('max_execution_time', 600); // 10 minutes
+        
+        return $originalMemoryLimit;
+    }
+
+    /**
+     * Parse memory limit string to bytes
+     */
+    private function parseMemoryLimit(string $limit): int
+    {
+        $limit = trim($limit);
+        $last = strtolower($limit[strlen($limit)-1]);
+        $value = (int) $limit;
+        
+        switch($last) {
+            case 'g':
+                $value *= 1024;
+            case 'm':
+                $value *= 1024;
+            case 'k':
+                $value *= 1024;
+        }
+        
+        return $value;
+    }
+
+    /**
      * Parse Excel file and convert to assets JSON format
      */
     private function parseExcelFileToAssets($file): array
     {
+        // Optimize memory settings for large file processing
+        $originalMemoryLimit = $this->optimizeMemoryForLargeFiles();
+        
         $ext = strtolower($file->getClientOriginalExtension());
         $assets = [];
         $totalRowsProcessed = 0;
@@ -2731,7 +2780,12 @@ class AssetController extends Controller
                     throw new \Exception('Laravel Excel package is required for Excel file processing.');
                 }
 
-                // Always use the first sheet (Sheet 0)
+                // Configure Laravel Excel for memory efficiency
+                \PhpOffice\PhpSpreadsheet\Settings::setCache(
+                    new \PhpOffice\PhpSpreadsheet\Cache\Simple()
+                );
+
+                // Always use the first sheet (Sheet 0) with memory-efficient reading
                 $allSheets = Excel::toArray(null, $file);
 
                 if (empty($allSheets)) {
@@ -2748,8 +2802,10 @@ class AssetController extends Controller
                 $headerRowIndex = $this->detectHeaderRow($data);
                 $headers = array_map('trim', $data[$headerRowIndex]);
 
-                // Process data rows (start from the row after headers)
+                // Process data rows in chunks to manage memory
                 $dataStartIndex = $headerRowIndex + 1;
+                $chunkSize = 100; // Process 100 rows at a time
+                
                 for ($i = $dataStartIndex; $i < count($data); $i++) {
                     $row = $data[$i];
                     $totalRowsProcessed++;
@@ -2765,7 +2821,15 @@ class AssetController extends Controller
                     } else {
                         $skippedRows++;
                     }
+
+                    // Force garbage collection every chunk to free memory
+                    if ($totalRowsProcessed % $chunkSize === 0) {
+                        gc_collect_cycles();
+                    }
                 }
+
+                // Clear data array to free memory
+                unset($data, $allSheets);
 
             } elseif ($ext === 'csv') {
                 // Handle CSV files
@@ -2810,7 +2874,13 @@ class AssetController extends Controller
             }
 
         } catch (\Exception $e) {
+            // Restore original memory limit
+            ini_set('memory_limit', $originalMemoryLimit);
             throw new \Exception('Error parsing file: ' . $e->getMessage());
+        } finally {
+            // Always restore memory limit and force cleanup
+            ini_set('memory_limit', $originalMemoryLimit);
+            gc_collect_cycles();
         }
 
         return [

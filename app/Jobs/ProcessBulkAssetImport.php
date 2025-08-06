@@ -45,6 +45,10 @@ class ProcessBulkAssetImport implements ShouldQueue
      */
     public function handle(): void
     {
+        // Increase memory limit for bulk import processing
+        $originalMemoryLimit = ini_get('memory_limit');
+        ini_set('memory_limit', '512M');
+        
         try {
             Log::info("Starting bulk asset import job: {$this->importJob->job_id}");
 
@@ -59,8 +63,8 @@ class ProcessBulkAssetImport implements ShouldQueue
             $failed = 0;
             $processed = 0;
 
-            // Process assets in batches to avoid memory issues
-            $batchSize = 50;
+            // Process assets in smaller batches to avoid memory issues
+            $batchSize = 25; // Reduced batch size for better memory management
             $totalAssets = count($assetsData);
             $batches = array_chunk($assetsData, $batchSize);
 
@@ -100,6 +104,9 @@ class ProcessBulkAssetImport implements ShouldQueue
                     }
                 }
                 
+                // Force garbage collection after each batch
+                gc_collect_cycles();
+                
                 // Small delay between batches to prevent overwhelming the system
                 usleep(100000); // 0.1 seconds
             }
@@ -112,6 +119,10 @@ class ProcessBulkAssetImport implements ShouldQueue
             Log::error("Bulk asset import job failed: {$this->importJob->job_id}. Error: " . $e->getMessage());
             $this->importJob->markAsFailed($e->getMessage());
             throw $e;
+        } finally {
+            // Always restore memory limit
+            ini_set('memory_limit', $originalMemoryLimit);
+            gc_collect_cycles();
         }
     }
 
