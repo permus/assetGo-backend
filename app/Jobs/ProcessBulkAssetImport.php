@@ -100,6 +100,8 @@ class ProcessBulkAssetImport implements ShouldQueue, ShouldBeUnique
             $totalAssets = count($assetsData);
             $batches = array_chunk($assetsData, $batchSize);
 
+            Log::info("Job {$this->importJob->job_id}: Processing {$totalAssets} assets in " . count($batches) . " batches for user {$user->id} (company {$user->company_id})");
+
             foreach ($batches as $batchIndex => $batch) {
                 foreach ($batch as $index => $assetData) {
                     $actualIndex = ($batchIndex * $batchSize) + $index;

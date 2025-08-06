@@ -723,6 +723,23 @@ class AssetController extends Controller
                 ], 400);
             }
 
+            // Check if there's already a pending/processing job for this user
+            $existingJob = AssetImportJob::where('user_id', $user->id)
+                ->where('company_id', $user->company_id)
+                ->whereIn('status', ['pending', 'processing'])
+                ->first();
+
+            if ($existingJob) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You already have an import job in progress. Please wait for it to complete.',
+                    'data' => [
+                        'existing_job_id' => $existingJob->job_id,
+                        'progress_url' => url("/api/assets/import-progress/{$existingJob->job_id}"),
+                    ]
+                ], 409); // HTTP 409 Conflict
+            }
+
             // Create import job record
             $importJob = AssetImportJob::create([
                 'user_id' => $user->id,
@@ -731,6 +748,8 @@ class AssetController extends Controller
                 'total_assets' => count($assets),
                 'import_data' => $assets,
             ]);
+
+            \Log::info("Created new import job {$importJob->job_id} with " . count($assets) . " assets for user {$user->id}");
 
             // Dispatch the job to the queue
             ProcessBulkAssetImport::dispatch($importJob);
@@ -2994,13 +3013,39 @@ class AssetController extends Controller
             $this->safeRestoreMemoryLimit($originalMemoryLimit);
         }
 
+        // Remove duplicate assets based on asset_id to prevent DB issues
+        // BUT keep all N/A entries since they represent different assets
+        $uniqueAssets = [];
+        $seenAssetIds = [];
+        $duplicatesRemoved = 0;
+
+        foreach ($assets as $asset) {
+            $assetId = $asset['asset_id'] ?? null;
+            
+            // Always keep N/A entries (they will get unique IDs during processing)
+            if (!$assetId || trim($assetId) === '' || strtoupper(trim($assetId)) === 'N/A') {
+                $uniqueAssets[] = $asset;
+                continue;
+            }
+            
+            // Skip only if we've seen this non-N/A asset ID before
+            if (isset($seenAssetIds[$assetId])) {
+                $duplicatesRemoved++;
+                continue;
+            }
+            
+            $uniqueAssets[] = $asset;
+            $seenAssetIds[$assetId] = true;
+        }
+
         // Log final processing summary
-        \Log::info("Excel parsing completed. Total rows processed: {$totalRowsProcessed}, Valid assets: " . count($assets) . ", Skipped rows: {$skippedRows}");
+        \Log::info("Excel parsing completed. Total rows processed: {$totalRowsProcessed}, Valid assets: " . count($uniqueAssets) . ", Skipped rows: {$skippedRows}, Duplicates removed: {$duplicatesRemoved}");
 
         return [
-            'assets' => $assets,
+            'assets' => $uniqueAssets,
             'total_rows_processed' => $totalRowsProcessed,
             'skipped_rows' => $skippedRows,
+            'duplicates_removed' => $duplicatesRemoved,
             'header_row_detected' => $headerRowDetected
         ];
     }
