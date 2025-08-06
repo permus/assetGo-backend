@@ -693,6 +693,9 @@ class AssetController extends Controller
      */
     public function bulkImportAssetsFromExcel(Request $request)
     {
+        // Set timeout for bulk import operations
+        set_time_limit(600); // 10 minutes
+        
         // Validate the request
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls,csv|max:20480', // 20MB max
@@ -1702,6 +1705,9 @@ class AssetController extends Controller
      */
     public function exportExcel(Request $request)
     {
+        // Set timeout for export operations
+        set_time_limit(600); // 10 minutes
+        
         $companyId = $request->user()->company_id;
 
         // Get all assets for the company without any conditions or pagination
@@ -2780,10 +2786,8 @@ class AssetController extends Controller
                     throw new \Exception('Laravel Excel package is required for Excel file processing.');
                 }
 
-                // Configure Laravel Excel for memory efficiency
-                \PhpOffice\PhpSpreadsheet\Settings::setCache(
-                    new \PhpOffice\PhpSpreadsheet\Cache\Simple()
-                );
+                // Configure PhpSpreadsheet for memory efficiency
+                // Note: Modern versions use Memory cache by default, no explicit setting needed
 
                 // Always use the first sheet (Sheet 0) with memory-efficient reading
                 $allSheets = Excel::toArray(null, $file);
