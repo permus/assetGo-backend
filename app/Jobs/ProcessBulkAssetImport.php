@@ -147,6 +147,10 @@ class ProcessBulkAssetImport implements ShouldQueue, ShouldBeUnique
                 usleep(100000); // 0.1 seconds
             }
 
+            // Final progress update to ensure 100% completion
+            $this->importJob->updateProgress($totalAssets, $successful, $failed, $errors);
+            Log::info("Final progress update: {$processed}/{$totalAssets} (100%)");
+
             $this->importJob->markAsCompleted();
             
             Log::info("Completed bulk asset import job: {$this->importJob->job_id}. Success: {$successful}, Failed: {$failed}");

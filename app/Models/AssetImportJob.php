@@ -157,11 +157,12 @@ class AssetImportJob extends Model
     }
 
     /**
-     * Mark as completed
+     * Mark as completed and ensure progress shows 100%
      */
     public function markAsCompleted(): void
     {
         $this->status = 'completed';
+        $this->processed_assets = $this->total_assets; // Ensure 100% progress
         $this->completed_at = now();
         $this->save();
     }
