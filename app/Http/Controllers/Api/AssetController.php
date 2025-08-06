@@ -2807,14 +2807,81 @@ class AssetController extends Controller
                 // Configure PhpSpreadsheet for memory efficiency
                 // Note: Modern versions use Memory cache by default, no explicit setting needed
 
-                // Always use the first sheet (Sheet 0) with memory-efficient reading
+                // Load all sheets and find the one with the most data
                 $allSheets = Excel::toArray(null, $file);
 
                 if (empty($allSheets)) {
                     throw new \Exception('No sheets found in Excel file');
                 }
 
-                $data = $allSheets[0] ?? [];
+                // Log detailed information about all sheets
+                \Log::info("Total sheets found: " . count($allSheets));
+                foreach ($allSheets as $sheetIndex => $sheet) {
+                    $rowCount = count($sheet);
+                    $nonEmptyRows = 0;
+                    
+                    // Count non-empty rows
+                    foreach ($sheet as $row) {
+                        $filteredRow = array_filter($row, function($value) {
+                            return $value !== null && $value !== '' && trim($value) !== '';
+                        });
+                        if (!empty($filteredRow)) {
+                            $nonEmptyRows++;
+                        }
+                    }
+                    
+                    \Log::info("Sheet {$sheetIndex}: Total rows: {$rowCount}, Non-empty rows: {$nonEmptyRows}");
+                    
+                    // Log first few rows of each sheet for inspection
+                    if ($rowCount > 0) {
+                        \Log::info("Sheet {$sheetIndex} first row: " . json_encode(array_slice($sheet[0] ?? [], 0, 10)));
+                        if ($rowCount > 1) {
+                            \Log::info("Sheet {$sheetIndex} second row: " . json_encode(array_slice($sheet[1] ?? [], 0, 10)));
+                        }
+                    }
+                }
+
+                // Find the sheet with the most meaningful data
+                $bestSheetIndex = 0;
+                $bestScore = 0;
+                
+                foreach ($allSheets as $sheetIndex => $sheet) {
+                    $rowCount = count($sheet);
+                    if ($rowCount < 2) continue; // Skip sheets with less than 2 rows
+                    
+                    // Score based on non-empty rows and header quality
+                    $nonEmptyRows = 0;
+                    foreach ($sheet as $row) {
+                        $filteredRow = array_filter($row, function($value) {
+                            return $value !== null && $value !== '' && trim($value) !== '';
+                        });
+                        if (!empty($filteredRow)) {
+                            $nonEmptyRows++;
+                        }
+                    }
+                    
+                    // Check header quality (look for asset-related headers)
+                    $headerScore = 0;
+                    if (isset($sheet[0])) {
+                        $headerScore += $this->scoreHeaderMatch($sheet[0]);
+                    }
+                    if (isset($sheet[1])) {
+                        $headerScore += $this->scoreHeaderMatch($sheet[1]);
+                    }
+                    
+                    // Combined score: prioritize sheets with good headers and many rows
+                    $combinedScore = ($nonEmptyRows * 1) + ($headerScore * 10);
+                    
+                    \Log::info("Sheet {$sheetIndex} score: {$combinedScore} (rows: {$nonEmptyRows}, header: {$headerScore})");
+                    
+                    if ($combinedScore > $bestScore) {
+                        $bestScore = $combinedScore;
+                        $bestSheetIndex = $sheetIndex;
+                    }
+                }
+
+                $data = $allSheets[$bestSheetIndex] ?? [];
+                \Log::info("Selected sheet {$bestSheetIndex} with score {$bestScore} and " . count($data) . " total rows");
 
                 if (count($data) < 1) {
                     throw new \Exception('File is empty or contains no data.');
@@ -2832,9 +2899,14 @@ class AssetController extends Controller
                     $row = $data[$i];
                     $totalRowsProcessed++;
 
-                    if (empty(array_filter($row))) {
+                    // Check if row is completely empty
+                    $filteredRow = array_filter($row, function($value) {
+                        return $value !== null && $value !== '' && trim($value) !== '';
+                    });
+                    
+                    if (empty($filteredRow)) {
                         $skippedRows++;
-                        continue; // Skip empty rows
+                        continue; // Skip completely empty rows
                     }
 
                     $asset = $this->mapExcelRowToAsset($headers, $row, $i + 1); // +1 for 1-based row numbering
@@ -2842,6 +2914,8 @@ class AssetController extends Controller
                         $assets[] = $asset;
                     } else {
                         $skippedRows++;
+                        // Log why this row was skipped for debugging
+                        \Log::info("Row " . ($i + 1) . " skipped. Data: " . json_encode(array_slice($row, 0, 10))); // First 10 columns only
                     }
 
                     // Force garbage collection every chunk to free memory
@@ -2905,6 +2979,9 @@ class AssetController extends Controller
             gc_collect_cycles();
             $this->safeRestoreMemoryLimit($originalMemoryLimit);
         }
+
+        // Log final processing summary
+        \Log::info("Excel parsing completed. Total rows processed: {$totalRowsProcessed}, Valid assets: " . count($assets) . ", Skipped rows: {$skippedRows}");
 
         return [
             'assets' => $assets,
@@ -3072,7 +3149,16 @@ class AssetController extends Controller
 
             // Validate required fields - Asset Description is mandatory
             if (empty($asset['asset_description'])) {
-                return null;
+                // Try to find description in other potential fields
+                if (!empty($asset['name'])) {
+                    $asset['asset_description'] = $asset['name'];
+                } elseif (!empty($asset['description'])) {
+                    $asset['asset_description'] = $asset['description'];
+                } else {
+                    // If no description found, log the row data for debugging
+                    \Log::warning("Row {$rowNumber}: Missing asset description. Available fields: " . json_encode(array_keys($asset)));
+                    return null;
+                }
             }
 
             // Check if Asset ID already exists - if so, skip this asset
