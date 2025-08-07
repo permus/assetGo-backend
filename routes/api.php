@@ -55,29 +55,44 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('locations/bulk', [LocationController::class, 'bulkCreate']);
     Route::post('locations/move', [LocationController::class, 'move']);
     Route::get('locations/{location}/qr', [LocationController::class, 'qrCode']);
-
-    // Location helper routes
     Route::get('locations-hierarchy', [LocationController::class, 'hierarchy']);
     Route::get('location-types', [LocationController::class, 'types']);
     Route::get('locations/possible-parents/{locationId?}', [LocationController::class, 'possibleParents']);
 
-    // Custom asset endpoints (must be before apiResource to avoid route conflicts)
+    // Asset resource routes
     Route::post('assets/bulk-delete', [AssetController::class, 'bulkDelete']);
     Route::post('assets/bulk-archive', [AssetController::class, 'bulkArchive']);
-    Route::post('assets/import-bulk', [AssetController::class, 'importBulk']);
     Route::post('assets/import-bulk-excel', [AssetController::class, 'bulkImportAssetsFromExcel']);
-    Route::post('assets/import-bulk-json', [AssetController::class, 'bulkImportAssets']);
     Route::get('assets/import-progress/{jobId}', [AssetController::class, 'importProgress']);
     Route::get('assets/import/template', [AssetController::class, 'downloadTemplate']);
     Route::get('assets/statistics', [AssetController::class, 'statistics']);
-    Route::get('assets/export', [AssetController::class, 'export']);
     Route::get('assets/export-excel', [AssetController::class, 'exportExcel']);
     Route::post('assets/{asset}/archive', [AssetController::class, 'archive']);
     Route::get('assets-hierarchy', [AssetController::class, 'hierarchy']);
     Route::get('assets/possible-parents/{assetId?}', [AssetController::class, 'possibleParents']);
     Route::post('assets/move', [AssetController::class, 'move']);
-    // Asset resource routes
     Route::apiResource('assets', AssetController::class);
+
+    Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);
+    Route::post('assets/{asset}/transfer', [AssetController::class, 'transfer']);
+    Route::post('assets/{asset}/restore', [AssetController::class, 'restore']);
+    Route::post('assets/bulk-restore', [AssetController::class, 'bulkRestore']);
+    Route::get('assets/{asset}/qr-code', [AssetController::class, 'qrCode']);
+    Route::get('assets/{asset}/barcode', [AssetController::class, 'barcode']);
+    Route::get('assets/barcode-types', [AssetController::class, 'barcodeTypes']);
+    Route::get('assets/{asset}/related', [AssetController::class, 'relatedAssets']);
+    Route::get('assets/{asset}/chart-data', [AssetController::class, 'chartData']);
+    Route::get('assets/{asset}/health-performance-chart', [AssetController::class, 'healthPerformanceChart']);
+    Route::get('assets/{asset}/activity-history', [AssetController::class, 'activityHistory']);
+    Route::get('assets/activities', [AssetController::class, 'allActivities']);
+    Route::get('assets/analytics', [AssetController::class, 'analytics']);
+
+    // Maintenance schedule CRUD
+    Route::get('assets/{asset}/maintenance-schedules', [AssetController::class, 'listMaintenanceSchedules']);
+    Route::post('assets/{asset}/maintenance-schedules', [AssetController::class, 'addMaintenanceSchedule']);
+    Route::put('assets/{asset}/maintenance-schedules/{scheduleId}', [AssetController::class, 'updateMaintenanceSchedule']);
+    Route::delete('assets/{asset}/maintenance-schedules/{scheduleId}', [AssetController::class, 'deleteMaintenanceSchedule']);
+
 
     // Asset category routes
     Route::apiResource('asset-categories', AssetCategoryController::class);
@@ -106,44 +121,6 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('teams/{id}/resend-invitation', [TeamController::class, 'resendInvitation']);
     Route::get('teams/statistics', [TeamController::class, 'statistics']);
     Route::get('teams/available-roles', [TeamController::class, 'getAvailableRoles']);
-
-    // Custom asset endpoints
-    Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);
-    // Route::post('assets/import/bulk', [AssetController::class, 'bulkImport']);
-    Route::post('assets/{asset}/transfer', [AssetController::class, 'transfer']);
-    Route::post('assets/{asset}/restore', [AssetController::class, 'restore']);
-    Route::post('assets/bulk-restore', [AssetController::class, 'bulkRestore']);
-    Route::get('assets/{asset}/qr-code', [AssetController::class, 'qrCode']);
-    Route::get('assets/{asset}/barcode', [AssetController::class, 'barcode']);
-    Route::get('assets/barcode-types', [AssetController::class, 'barcodeTypes']);
-    Route::get('assets/{asset}/related', [AssetController::class, 'relatedAssets']);
-    Route::get('assets/{asset}/chart-data', [AssetController::class, 'chartData']);
-    Route::get('assets/{asset}/health-performance-chart', [AssetController::class, 'healthPerformanceChart']);
-
-    // Debug route for transfer validation
-    Route::post('assets/debug-transfer-validation', [AssetController::class, 'debugTransferValidation']);
-
-    // Maintenance schedule CRUD
-    Route::get('assets/{asset}/maintenance-schedules', [AssetController::class, 'listMaintenanceSchedules']);
-    Route::post('assets/{asset}/maintenance-schedules', [AssetController::class, 'addMaintenanceSchedule']);
-    Route::put('assets/{asset}/maintenance-schedules/{scheduleId}', [AssetController::class, 'updateMaintenanceSchedule']);
-    Route::delete('assets/{asset}/maintenance-schedules/{scheduleId}', [AssetController::class, 'deleteMaintenanceSchedule']);
-
-    // Activity history
-    Route::get('assets/{asset}/activity-history', [AssetController::class, 'activityHistory']);
-    Route::get('assets/activities', [AssetController::class, 'allActivities']);
-    Route::get('assets/analytics', [AssetController::class, 'analytics']);
-
-    // Smart Asset Import endpoints
-    // Route::post('assets/import/upload', [\App\Http\Controllers\Api\AssetImportController::class, 'upload']);
-    // Route::post('assets/import/analyze', [\App\Http\Controllers\Api\AssetImportController::class, 'analyze']);
-    // Route::get('assets/import/mappings/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'getMappings']);
-    // Route::put('assets/import/mappings/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'saveMappings']);
-    // Route::post('assets/import/conflicts/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'detectConflicts']);
-    // Route::post('assets/import/resolve-conflicts/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'resolveConflicts']);
-    // Route::post('assets/import/execute/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'executeImport']);
-    // Route::get('assets/import/progress/{file_id}', [\App\Http\Controllers\Api\AssetImportController::class, 'importProgress']);
-    Route::get('assets/import/template', [\App\Http\Controllers\Api\AssetImportController::class, 'downloadTemplate']);
 
 });
 
