@@ -56,13 +56,13 @@ class AuthController extends Controller
             $this->createDefaultRoles($company);
 
             // Send email verification notification
-            $user->sendEmailVerificationNotification();
+            // $user->sendEmailVerificationNotification();
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'User registered successfully. Please check your email to verify your account.',
+                'message' => 'User registered successfully. Please Login now.',
             ], 201);
 
         } catch (\Exception $e) {
@@ -90,14 +90,14 @@ class AuthController extends Controller
         $user = Auth::user();
 
         // Check if email is verified
-        if (!$user->hasVerifiedEmail()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Please verify your email address before logging in.',
-                'email_verified' => false,
-                'user_id' => $user->id
-            ], 403);
-        }
+        // if (!$user->hasVerifiedEmail()) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'Please verify your email address before logging in.',
+        //         'email_verified' => false,
+        //         'user_id' => $user->id
+        //     ], 403);
+        // }
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
