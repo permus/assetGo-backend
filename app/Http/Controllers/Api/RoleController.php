@@ -1,5 +1,4 @@
-    <?php
-
+<?php
     namespace App\Http\Controllers\Api;
 
     use App\Http\Controllers\Controller;
@@ -45,7 +44,7 @@
             }
 
             $user = $request->user();
-            
+
             // Create the role
             $role = Role::create([
                 'name' => $request->name,
@@ -241,7 +240,7 @@
         public function getAvailablePermissions(): JsonResponse
         {
             $permissions = [
-            
+
                 'assets' => [
                     'can_view' => false,
                     'can_create' => false,
@@ -305,7 +304,7 @@
                     'can_delete' => false,
                     'can_export' => false,
                 ],
-            
+
             ];
 
             return response()->json([
@@ -313,4 +312,4 @@
                 'data' => $permissions
             ]);
         }
-    } 
+    }
