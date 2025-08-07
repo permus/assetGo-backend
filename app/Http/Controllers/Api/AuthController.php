@@ -50,7 +50,7 @@ class AuthController extends Controller
             ]);
 
             // Update user with company_id
-            $user->update(['company_id' => $company->id]);
+            $user->update(['company_id' => $company->id, 'email_verified_at' => now()]);
 
             // Create default roles for the company
             $this->createDefaultRoles($company);
