@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\AssetStatusController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\WorkOrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -121,6 +122,13 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('teams/{id}/resend-invitation', [TeamController::class, 'resendInvitation']);
     Route::get('teams/statistics', [TeamController::class, 'statistics']);
     Route::get('teams/available-roles', [TeamController::class, 'getAvailableRoles']);
+
+    // Work Order routes
+    Route::get('work-orders/count', [WorkOrderController::class, 'count']);
+    Route::get('work-orders/analytics', [WorkOrderController::class, 'analytics']);
+    Route::get('work-orders/statistics', [WorkOrderController::class, 'statistics']);
+    Route::get('work-orders/filters', [WorkOrderController::class, 'filters']);
+    Route::apiResource('work-orders', WorkOrderController::class);
 
 });
 
