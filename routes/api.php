@@ -13,6 +13,13 @@ use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\WorkOrderController;
+use App\Http\Controllers\Api\Inventory\PartController as InventoryPartController;
+use App\Http\Controllers\Api\Inventory\StockController as InventoryStockController;
+use App\Http\Controllers\Api\Inventory\TransactionController as InventoryTransactionController;
+use App\Http\Controllers\Api\Inventory\PurchaseOrderController as InventoryPOController;
+use App\Http\Controllers\Api\Inventory\SupplierController as InventorySupplierController;
+use App\Http\Controllers\Api\Inventory\AnalyticsController as InventoryAnalyticsController;
+use App\Http\Controllers\Api\Inventory\DashboardController as InventoryDashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -129,6 +136,30 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('work-orders/statistics', [WorkOrderController::class, 'statistics']);
     Route::get('work-orders/filters', [WorkOrderController::class, 'filters']);
     Route::apiResource('work-orders', WorkOrderController::class);
+
+    // Inventory module routes
+    // Parts Catalog
+    Route::apiResource('inventory/parts', InventoryPartController::class);
+
+    // Stock Levels & Adjustments
+    Route::get('inventory/stocks', [InventoryStockController::class, 'index']);
+    Route::post('inventory/stocks/adjust', [InventoryStockController::class, 'adjust']);
+    Route::post('inventory/stocks/transfer', [InventoryStockController::class, 'transfer']);
+
+    // Transactions
+    Route::get('inventory/transactions', [InventoryTransactionController::class, 'index']);
+
+    // Suppliers
+    Route::apiResource('inventory/suppliers', InventorySupplierController::class)->only(['index','store','update']);
+
+    // Purchase Orders
+    Route::get('inventory/purchase-orders', [InventoryPOController::class, 'index']);
+    Route::post('inventory/purchase-orders', [InventoryPOController::class, 'store']);
+    Route::post('inventory/purchase-orders/{purchaseOrder}/receive', [InventoryPOController::class, 'receive']);
+
+    // Analytics
+    Route::get('inventory/analytics/dashboard', [InventoryAnalyticsController::class, 'dashboard']);
+    Route::get('inventory/dashboard/overview', [InventoryDashboardController::class, 'overview']);
 
 });
 

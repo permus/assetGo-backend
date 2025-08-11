@@ -85,7 +85,11 @@ Permissions are stored as JSON with the following structure:
 - **assets** - Asset management
 - **users** - User management
 - **roles** - Role and permission management
-- **reports** - Report generation and viewing
+  - **reports** - Report generation and viewing
+  - **inventory_parts** - Parts catalog
+  - **inventory_stock** - Stock levels, adjustments, transfers
+  - **inventory_transactions** - Movement log exports
+  - **inventory_pos** - Purchase orders and receiving
 
 ### Available Actions
 
@@ -226,6 +230,10 @@ App\Http\Middleware\CheckPermission
 **Usage in routes:**
 ```php
 Route::middleware('permission:assets,can_create')->post('/assets', [AssetController::class, 'store']);
+// Inventory examples
+Route::middleware('permission:inventory_parts,can_create')->post('/inventory/parts', [InventoryPartController::class, 'store']);
+Route::middleware('permission:inventory_stock,can_edit')->post('/inventory/stocks/adjust', [InventoryStockController::class, 'adjust']);
+Route::middleware('permission:inventory_pos,can_edit')->post('/inventory/purchase-orders', [InventoryPOController::class, 'store']);
 ```
 
 **Parameters:**
