@@ -12,7 +12,7 @@ class InventoryTransaction extends Model
     protected $table = 'inventory_transactions';
 
     protected $fillable = [
-        'company_id','part_id','location_id','type','quantity','unit_cost','total_cost','reason','notes','reference','related_id','user_id'
+        'company_id','part_id','location_id','from_location_id','to_location_id','type','quantity','unit_cost','total_cost','reason','notes','reference','reference_type','reference_id','related_id','user_id'
     ];
 
     protected $casts = [
@@ -28,6 +28,16 @@ class InventoryTransaction extends Model
     public function location()
     {
         return $this->belongsTo(InventoryLocation::class, 'location_id');
+    }
+
+    public function fromLocation()
+    {
+        return $this->belongsTo(InventoryLocation::class, 'from_location_id');
+    }
+
+    public function toLocation()
+    {
+        return $this->belongsTo(InventoryLocation::class, 'to_location_id');
     }
 
     public function scopeForCompany($query, int $companyId)

@@ -99,6 +99,51 @@ class StockController extends Controller
 
         return response()->json(['success' => true, 'data' => ['transfer_out' => $out, 'transfer_in' => $in]]);
     }
+
+    public function reserve(Request $request, InventoryService $service)
+    {
+        $data = $request->validate([
+            'part_id' => 'required|integer|exists:inventory_parts,id',
+            'location_id' => 'required|integer|exists:inventory_locations,id',
+            'quantity' => 'required|integer|min:1',
+            'reference' => 'nullable|string|max:255'
+        ]);
+        $stock = $service->reserveStock($request->user()->company_id, $data['part_id'], $data['location_id'], $data['quantity'], [
+            'reference' => $data['reference'] ?? null,
+            'user_id' => $request->user()->id,
+        ]);
+        return response()->json(['success' => true, 'data' => $stock]);
+    }
+
+    public function release(Request $request, InventoryService $service)
+    {
+        $data = $request->validate([
+            'part_id' => 'required|integer|exists:inventory_parts,id',
+            'location_id' => 'required|integer|exists:inventory_locations,id',
+            'quantity' => 'required|integer|min:1',
+            'reference' => 'nullable|string|max:255'
+        ]);
+        $stock = $service->releaseReservedStock($request->user()->company_id, $data['part_id'], $data['location_id'], $data['quantity'], [
+            'reference' => $data['reference'] ?? null,
+            'user_id' => $request->user()->id,
+        ]);
+        return response()->json(['success' => true, 'data' => $stock]);
+    }
+
+    public function count(Request $request, InventoryService $service)
+    {
+        $data = $request->validate([
+            'part_id' => 'required|integer|exists:inventory_parts,id',
+            'location_id' => 'required|integer|exists:inventory_locations,id',
+            'counted_quantity' => 'required|integer|min:0',
+            'notes' => 'nullable|string'
+        ]);
+        $result = $service->performStockCount($request->user()->company_id, $data['part_id'], $data['location_id'], $data['counted_quantity'], [
+            'notes' => $data['notes'] ?? null,
+            'user_id' => $request->user()->id,
+        ]);
+        return response()->json(['success' => true, 'data' => $result]);
+    }
 }
 
 

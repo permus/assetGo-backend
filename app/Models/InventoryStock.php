@@ -12,11 +12,12 @@ class InventoryStock extends Model
     protected $table = 'inventory_stocks';
 
     protected $fillable = [
-        'company_id','part_id','location_id','on_hand','reserved','available','average_cost'
+        'company_id','part_id','location_id','on_hand','reserved','available','average_cost','last_counted_at','last_counted_by','bin_location'
     ];
 
     protected $casts = [
         'average_cost' => 'decimal:2',
+        'last_counted_at' => 'datetime',
     ];
 
     public function part()
@@ -27,6 +28,11 @@ class InventoryStock extends Model
     public function location()
     {
         return $this->belongsTo(InventoryLocation::class, 'location_id');
+    }
+
+    public function lastCountedBy()
+    {
+        return $this->belongsTo(User::class, 'last_counted_by');
     }
 
     public function scopeForCompany($query, int $companyId)

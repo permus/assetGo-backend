@@ -100,12 +100,32 @@ class PurchaseOrderController extends Controller
         }
 
         if ($allReceived) {
+            // Keep within current ENUM definition
             $purchaseOrder->update(['status' => 'closed']);
         } else {
             $purchaseOrder->update(['status' => 'ordered']);
         }
 
         return response()->json(['success' => true, 'data' => $purchaseOrder->fresh('items')]);
+    }
+
+    public function approve(Request $request)
+    {
+        $data = $request->validate([
+            'purchase_order_id' => 'required|integer|exists:purchase_orders,id',
+            'approve' => 'required|boolean',
+            'comment' => 'nullable|string'
+        ]);
+        $po = PurchaseOrder::findOrFail($data['purchase_order_id']);
+        if ($po->company_id !== $request->user()->company_id) {
+            return response()->json(['success' => false, 'message' => 'Not found'], 404);
+        }
+        if ($data['approve']) {
+            $po->update(['status' => 'approved', 'approved_by' => $request->user()->id, 'approved_at' => now()]);
+        } else {
+            $po->update(['status' => 'rejected', 'reject_comment' => $data['comment'] ?? null]);
+        }
+        return response()->json(['success' => true, 'data' => $po]);
     }
 }
 

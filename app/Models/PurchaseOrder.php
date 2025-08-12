@@ -10,17 +10,22 @@ class PurchaseOrder extends Model
     use HasFactory;
 
     protected $fillable = [
-        'company_id','po_number','supplier_id','order_date','expected_date','status','subtotal','tax','shipping','total','created_by','approved_by','approved_at','reject_comment'
+        'company_id','po_number','supplier_id','order_date','expected_date','status','subtotal','tax','shipping','total','created_by','approved_by','approved_at','reject_comment',
+        'vendor_name','vendor_contact','actual_delivery_date','terms','approval_threshold','requires_approval','approval_level','approval_history','email_status','last_email_sent_at','template_id'
     ];
 
     protected $casts = [
         'order_date' => 'date',
         'expected_date' => 'date',
+        'actual_delivery_date' => 'date',
         'subtotal' => 'decimal:2',
         'tax' => 'decimal:2',
         'shipping' => 'decimal:2',
         'total' => 'decimal:2',
-        'approved_at' => 'datetime'
+        'approved_at' => 'datetime',
+        'requires_approval' => 'boolean',
+        'approval_history' => 'array',
+        'last_email_sent_at' => 'datetime',
     ];
 
     public function supplier()

@@ -8,11 +8,28 @@ use InvalidArgumentException;
 
 class InventoryService
 {
+    private function assertPartBelongsToCompany(int $companyId, int $partId): void
+    {
+        $exists = InventoryPart::where('id', $partId)->where('company_id', $companyId)->exists();
+        if (!$exists) {
+            throw new InvalidArgumentException('Invalid part for company');
+        }
+    }
+
+    private function assertLocationBelongsToCompany(int $companyId, int $locationId): void
+    {
+        $exists = InventoryLocation::where('id', $locationId)->where('company_id', $companyId)->exists();
+        if (!$exists) {
+            throw new InvalidArgumentException('Invalid location for company');
+        }
+    }
     /**
      * Adjust stock levels and record a transaction
      */
     public function adjustStock(int $companyId, int $partId, int $locationId, int $quantity, string $type, array $options = []): InventoryTransaction
     {
+        $this->assertPartBelongsToCompany($companyId, $partId);
+        $this->assertLocationBelongsToCompany($companyId, $locationId);
         if (!in_array($type, ['receipt','issue','adjustment','transfer_out','transfer_in','return'])) {
             throw new InvalidArgumentException('Invalid transaction type');
         }
@@ -66,6 +83,8 @@ class InventoryService
                 'company_id' => $companyId,
                 'part_id' => $partId,
                 'location_id' => $locationId,
+                'from_location_id' => $options['from_location_id'] ?? null,
+                'to_location_id' => $options['to_location_id'] ?? null,
                 'type' => $type,
                 'quantity' => $quantity,
                 'unit_cost' => $unitCost,
@@ -73,6 +92,8 @@ class InventoryService
                 'reason' => $options['reason'] ?? null,
                 'notes' => $options['notes'] ?? null,
                 'reference' => $options['reference'] ?? null,
+                'reference_type' => $options['reference_type'] ?? null,
+                'reference_id' => $options['reference_id'] ?? null,
                 'related_id' => $options['related_id'] ?? null,
                 'user_id' => $options['user_id'] ?? null,
             ]);
@@ -84,11 +105,17 @@ class InventoryService
      */
     public function transfer(int $companyId, int $partId, int $fromLocationId, int $toLocationId, int $quantity, array $options = []): array
     {
+        $this->assertPartBelongsToCompany($companyId, $partId);
+        $this->assertLocationBelongsToCompany($companyId, $fromLocationId);
+        $this->assertLocationBelongsToCompany($companyId, $toLocationId);
         $out = $this->adjustStock($companyId, $partId, $fromLocationId, $quantity, 'transfer_out', [
             'reason' => $options['reason'] ?? 'transfer',
             'notes' => $options['notes'] ?? null,
             'reference' => $options['reference'] ?? null,
             'user_id' => $options['user_id'] ?? null,
+            'from_location_id' => $fromLocationId,
+            'to_location_id' => $toLocationId,
+            'reference_type' => 'transfer',
         ]);
 
         $in = $this->adjustStock($companyId, $partId, $toLocationId, $quantity, 'transfer_in', [
@@ -97,9 +124,86 @@ class InventoryService
             'reference' => $options['reference'] ?? null,
             'user_id' => $options['user_id'] ?? null,
             'unit_cost' => $options['unit_cost'] ?? null,
+            'from_location_id' => $fromLocationId,
+            'to_location_id' => $toLocationId,
+            'reference_type' => 'transfer',
         ]);
 
         return [$out, $in];
+    }
+
+    /**
+     * Reserve stock (increase reserved, decrease available)
+     */
+    public function reserveStock(int $companyId, int $partId, int $locationId, int $quantity, array $options = []): InventoryStock
+    {
+        $this->assertPartBelongsToCompany($companyId, $partId);
+        $this->assertLocationBelongsToCompany($companyId, $locationId);
+        return DB::transaction(function () use ($companyId, $partId, $locationId, $quantity) {
+            $stock = InventoryStock::firstOrCreate(
+                ['company_id' => $companyId, 'part_id' => $partId, 'location_id' => $locationId],
+                ['on_hand' => 0, 'reserved' => 0, 'available' => 0, 'average_cost' => 0]
+            );
+            if ($quantity > $stock->available) {
+                throw new InvalidArgumentException('Quantity exceeds available stock');
+            }
+            $stock->reserved += $quantity;
+            $stock->available -= $quantity;
+            $stock->save();
+            return $stock;
+        });
+    }
+
+    /**
+     * Release reserved stock (decrease reserved, increase available)
+     */
+    public function releaseReservedStock(int $companyId, int $partId, int $locationId, int $quantity, array $options = []): InventoryStock
+    {
+        $this->assertPartBelongsToCompany($companyId, $partId);
+        $this->assertLocationBelongsToCompany($companyId, $locationId);
+        return DB::transaction(function () use ($companyId, $partId, $locationId, $quantity) {
+            $stock = InventoryStock::firstOrCreate(
+                ['company_id' => $companyId, 'part_id' => $partId, 'location_id' => $locationId],
+                ['on_hand' => 0, 'reserved' => 0, 'available' => 0, 'average_cost' => 0]
+            );
+            if ($quantity > $stock->reserved) {
+                throw new InvalidArgumentException('Quantity exceeds reserved stock');
+            }
+            $stock->reserved -= $quantity;
+            $stock->available += $quantity;
+            $stock->save();
+            return $stock;
+        });
+    }
+
+    /**
+     * Perform physical count and auto-adjust
+     */
+    public function performStockCount(int $companyId, int $partId, int $locationId, int $countedQuantity, array $options = [])
+    {
+        $this->assertPartBelongsToCompany($companyId, $partId);
+        $this->assertLocationBelongsToCompany($companyId, $locationId);
+        return DB::transaction(function () use ($companyId, $partId, $locationId, $countedQuantity, $options) {
+            $stock = InventoryStock::firstOrCreate(
+                ['company_id' => $companyId, 'part_id' => $partId, 'location_id' => $locationId],
+                ['on_hand' => 0, 'reserved' => 0, 'available' => 0, 'average_cost' => 0]
+            );
+            $delta = $countedQuantity - $stock->on_hand;
+            if ($delta !== 0) {
+                // Use adjustStock with delta
+                $this->adjustStock($companyId, $partId, $locationId, abs($delta), 'adjustment', [
+                    'delta' => $delta,
+                    'reason' => 'Physical Count',
+                    'notes' => $options['notes'] ?? null,
+                    'user_id' => $options['user_id'] ?? null,
+                    'reference_type' => 'stock_count',
+                ]);
+            }
+            $stock->last_counted_at = now();
+            $stock->last_counted_by = $options['user_id'] ?? null;
+            $stock->save();
+            return ['stock' => $stock->fresh(), 'adjustment' => $delta];
+        });
     }
 }
 

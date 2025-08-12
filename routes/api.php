@@ -20,6 +20,9 @@ use App\Http\Controllers\Api\Inventory\PurchaseOrderController as InventoryPOCon
 use App\Http\Controllers\Api\Inventory\SupplierController as InventorySupplierController;
 use App\Http\Controllers\Api\Inventory\AnalyticsController as InventoryAnalyticsController;
 use App\Http\Controllers\Api\Inventory\DashboardController as InventoryDashboardController;
+use App\Http\Controllers\Api\Inventory\CategoryController as InventoryCategoryController;
+use App\Http\Controllers\Api\Inventory\PurchaseOrderTemplateController as InventoryPurchaseOrderTemplateController;
+use App\Http\Controllers\Api\Inventory\AlertController as InventoryAlertController;
 
 /*
 |--------------------------------------------------------------------------
@@ -145,6 +148,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('inventory/stocks', [InventoryStockController::class, 'index']);
     Route::post('inventory/stocks/adjust', [InventoryStockController::class, 'adjust']);
     Route::post('inventory/stocks/transfer', [InventoryStockController::class, 'transfer']);
+Route::post('inventory/stocks/reserve', [InventoryStockController::class, 'reserve']);
+Route::post('inventory/stocks/release', [InventoryStockController::class, 'release']);
+Route::post('inventory/stocks/count', [InventoryStockController::class, 'count']);
 
     // Transactions
     Route::get('inventory/transactions', [InventoryTransactionController::class, 'index']);
@@ -156,10 +162,27 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('inventory/purchase-orders', [InventoryPOController::class, 'index']);
     Route::post('inventory/purchase-orders', [InventoryPOController::class, 'store']);
     Route::post('inventory/purchase-orders/{purchaseOrder}/receive', [InventoryPOController::class, 'receive']);
+Route::post('inventory/purchase-orders/approve', [InventoryPOController::class, 'approve']);
 
     // Analytics
     Route::get('inventory/analytics/dashboard', [InventoryAnalyticsController::class, 'dashboard']);
     Route::get('inventory/dashboard/overview', [InventoryDashboardController::class, 'overview']);
+Route::get('inventory/analytics/abc-analysis', [InventoryAnalyticsController::class, 'abcAnalysis']);
+
+// New: categories, templates, alerts
+Route::get('inventory/categories', [InventoryCategoryController::class, 'index']);
+Route::post('inventory/categories', [InventoryCategoryController::class, 'store']);
+Route::put('inventory/categories/{category}', [InventoryCategoryController::class, 'update']);
+Route::delete('inventory/categories/{category}', [InventoryCategoryController::class, 'destroy']);
+
+Route::get('inventory/purchase-order-templates', [InventoryPurchaseOrderTemplateController::class, 'index']);
+Route::post('inventory/purchase-order-templates', [InventoryPurchaseOrderTemplateController::class, 'store']);
+Route::put('inventory/purchase-order-templates/{purchaseOrderTemplate}', [InventoryPurchaseOrderTemplateController::class, 'update']);
+Route::delete('inventory/purchase-order-templates/{purchaseOrderTemplate}', [InventoryPurchaseOrderTemplateController::class, 'destroy']);
+
+Route::get('inventory/alerts', [InventoryAlertController::class, 'index']);
+Route::post('inventory/alerts', [InventoryAlertController::class, 'store']);
+Route::post('inventory/alerts/{alert}/resolve', [InventoryAlertController::class, 'resolve']);
 
 });
 

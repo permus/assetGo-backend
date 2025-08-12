@@ -13,18 +13,29 @@ class InventoryPart extends Model
     protected $table = 'inventory_parts';
 
     protected $fillable = [
-        'company_id', 'user_id', 'part_number', 'name', 'description', 'uom', 'unit_cost',
-        'category_id', 'reorder_point', 'reorder_qty', 'barcode', 'image_path', 'status', 'abc_class', 'extra'
+        'company_id', 'user_id', 'part_number', 'name', 'description', 'manufacturer', 'maintenance_category',
+        'uom', 'unit_cost', 'specifications', 'compatible_assets', 'category_id', 'reorder_point', 'reorder_qty',
+        'minimum_stock', 'maximum_stock', 'is_consumable', 'usage_tracking', 'preferred_supplier_id',
+        'barcode', 'image_path', 'status', 'abc_class', 'extra'
     ];
 
     protected $casts = [
         'unit_cost' => 'decimal:2',
+        'specifications' => 'array',
+        'compatible_assets' => 'array',
+        'is_consumable' => 'boolean',
+        'usage_tracking' => 'boolean',
         'extra' => 'array',
     ];
 
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function preferredSupplier()
+    {
+        return $this->belongsTo(Supplier::class, 'preferred_supplier_id');
     }
 
     public function stocks()

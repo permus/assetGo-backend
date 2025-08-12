@@ -49,6 +49,37 @@ class AnalyticsController extends Controller
             ]
         ]);
     }
+
+    public function abcAnalysis(Request $request)
+    {
+        $companyId = $request->user()->company_id;
+        // Simple ABC by value contribution
+        $rows = DB::table('inventory_stocks')
+            ->join('inventory_parts', 'inventory_stocks.part_id', '=', 'inventory_parts.id')
+            ->select('inventory_parts.id as part_id', 'inventory_parts.name', DB::raw('SUM(inventory_stocks.on_hand * inventory_stocks.average_cost) as value'))
+            ->where('inventory_stocks.company_id', $companyId)
+            ->groupBy('inventory_parts.id', 'inventory_parts.name')
+            ->orderByDesc('value')
+            ->get();
+
+        $total = max(1, $rows->sum('value'));
+        $running = 0;
+        $result = [];
+        foreach ($rows as $row) {
+            $running += $row->value;
+            $contrib = $running / $total;
+            $class = $contrib <= 0.8 ? 'A' : ($contrib <= 0.95 ? 'B' : 'C');
+            $result[] = [
+                'part_id' => $row->part_id,
+                'name' => $row->name,
+                'value' => round($row->value, 2),
+                'cumulative_ratio' => round($contrib, 4),
+                'class' => $class,
+            ];
+        }
+
+        return response()->json(['success' => true, 'data' => $result]);
+    }
 }
 
 
