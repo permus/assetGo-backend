@@ -14,6 +14,10 @@ class RoleSeeder extends Seeder
      */
     public function run(): void
     {
+        // Optionally clear existing roles and permissions
+        // Uncomment the next line if you want to start fresh
+        // $this->clearExistingData();
+
         // Get all companies
         $companies = Company::all();
 
@@ -21,6 +25,17 @@ class RoleSeeder extends Seeder
             // Create default roles for each company
             $this->createDefaultRoles($company);
         }
+    }
+
+    /**
+     * Clear existing roles and permissions
+     */
+    private function clearExistingData(): void
+    {
+        // Delete permissions first due to foreign key constraints
+        Permission::truncate();
+        // Delete roles
+        Role::truncate();
     }
 
     /**
@@ -244,18 +259,41 @@ class RoleSeeder extends Seeder
         ];
 
         foreach ($roles as $roleData) {
-            // Create role
-            $role = Role::create([
-                'name' => $roleData['name'],
-                'description' => $roleData['description'],
-                'company_id' => $company->id,
-            ]);
+            // Check if role already exists for this company
+            $existingRole = Role::where('name', $roleData['name'])
+                ->where('company_id', $company->id)
+                ->first();
 
-            // Create permissions for the role
-            Permission::create([
-                'role_id' => $role->id,
-                'permissions' => $roleData['permissions'],
-            ]);
+            if ($existingRole) {
+                // Update existing role description if needed
+                $existingRole->update([
+                    'description' => $roleData['description']
+                ]);
+                $role = $existingRole;
+            } else {
+                // Create new role
+                $role = Role::create([
+                    'name' => $roleData['name'],
+                    'description' => $roleData['description'],
+                    'company_id' => $company->id,
+                ]);
+            }
+
+            // Check if permission already exists for this role
+            $existingPermission = Permission::where('role_id', $role->id)->first();
+            
+            if ($existingPermission) {
+                // Update existing permissions
+                $existingPermission->update([
+                    'permissions' => $roleData['permissions']
+                ]);
+            } else {
+                // Create new permissions for the role
+                Permission::create([
+                    'role_id' => $role->id,
+                    'permissions' => $roleData['permissions'],
+                ]);
+            }
         }
     }
 } 
