@@ -22,41 +22,82 @@ class PurchaseOrderController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'supplier_id' => 'required|integer|exists:suppliers,id',
-            'order_date' => 'nullable|date',
-            'expected_date' => 'nullable|date',
+            // Vendor Information
+            'supplier_id' => 'nullable|integer|exists:suppliers,id',
+            'vendor_name' => 'required|string|max:255',
+            'vendor_contact' => 'required|string|max:255',
+            
+            // Order Details
+            'order_date' => 'required|date',
+            'expected_date' => 'required|date',
+            
+            // Line Items
             'items' => 'required|array|min:1',
-            'items.*.part_id' => 'required|integer|exists:inventory_parts,id',
-            'items.*.ordered_qty' => 'required|integer|min:1',
-            'items.*.unit_cost' => 'required|numeric|min:0'
+            'items.*.part_id' => 'nullable|integer|exists:inventory_parts,id',
+            'items.*.part_number' => 'required|string|max:255',
+            'items.*.description' => 'required|string',
+            'items.*.qty' => 'required|integer|min:1',
+            'items.*.unit_cost' => 'required|numeric|min:0',
+            
+            // Order Summary
+            'tax_rate' => 'nullable|numeric|min:0|max:100',
+            'tax_amount' => 'nullable|numeric|min:0',
+            
+            // Additional Information
+            'terms' => 'nullable|string',
+            'notes' => 'nullable|string'
         ]);
 
         $companyId = $request->user()->company_id;
 
+        // Calculate totals
+        $subtotal = 0;
+        foreach ($data['items'] as $item) {
+            $lineTotal = $item['unit_cost'] * $item['qty'];
+            $subtotal += $lineTotal;
+        }
+
+        // Calculate tax if tax_rate is provided, otherwise use tax_amount
+        $taxAmount = 0;
+        if (isset($data['tax_rate']) && $data['tax_rate'] > 0) {
+            $taxAmount = ($subtotal * $data['tax_rate']) / 100;
+        } elseif (isset($data['tax_amount'])) {
+            $taxAmount = $data['tax_amount'];
+        }
+
+        $total = $subtotal + $taxAmount;
+
         $po = PurchaseOrder::create([
             'company_id' => $companyId,
             'po_number' => 'PO-'.strtoupper(Str::random(8)),
-            'supplier_id' => $data['supplier_id'],
-            'order_date' => $data['order_date'] ?? now(),
-            'expected_date' => $data['expected_date'] ?? null,
+            'supplier_id' => $data['supplier_id'] ?? null,
+            'vendor_name' => $data['vendor_name'],
+            'vendor_contact' => $data['vendor_contact'],
+            'order_date' => $data['order_date'],
+            'expected_date' => $data['expected_date'],
             'status' => 'draft',
+            'subtotal' => $subtotal,
+            'tax' => $taxAmount,
+            'total' => $total,
+            'terms' => $data['terms'] ?? null,
             'created_by' => $request->user()->id,
         ]);
 
-        $subtotal = 0;
+        // Create line items
         foreach ($data['items'] as $item) {
-            $lineTotal = $item['unit_cost'] * $item['ordered_qty'];
-            $subtotal += $lineTotal;
+            $lineTotal = $item['unit_cost'] * $item['qty'];
             PurchaseOrderItem::create([
                 'company_id' => $companyId,
                 'purchase_order_id' => $po->id,
-                'part_id' => $item['part_id'],
-                'ordered_qty' => $item['ordered_qty'],
+                'part_id' => $item['part_id'] ?? null,
+                'part_number' => $item['part_number'],
+                'description' => $item['description'],
+                'ordered_qty' => $item['qty'],
                 'unit_cost' => $item['unit_cost'],
                 'line_total' => $lineTotal,
+                'notes' => $data['notes'] ?? null,
             ]);
         }
-        $po->update(['subtotal' => $subtotal, 'total' => $subtotal]);
 
         return response()->json(['success' => true, 'data' => $po->load('items','supplier')], 201);
     }
@@ -71,7 +112,7 @@ class PurchaseOrderController extends Controller
             'items' => 'required|array|min:1',
             'items.*.item_id' => 'required|integer|exists:purchase_order_items,id',
             'items.*.receive_qty' => 'required|integer|min:0',
-            'location_id' => 'required|integer|exists:inventory_locations,id',
+            'location_id' => 'required|integer|exists:locations,id',
             'reference' => 'nullable|string|max:255',
             'notes' => 'nullable|string'
         ]);

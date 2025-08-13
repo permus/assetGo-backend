@@ -27,17 +27,17 @@ class InventoryTransaction extends Model
 
     public function location()
     {
-        return $this->belongsTo(InventoryLocation::class, 'location_id');
+        return $this->belongsTo(Location::class, 'location_id');
     }
 
     public function fromLocation()
     {
-        return $this->belongsTo(InventoryLocation::class, 'from_location_id');
+        return $this->belongsTo(Location::class, 'from_location_id');
     }
 
     public function toLocation()
     {
-        return $this->belongsTo(InventoryLocation::class, 'to_location_id');
+        return $this->belongsTo(Location::class, 'to_location_id');
     }
 
     public function scopeForCompany($query, int $companyId)

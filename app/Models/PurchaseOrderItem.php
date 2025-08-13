@@ -10,7 +10,7 @@ class PurchaseOrderItem extends Model
     use HasFactory;
 
     protected $fillable = [
-        'company_id','purchase_order_id','part_id','ordered_qty','received_qty','unit_cost','line_total'
+        'company_id','purchase_order_id','part_id','part_number','description','ordered_qty','received_qty','unit_cost','line_total','notes'
     ];
 
     protected $casts = [

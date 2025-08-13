@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\{InventoryPart, InventoryStock, InventoryTransaction, InventoryLocation, PurchaseOrder, PurchaseOrderItem};
+use App\Models\{InventoryPart, InventoryStock, InventoryTransaction, Location, PurchaseOrder, PurchaseOrderItem};
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -18,7 +18,7 @@ class InventoryService
 
     private function assertLocationBelongsToCompany(int $companyId, int $locationId): void
     {
-        $exists = InventoryLocation::where('id', $locationId)->where('company_id', $companyId)->exists();
+        $exists = Location::where('id', $locationId)->where('company_id', $companyId)->exists();
         if (!$exists) {
             throw new InvalidArgumentException('Invalid location for company');
         }

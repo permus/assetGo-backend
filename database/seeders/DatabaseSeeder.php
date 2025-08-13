@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
         $this->call(DepartmentSeeder::class);
         $this->call(RoleSeeder::class);
         $this->call(WorkOrderSeeder::class);
+        $this->call(SupplierSeeder::class);
 
         // \App\Models\User::factory()->create([
         //     'name' => 'Test User',

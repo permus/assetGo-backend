@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api\Inventory;
 
 use App\Http\Controllers\Controller;
-use App\Models\{InventoryStock, InventoryPart, InventoryLocation, InventoryTransaction};
+use App\Models\{InventoryStock, InventoryPart, Location, InventoryTransaction};
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
@@ -36,7 +36,7 @@ class StockController extends Controller
     {
         $data = $request->validate([
             'part_id' => 'required|integer|exists:inventory_parts,id',
-            'location_id' => 'required|integer|exists:inventory_locations,id',
+            'location_id' => 'required|integer|exists:locations,id',
             'type' => 'required|in:receipt,issue,adjustment,return',
             'quantity' => 'required|integer|min:1',
             'unit_cost' => 'nullable|numeric|min:0',
@@ -71,8 +71,8 @@ class StockController extends Controller
     {
         $data = $request->validate([
             'part_id' => 'required|integer|exists:inventory_parts,id',
-            'from_location_id' => 'required|integer|exists:inventory_locations,id',
-            'to_location_id' => 'required|integer|exists:inventory_locations,id|different:from_location_id',
+            'from_location_id' => 'required|integer|exists:locations,id',
+            'to_location_id' => 'required|integer|exists:locations,id|different:from_location_id',
             'quantity' => 'required|integer|min:1',
             'reason' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
@@ -104,7 +104,7 @@ class StockController extends Controller
     {
         $data = $request->validate([
             'part_id' => 'required|integer|exists:inventory_parts,id',
-            'location_id' => 'required|integer|exists:inventory_locations,id',
+            'location_id' => 'required|integer|exists:locations,id',
             'quantity' => 'required|integer|min:1',
             'reference' => 'nullable|string|max:255'
         ]);
@@ -119,7 +119,7 @@ class StockController extends Controller
     {
         $data = $request->validate([
             'part_id' => 'required|integer|exists:inventory_parts,id',
-            'location_id' => 'required|integer|exists:inventory_locations,id',
+            'location_id' => 'required|integer|exists:locations,id',
             'quantity' => 'required|integer|min:1',
             'reference' => 'nullable|string|max:255'
         ]);
@@ -134,7 +134,7 @@ class StockController extends Controller
     {
         $data = $request->validate([
             'part_id' => 'required|integer|exists:inventory_parts,id',
-            'location_id' => 'required|integer|exists:inventory_locations,id',
+            'location_id' => 'required|integer|exists:locations,id',
             'counted_quantity' => 'required|integer|min:0',
             'notes' => 'nullable|string'
         ]);

@@ -27,7 +27,7 @@ class InventoryStock extends Model
 
     public function location()
     {
-        return $this->belongsTo(InventoryLocation::class, 'location_id');
+        return $this->belongsTo(Location::class, 'location_id');
     }
 
     public function lastCountedBy()
