@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Carbon\Carbon;
+use App\Models\WorkOrderStatus;
 
 class WorkOrder extends Model
 {
@@ -14,8 +15,9 @@ class WorkOrder extends Model
     protected $fillable = [
         'title',
         'description',
-        'priority',
-        'status',
+        'priority_id',
+        'status_id',
+        'category_id',
         'due_date',
         'completed_at',
         'asset_id',
@@ -95,17 +97,25 @@ class WorkOrder extends Model
     /**
      * Scope for status
      */
-    public function scopeByStatus($query, $status)
+    public function scopeByStatus($query, $statusId)
     {
-        return $query->where('status', $status);
+        return $query->where('status_id', $statusId);
     }
 
     /**
      * Scope for priority
      */
-    public function scopeByPriority($query, $priority)
+    public function scopeByPriority($query, $priorityId)
     {
-        return $query->where('priority', $priority);
+        return $query->where('priority_id', $priorityId);
+    }
+
+    /**
+     * Scope for category
+     */
+    public function scopeByCategory($query, $categoryId)
+    {
+        return $query->where('category_id', $categoryId);
     }
 
     /**
@@ -114,7 +124,11 @@ class WorkOrder extends Model
     public function scopeOverdue($query)
     {
         return $query->where('due_date', '<', now())
-                    ->whereNotIn('status', ['completed', 'cancelled']);
+                    ->whereNotIn('status_id', function($subQuery) {
+                        $subQuery->select('id')
+                                ->from('work_order_status')
+                                ->whereIn('slug', ['completed', 'cancelled']);
+                    });
     }
 
     /**
@@ -190,6 +204,30 @@ class WorkOrder extends Model
     }
 
     /**
+     * Relationship with Status
+     */
+    public function status()
+    {
+        return $this->belongsTo(WorkOrderStatus::class, 'status_id');
+    }
+
+    /**
+     * Relationship with Priority
+     */
+    public function priority()
+    {
+        return $this->belongsTo(WorkOrderPriority::class, 'priority_id');
+    }
+
+    /**
+     * Relationship with Category
+     */
+    public function category()
+    {
+        return $this->belongsTo(WorkOrderCategory::class, 'category_id');
+    }
+
+    /**
      * Boot method to handle model events
      */
     protected static function booted()
@@ -202,8 +240,11 @@ class WorkOrder extends Model
 
         static::updating(function ($workOrder) {
             // Set completed_at when status changes to completed
-            if ($workOrder->isDirty('status') && $workOrder->status === 'completed' && !$workOrder->completed_at) {
-                $workOrder->completed_at = now();
+            if ($workOrder->isDirty('status_id') && !$workOrder->completed_at) {
+                $status = WorkOrderStatus::find($workOrder->status_id);
+                if ($status && $status->slug === 'completed') {
+                    $workOrder->completed_at = now();
+                }
             }
         });
     }

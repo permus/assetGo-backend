@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\WorkOrderController;
+use App\Http\Controllers\Api\MetaWorkOrderController;
 use App\Http\Controllers\Api\Inventory\PartController as InventoryPartController;
 use App\Http\Controllers\Api\Inventory\StockController as InventoryStockController;
 use App\Http\Controllers\Api\Inventory\TransactionController as InventoryTransactionController;
@@ -139,6 +140,25 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('work-orders/statistics', [WorkOrderController::class, 'statistics']);
     Route::get('work-orders/filters', [WorkOrderController::class, 'filters']);
     Route::apiResource('work-orders', WorkOrderController::class);
+
+    // Work Order Meta routes
+    Route::prefix('meta/work-orders')->group(function () {
+        Route::get('status', [MetaWorkOrderController::class, 'statusIndex']);
+        Route::get('priorities', [MetaWorkOrderController::class, 'priorityIndex']);
+        Route::get('categories', [MetaWorkOrderController::class, 'categoryIndex']);
+
+        Route::post('status', [MetaWorkOrderController::class, 'statusStore']);
+        Route::put('status/{id}', [MetaWorkOrderController::class, 'statusUpdate']);
+        Route::delete('status/{id}', [MetaWorkOrderController::class, 'statusDestroy']);
+
+        Route::post('priorities', [MetaWorkOrderController::class, 'priorityStore']);
+        Route::put('priorities/{id}', [MetaWorkOrderController::class, 'priorityUpdate']);
+        Route::delete('priorities/{id}', [MetaWorkOrderController::class, 'priorityDestroy']);
+
+        Route::post('categories', [MetaWorkOrderController::class, 'categoryStore']);
+        Route::put('categories/{id}', [MetaWorkOrderController::class, 'categoryUpdate']);
+        Route::delete('categories/{id}', [MetaWorkOrderController::class, 'categoryDestroy']);
+    });
 
     // Inventory module routes
     // Parts Catalog
