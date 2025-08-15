@@ -67,6 +67,9 @@ class WorkOrder extends Model
      */
     public function getDaysSinceCreatedAttribute()
     {
+        if (!$this->created_at) {
+            return null;
+        }
         return $this->created_at->diffInDays(now());
     }
 
@@ -75,7 +78,7 @@ class WorkOrder extends Model
      */
     public function getResolutionTimeDaysAttribute()
     {
-        if (!$this->completed_at) {
+        if (!$this->completed_at || !$this->created_at) {
             return null;
         }
         return $this->created_at->diffInDays($this->completed_at);
