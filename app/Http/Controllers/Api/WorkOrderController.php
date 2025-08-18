@@ -52,11 +52,21 @@ class WorkOrderController extends Controller
         }
 
         // Filters
-        if ($request->filled('status')) {
+        // Prefer *_id filters; fall back to legacy string fields for backward compatibility
+        if ($request->filled('status_id')) {
+            $query->where('status_id', $request->status_id);
+        } elseif ($request->filled('status')) {
             $query->where('status', $request->status);
         }
-        if ($request->filled('priority')) {
+
+        if ($request->filled('priority_id')) {
+            $query->where('priority_id', $request->priority_id);
+        } elseif ($request->filled('priority')) {
             $query->where('priority', $request->priority);
+        }
+
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
         }
         if ($request->filled('asset_id')) {
             $query->where('asset_id', $request->asset_id);
@@ -114,11 +124,18 @@ class WorkOrderController extends Controller
         $query = WorkOrder::where('company_id', $companyId);
 
         // Apply same filters as index method
-        if ($request->filled('status')) {
+        if ($request->filled('status_id')) {
+            $query->where('status_id', $request->status_id);
+        } elseif ($request->filled('status')) {
             $query->where('status', $request->status);
         }
-        if ($request->filled('priority')) {
+        if ($request->filled('priority_id')) {
+            $query->where('priority_id', $request->priority_id);
+        } elseif ($request->filled('priority')) {
             $query->where('priority', $request->priority);
+        }
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
         }
         if ($request->filled('asset_id')) {
             $query->where('asset_id', $request->asset_id);
