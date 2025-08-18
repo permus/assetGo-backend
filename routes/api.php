@@ -139,7 +139,19 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('work-orders/analytics', [WorkOrderController::class, 'analytics']);
     Route::get('work-orders/statistics', [WorkOrderController::class, 'statistics']);
     Route::get('work-orders/filters', [WorkOrderController::class, 'filters']);
+    Route::post('work-orders/{workOrder}/status', [WorkOrderController::class, 'updateStatus']);
+    Route::get('work-orders/{workOrder}/history', [WorkOrderController::class, 'history']);
     Route::apiResource('work-orders', WorkOrderController::class);
+
+    // Work Order comments
+    Route::get('work-orders/{workOrder}/comments', [\App\Http\Controllers\Api\WorkOrderCommentController::class, 'index']);
+    Route::post('work-orders/{workOrder}/comments', [\App\Http\Controllers\Api\WorkOrderCommentController::class, 'store']);
+    Route::delete('work-orders/{workOrder}/comments/{comment}', [\App\Http\Controllers\Api\WorkOrderCommentController::class, 'destroy']);
+
+    // Work Order time tracking
+    Route::get('work-orders/{workOrder}/time-logs', [\App\Http\Controllers\Api\WorkOrderTimeLogController::class, 'index']);
+    Route::post('work-orders/{workOrder}/time-logs/start', [\App\Http\Controllers\Api\WorkOrderTimeLogController::class, 'start']);
+    Route::post('work-orders/{workOrder}/time-logs/stop', [\App\Http\Controllers\Api\WorkOrderTimeLogController::class, 'stop']);
 
     // Work Order Meta routes
     Route::prefix('meta/work-orders')->group(function () {

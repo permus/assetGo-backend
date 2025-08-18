@@ -47,9 +47,19 @@ class WorkOrder extends Model
      */
     public function getIsOverdueAttribute()
     {
-        if (!$this->due_date || $this->status === 'completed' || $this->status === 'cancelled') {
+        if (!$this->due_date) {
             return false;
         }
+
+        $statusSlug = null;
+        if ($this->relationLoaded('status') || method_exists($this, 'status')) {
+            $statusSlug = optional($this->status)->slug;
+        }
+
+        if (in_array($statusSlug, ['completed', 'cancelled'], true)) {
+            return false;
+        }
+
         return $this->due_date->isPast();
     }
 
@@ -247,5 +257,13 @@ class WorkOrder extends Model
                 }
             }
         });
+    }
+
+    /**
+     * Relationship with comments
+     */
+    public function comments()
+    {
+        return $this->hasMany(WorkOrderComment::class)->latest();
     }
 }

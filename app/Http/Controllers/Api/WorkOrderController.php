@@ -161,12 +161,15 @@ class WorkOrderController extends Controller
         }
 
         $workOrder->load([
-            'asset', 
-            'location', 
-            'assignedTo', 
-            'assignedBy', 
-            'createdBy', 
-            'company'
+            'asset',
+            'location',
+            'assignedTo',
+            'assignedBy',
+            'createdBy',
+            'company',
+            'status',
+            'priority',
+            'category',
         ]);
 
         return response()->json([
@@ -245,6 +248,35 @@ class WorkOrderController extends Controller
             'success' => true,
             'data' => $workOrder,
             'message' => 'Work order updated successfully'
+        ]);
+    }
+
+    /**
+     * Update only the status of a work order
+     * Route: POST /api/work-orders/{workOrder}/status
+     */
+    public function updateStatus(Request $request, WorkOrder $workOrder)
+    {
+        if ($workOrder->company_id !== $request->user()->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Work order not found'
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'status_id' => 'required|exists:work_order_status,id',
+        ]);
+
+        $workOrder->status_id = $validated['status_id'];
+        $workOrder->save();
+
+        $workOrder->load(['status']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $workOrder,
+            'message' => 'Work order status updated successfully'
         ]);
     }
 
@@ -421,6 +453,74 @@ class WorkOrderController extends Controller
                 'recent_completed' => $recentCompleted,
             ],
             'message' => 'Work order statistics retrieved successfully'
+        ]);
+    }
+
+    /**
+     * Get work order history (created, updates, comments)
+     * Route: GET /api/work-orders/{workOrder}/history
+     */
+    public function history(Request $request, WorkOrder $workOrder)
+    {
+        if ($workOrder->company_id !== $request->user()->company_id) {
+            return response()->json(['success' => false, 'message' => 'Work order not found'], 404);
+        }
+
+        $workOrder->load(['createdBy:id,first_name,last_name,email', 'comments.user:id,first_name,last_name,email']);
+
+        $events = [];
+
+        // Created event
+        $events[] = [
+            'type' => 'created',
+            'title' => 'Created',
+            'timestamp' => optional($workOrder->created_at)->toISOString(),
+            'user' => $workOrder->createdBy ? [
+                'id' => $workOrder->createdBy->id,
+                'first_name' => $workOrder->createdBy->first_name,
+                'last_name' => $workOrder->createdBy->last_name,
+                'email' => $workOrder->createdBy->email,
+            ] : null,
+            'details' => null,
+        ];
+
+        // Last updated event (if different from created)
+        if ($workOrder->updated_at && !$workOrder->updated_at->equalTo($workOrder->created_at)) {
+            $events[] = [
+                'type' => 'updated',
+                'title' => 'Last Updated',
+                'timestamp' => $workOrder->updated_at->toISOString(),
+                'user' => null,
+                'details' => null,
+            ];
+        }
+
+        // Comments as events
+        foreach ($workOrder->comments as $comment) {
+            $events[] = [
+                'type' => 'comment',
+                'title' => 'Comment',
+                'timestamp' => optional($comment->created_at)->toISOString(),
+                'user' => $comment->user ? [
+                    'id' => $comment->user->id,
+                    'first_name' => $comment->user->first_name,
+                    'last_name' => $comment->user->last_name,
+                    'email' => $comment->user->email,
+                ] : null,
+                'details' => [
+                    'comment' => $comment->comment,
+                ],
+            ];
+        }
+
+        // Sort by timestamp desc
+        usort($events, function ($a, $b) {
+            return strcmp($b['timestamp'] ?? '', $a['timestamp'] ?? '');
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $events,
         ]);
     }
 
