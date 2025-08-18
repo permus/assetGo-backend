@@ -141,6 +141,10 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('work-orders/filters', [WorkOrderController::class, 'filters']);
     Route::post('work-orders/{workOrder}/status', [WorkOrderController::class, 'updateStatus']);
     Route::get('work-orders/{workOrder}/history', [WorkOrderController::class, 'history']);
+    // Work Order assignments
+    Route::get('work-orders/{workOrder}/assignments', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'index']);
+    Route::post('work-orders/{workOrder}/assignments', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'store']);
+    Route::delete('work-orders/{workOrder}/assignments/{assignment}', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'destroy']);
     Route::apiResource('work-orders', WorkOrderController::class);
 
     // Work Order comments

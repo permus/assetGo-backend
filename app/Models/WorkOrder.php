@@ -238,6 +238,14 @@ class WorkOrder extends Model
     }
 
     /**
+     * Relationship with assignments (many users)
+     */
+    public function assignments()
+    {
+        return $this->hasMany(WorkOrderAssignment::class);
+    }
+
+    /**
      * Boot method to handle model events
      */
     protected static function booted()
