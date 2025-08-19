@@ -186,6 +186,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     // Inventory module routes
     // Parts Catalog
     Route::apiResource('inventory/parts', InventoryPartController::class);
+    Route::get('inventory/parts/overview', [InventoryPartController::class, 'overview']);
 
     // Stock Levels & Adjustments
     Route::get('inventory/stocks', [InventoryStockController::class, 'index']);
@@ -203,7 +204,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     // Purchase Orders
     Route::get('inventory/purchase-orders', [InventoryPOController::class, 'index']);
+    Route::get('inventory/purchase-orders/overview', [InventoryPOController::class, 'overview']);
     Route::post('inventory/purchase-orders', [InventoryPOController::class, 'store']);
+    Route::put('inventory/purchase-orders/{purchaseOrder}', [InventoryPOController::class, 'update']);
     Route::post('inventory/purchase-orders/{purchaseOrder}/receive', [InventoryPOController::class, 'receive']);
     Route::post('inventory/purchase-orders/approve', [InventoryPOController::class, 'approve']);
 

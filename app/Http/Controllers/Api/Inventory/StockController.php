@@ -74,6 +74,7 @@ class StockController extends Controller
             'from_location_id' => 'required|integer|exists:locations,id',
             'to_location_id' => 'required|integer|exists:locations,id|different:from_location_id',
             'quantity' => 'required|integer|min:1',
+            'unit_cost' => 'nullable|numeric|min:0',
             'reason' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
             'reference' => 'nullable|string|max:255'
@@ -90,6 +91,7 @@ class StockController extends Controller
                     'reason' => $data['reason'] ?? 'transfer',
                     'notes' => $data['notes'] ?? null,
                     'reference' => $data['reference'] ?? null,
+                    'unit_cost' => $data['unit_cost'] ?? null,
                     'user_id' => $request->user()->id,
                 ]
             );

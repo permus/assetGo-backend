@@ -5,9 +5,46 @@ namespace App\Http\Controllers\Api\Inventory;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryPart;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PartController extends Controller
 {
+    public function overview(Request $request)
+    {
+        $companyId = $request->user()->company_id;
+
+        $totalParts = \App\Models\InventoryPart::forCompany($companyId)->count();
+
+        // Low stock: sum available across all locations <= part.reorder_point (and reorder_point > 0)
+        $stockAgg = DB::table('inventory_stocks')
+            ->select('part_id', DB::raw('SUM(available) as total_available'))
+            ->where('company_id', $companyId)
+            ->groupBy('part_id');
+
+        $lowStock = DB::table('inventory_parts')
+            ->leftJoinSub($stockAgg, 'agg', function($join) {
+                $join->on('inventory_parts.id', '=', 'agg.part_id');
+            })
+            ->where('inventory_parts.company_id', $companyId)
+            ->where('inventory_parts.reorder_point', '>', 0)
+            ->whereRaw('COALESCE(agg.total_available, 0) <= inventory_parts.reorder_point')
+            ->count();
+
+        // Total value: on_hand * average_cost across all stocks
+        $totalValue = DB::table('inventory_stocks')
+            ->where('company_id', $companyId)
+            ->select(DB::raw('SUM(on_hand * average_cost) as value'))
+            ->value('value') ?? 0;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total_parts' => $totalParts,
+                'low_stock_count' => $lowStock,
+                'total_value' => round((float)$totalValue, 2),
+            ]
+        ]);
+    }
     public function index(Request $request)
     {
         $companyId = $request->user()->company_id;

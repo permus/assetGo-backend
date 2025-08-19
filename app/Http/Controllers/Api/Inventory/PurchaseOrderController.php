@@ -7,9 +7,45 @@ use App\Models\{PurchaseOrder, PurchaseOrderItem, InventoryPart, Supplier};
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class PurchaseOrderController extends Controller
 {
+    public function overview(Request $request)
+    {
+        $companyId = $request->user()->company_id;
+
+        $statusCounts = DB::table('purchase_orders')
+            ->select('status', DB::raw('COUNT(*) as count'))
+            ->where('company_id', $companyId)
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        $totalPOs = DB::table('purchase_orders')
+            ->where('company_id', $companyId)
+            ->count();
+
+        $totalValue = DB::table('purchase_orders')
+            ->where('company_id', $companyId)
+            ->select(DB::raw('SUM(total) as v'))
+            ->value('v') ?? 0;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total_pos' => $totalPOs,
+                'draft' => (int)($statusCounts['draft'] ?? 0),
+                'pending' => (int)($statusCounts['pending'] ?? 0),
+                'approved' => (int)($statusCounts['approved'] ?? 0),
+                'ordered' => (int)($statusCounts['ordered'] ?? 0),
+                'received' => (int)($statusCounts['received'] ?? 0),
+                'closed' => (int)($statusCounts['closed'] ?? 0),
+                'rejected' => (int)($statusCounts['rejected'] ?? 0),
+                'cancelled' => (int)($statusCounts['cancelled'] ?? 0),
+                'total_value' => round((float)$totalValue, 2),
+            ]
+        ]);
+    }
     public function index(Request $request)
     {
         $companyId = $request->user()->company_id;
@@ -102,6 +138,23 @@ class PurchaseOrderController extends Controller
         return response()->json(['success' => true, 'data' => $po->load('items','supplier')], 201);
     }
 
+    public function update(Request $request, PurchaseOrder $purchaseOrder)
+    {
+        if ($purchaseOrder->company_id !== $request->user()->company_id) {
+            return response()->json(['success' => false, 'message' => 'Not found'], 404);
+        }
+        $data = $request->validate([
+            'status' => 'sometimes|required|string|in:draft,pending,approved,ordered,received,closed,rejected,cancelled',
+            'expected_date' => 'sometimes|date',
+            'vendor_name' => 'sometimes|string|max:255',
+            'vendor_contact' => 'sometimes|string|max:255',
+            'terms' => 'sometimes|nullable|string',
+            'notes' => 'sometimes|nullable|string',
+        ]);
+        $purchaseOrder->update($data);
+        return response()->json(['success' => true, 'data' => $purchaseOrder->fresh(['supplier','items'])]);
+    }
+
     public function receive(Request $request, PurchaseOrder $purchaseOrder, InventoryService $service)
     {
         if ($purchaseOrder->company_id !== $request->user()->company_id) {
@@ -124,8 +177,28 @@ class PurchaseOrderController extends Controller
             $item = PurchaseOrderItem::where('id', $line['item_id'])->where('purchase_order_id', $purchaseOrder->id)->firstOrFail();
             $remaining = $item->ordered_qty - $item->received_qty;
             $qty = min($remaining, (int)$line['receive_qty']);
+
+            // Resolve part_id if missing using part_number within the same company
+            $partId = $item->part_id;
+            if (!$partId) {
+                $part = InventoryPart::where('company_id', $companyId)
+                    ->where('part_number', $item->part_number)
+                    ->first();
+                if ($part) {
+                    $partId = $part->id;
+                    // Persist linkage for future operations
+                    $item->part_id = $partId;
+                    $item->save();
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "PO item {$item->id} is not linked to a part and no part was found by part_number '{$item->part_number}'. Link a part or create it before receiving."
+                    ], 422);
+                }
+            }
+
             if ($qty > 0) {
-                $service->adjustStock($companyId, $item->part_id, $data['location_id'], $qty, 'receipt', [
+                $service->adjustStock($companyId, (int)$partId, (int)$data['location_id'], $qty, 'receipt', [
                     'unit_cost' => $item->unit_cost,
                     'reason' => 'PO Receipt',
                     'reference' => $purchaseOrder->po_number,

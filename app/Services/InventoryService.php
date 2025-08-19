@@ -53,6 +53,12 @@ class InventoryService
                 case 'return':
                     $stock->on_hand += $quantity;
                     $stock->available += $quantity;
+                    if ($unitCost === null || $unitCost < 0) {
+                        $fallbackUnitCost = InventoryPart::where('id', $partId)->value('unit_cost');
+                        if ($fallbackUnitCost !== null) {
+                            $unitCost = (float) $fallbackUnitCost;
+                        }
+                    }
                     if ($unitCost !== null && $unitCost >= 0) {
                         // Simple moving average cost
                         $currentValue = $stock->average_cost * max(0, $stock->on_hand - $quantity);
@@ -68,8 +74,25 @@ class InventoryService
                     break;
                 case 'adjustment':
                     $delta = $options['delta'] ?? $quantity;
+                    // Capture previous quantity before adjustment for average cost calc
+                    $previousQty = $stock->on_hand;
                     $stock->on_hand += $delta;
                     $stock->available += $delta;
+                    // If adjustment increases stock and unit cost is provided, update moving average
+                    if ($delta > 0) {
+                        if ($unitCost === null || $unitCost < 0) {
+                            $fallbackUnitCost = InventoryPart::where('id', $partId)->value('unit_cost');
+                            if ($fallbackUnitCost !== null) {
+                                $unitCost = (float) $fallbackUnitCost;
+                            }
+                        }
+                        if ($unitCost !== null && $unitCost >= 0) {
+                        $currentValue = $stock->average_cost * max(0, $previousQty);
+                        $incomingValue = $unitCost * $delta;
+                        $newQty = max(1, $stock->on_hand);
+                        $stock->average_cost = ($currentValue + $incomingValue) / $newQty;
+                        }
+                    }
                     break;
             }
 
@@ -118,12 +141,25 @@ class InventoryService
             'reference_type' => 'transfer',
         ]);
 
+        // If no unit_cost provided, default to source stock's average_cost
+        $unitCost = $options['unit_cost'] ?? null;
+        if ($unitCost === null) {
+            $sourceStock = InventoryStock::where([
+                'company_id' => $companyId,
+                'part_id' => $partId,
+                'location_id' => $fromLocationId,
+            ])->first();
+            if ($sourceStock) {
+                $unitCost = $sourceStock->average_cost;
+            }
+        }
+
         $in = $this->adjustStock($companyId, $partId, $toLocationId, $quantity, 'transfer_in', [
             'reason' => $options['reason'] ?? 'transfer',
             'notes' => $options['notes'] ?? null,
             'reference' => $options['reference'] ?? null,
             'user_id' => $options['user_id'] ?? null,
-            'unit_cost' => $options['unit_cost'] ?? null,
+            'unit_cost' => $unitCost,
             'from_location_id' => $fromLocationId,
             'to_location_id' => $toLocationId,
             'reference_type' => 'transfer',
