@@ -211,6 +211,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('inventory/analytics/dashboard', [InventoryAnalyticsController::class, 'dashboard']);
     Route::get('inventory/dashboard/overview', [InventoryDashboardController::class, 'overview']);
     Route::get('inventory/analytics/abc-analysis', [InventoryAnalyticsController::class, 'abcAnalysis']);
+    Route::get('inventory/analytics/abc-analysis/export', [InventoryAnalyticsController::class, 'abcAnalysisExport']);
 
 // New: categories, templates, alerts
     Route::get('inventory/categories', [InventoryCategoryController::class, 'index']);
