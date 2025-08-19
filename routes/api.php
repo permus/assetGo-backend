@@ -144,7 +144,14 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     // Work Order assignments
     Route::get('work-orders/{workOrder}/assignments', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'index']);
     Route::post('work-orders/{workOrder}/assignments', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'store']);
+    Route::put('work-orders/{workOrder}/assignments/{assignment}', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'update']);
+    Route::patch('work-orders/{workOrder}/assignments/{assignment}', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'update']);
     Route::delete('work-orders/{workOrder}/assignments/{assignment}', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'destroy']);
+    // Work Order parts
+    Route::get('work-orders/{workOrder}/parts', [\App\Http\Controllers\Api\WorkOrderPartController::class, 'index']);
+    Route::post('work-orders/{workOrder}/parts', [\App\Http\Controllers\Api\WorkOrderPartController::class, 'store']);
+    Route::put('work-orders/{workOrder}/parts/{part}', [\App\Http\Controllers\Api\WorkOrderPartController::class, 'update']);
+    Route::delete('work-orders/{workOrder}/parts/{part}', [\App\Http\Controllers\Api\WorkOrderPartController::class, 'destroy']);
     Route::apiResource('work-orders', WorkOrderController::class);
 
     // Work Order comments

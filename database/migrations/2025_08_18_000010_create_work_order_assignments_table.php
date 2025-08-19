@@ -16,6 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('work_order_id');
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('assigned_by')->nullable();
+            $table->string('status')->default('assigned');
             $table->timestamps();
 
             $table->foreign('work_order_id')->references('id')->on('work_orders')->onDelete('cascade');

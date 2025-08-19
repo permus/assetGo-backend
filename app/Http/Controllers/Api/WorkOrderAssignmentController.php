@@ -55,6 +55,7 @@ class WorkOrderAssignmentController extends Controller
                 'work_order_id' => $workOrder->id,
                 'user_id' => $userId,
                 'assigned_by' => Auth::id(),
+                'status' => 'assigned',
             ]);
         }
 
@@ -72,6 +73,38 @@ class WorkOrderAssignmentController extends Controller
             'success' => true,
             'data' => $assignments,
             'message' => 'Assignments updated successfully',
+        ]);
+    }
+
+    public function update(Request $request, WorkOrder $workOrder, WorkOrderAssignment $assignment)
+    {
+        if ($workOrder->company_id !== $request->user()->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Work order not found'
+            ], 404);
+        }
+
+        if ($assignment->work_order_id !== $workOrder->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Assignment does not belong to this work order'
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|string|in:assigned,accepted,declined,completed'
+        ]);
+
+        $assignment->status = $validated['status'];
+        $assignment->save();
+
+        $assignment->load('user');
+
+        return response()->json([
+            'success' => true,
+            'data' => $assignment,
+            'message' => 'Assignment updated'
         ]);
     }
 

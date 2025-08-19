@@ -13,6 +13,7 @@ class WorkOrderAssignment extends Model
         'work_order_id',
         'user_id',
         'assigned_by',
+        'status',
     ];
 
     public function workOrder()
