@@ -16,12 +16,9 @@ class StoreWorkOrderRequest extends FormRequest
         return [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            // Prefer *_id; keep legacy string fields for backward compatibility
             'priority_id' => 'required|exists:work_order_priority,id',
             'status_id' => 'required|exists:work_order_status,id',
             'category_id' => 'nullable|exists:work_order_categories,id',
-            'priority' => 'nullable|in:low,medium,high,critical',
-            'status' => 'nullable|in:open,in_progress,completed,on_hold,cancelled',
             'due_date' => 'nullable|date|after:now',
             'asset_id' => 'nullable|exists:assets,id',
             'location_id' => 'nullable|exists:locations,id',
@@ -44,8 +41,6 @@ class StoreWorkOrderRequest extends FormRequest
             'status_id.required' => 'Status is required.',
             'status_id.exists' => 'Selected status does not exist.',
             'category_id.exists' => 'Selected category does not exist.',
-            'priority.in' => 'Priority must be one of: low, medium, high, critical.',
-            'status.in' => 'Status must be one of: open, in_progress, completed, on_hold, cancelled.',
             'due_date.after' => 'Due date must be in the future.',
             'asset_id.exists' => 'Selected asset does not exist.',
             'location_id.exists' => 'Selected location does not exist.',

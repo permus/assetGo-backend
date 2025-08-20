@@ -3,6 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\WorkOrder;
+use App\Models\WorkOrderStatus;
+use App\Models\WorkOrderPriority;
+use App\Models\WorkOrderCategory;
 use App\Models\Asset;
 use App\Models\Location;
 use App\Models\User;
@@ -21,25 +24,24 @@ class WorkOrderFactory extends Factory
      */
     public function definition(): array
     {
-        $statuses = ['open', 'in_progress', 'completed', 'on_hold', 'cancelled'];
-        $priorities = ['low', 'medium', 'high', 'critical'];
-        
-        $status = $this->faker->randomElement($statuses);
-        $priority = $this->faker->randomElement($priorities);
+        $status = WorkOrderStatus::inRandomOrder()->first();
+        $priority = WorkOrderPriority::inRandomOrder()->first();
+        $category = WorkOrderCategory::inRandomOrder()->first();
         
         $dueDate = $this->faker->optional(0.7)->dateTimeBetween('now', '+30 days');
         $completedAt = null;
         
         // If status is completed, set completed_at
-        if ($status === 'completed') {
+        if ($status && $status->slug === 'completed') {
             $completedAt = $this->faker->dateTimeBetween('-30 days', 'now');
         }
 
         return [
             'title' => $this->faker->sentence(3, 6),
             'description' => $this->faker->optional(0.8)->paragraph(2, 4),
-            'priority' => $priority,
-            'status' => $status,
+            'priority_id' => $priority?->id,
+            'status_id' => $status?->id,
+            'category_id' => $category?->id,
             'due_date' => $dueDate,
             'completed_at' => $completedAt,
             'asset_id' => Asset::inRandomOrder()->first()?->id,
@@ -49,7 +51,7 @@ class WorkOrderFactory extends Factory
             'created_by' => User::inRandomOrder()->first()?->id,
             'company_id' => Company::inRandomOrder()->first()?->id,
             'estimated_hours' => $this->faker->optional(0.6)->randomFloat(2, 0.5, 40),
-            'actual_hours' => $status === 'completed' ? $this->faker->optional(0.7)->randomFloat(2, 0.5, 40) : null,
+            'actual_hours' => ($status && $status->slug === 'completed') ? $this->faker->optional(0.7)->randomFloat(2, 0.5, 40) : null,
             'notes' => $this->faker->optional(0.4)->paragraph(1, 2),
             'meta' => $this->faker->optional(0.3)->randomElements([
                 'requires_special_tools' => true,
@@ -66,7 +68,7 @@ class WorkOrderFactory extends Factory
     public function open(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'open',
+            'status_id' => WorkOrderStatus::where('slug', 'open')->value('id'),
             'completed_at' => null,
         ]);
     }
@@ -77,7 +79,7 @@ class WorkOrderFactory extends Factory
     public function inProgress(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'in_progress',
+            'status_id' => WorkOrderStatus::where('slug', 'in-progress')->value('id'),
             'completed_at' => null,
         ]);
     }
@@ -88,7 +90,7 @@ class WorkOrderFactory extends Factory
     public function completed(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'completed',
+            'status_id' => WorkOrderStatus::where('slug', 'completed')->value('id'),
             'completed_at' => $this->faker->dateTimeBetween('-30 days', 'now'),
         ]);
     }
@@ -100,7 +102,7 @@ class WorkOrderFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'due_date' => $this->faker->dateTimeBetween('-30 days', '-1 day'),
-            'status' => $this->faker->randomElement(['open', 'in_progress']),
+            'status_id' => WorkOrderStatus::whereIn('slug', ['open', 'in-progress'])->inRandomOrder()->value('id'),
             'completed_at' => null,
         ]);
     }
@@ -111,7 +113,7 @@ class WorkOrderFactory extends Factory
     public function highPriority(): static
     {
         return $this->state(fn (array $attributes) => [
-            'priority' => 'high',
+            'priority_id' => WorkOrderPriority::where('slug', 'high')->value('id'),
         ]);
     }
 
@@ -121,7 +123,7 @@ class WorkOrderFactory extends Factory
     public function criticalPriority(): static
     {
         return $this->state(fn (array $attributes) => [
-            'priority' => 'critical',
+            'priority_id' => WorkOrderPriority::where('slug', 'critical')->value('id'),
         ]);
     }
 }

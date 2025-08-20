@@ -29,7 +29,10 @@ class WorkOrderController extends Controller
             'assignedTo', 
             'assignedBy', 
             'createdBy', 
-            'company'
+            'company',
+            'status',
+            'priority',
+            'category',
         ])->where('company_id', $companyId);
 
         // Search
@@ -55,14 +58,10 @@ class WorkOrderController extends Controller
         // Prefer *_id filters; fall back to legacy string fields for backward compatibility
         if ($request->filled('status_id')) {
             $query->where('status_id', $request->status_id);
-        } elseif ($request->filled('status')) {
-            $query->where('status', $request->status);
         }
 
         if ($request->filled('priority_id')) {
             $query->where('priority_id', $request->priority_id);
-        } elseif ($request->filled('priority')) {
-            $query->where('priority', $request->priority);
         }
 
         if ($request->filled('category_id')) {
@@ -126,13 +125,9 @@ class WorkOrderController extends Controller
         // Apply same filters as index method
         if ($request->filled('status_id')) {
             $query->where('status_id', $request->status_id);
-        } elseif ($request->filled('status')) {
-            $query->where('status', $request->status);
         }
         if ($request->filled('priority_id')) {
             $query->where('priority_id', $request->priority_id);
-        } elseif ($request->filled('priority')) {
-            $query->where('priority', $request->priority);
         }
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
@@ -219,7 +214,10 @@ class WorkOrderController extends Controller
             'assignedTo', 
             'assignedBy', 
             'createdBy', 
-            'company'
+            'company',
+            'status',
+            'priority',
+            'category',
         ]);
 
         return response()->json([
@@ -334,14 +332,20 @@ class WorkOrderController extends Controller
 
         // Basic counts
         $totalWorkOrders = WorkOrder::where('company_id', $companyId)->count();
-        $openWorkOrders = WorkOrder::where('company_id', $companyId)->where('status', 'open')->count();
-        $inProgressWorkOrders = WorkOrder::where('company_id', $companyId)->where('status', 'in_progress')->count();
-        $completedWorkOrders = WorkOrder::where('company_id', $companyId)->where('status', 'completed')->count();
+        $openWorkOrders = WorkOrder::where('company_id', $companyId)
+            ->whereHas('status', function ($q) { $q->where('slug', 'open'); })
+            ->count();
+        $inProgressWorkOrders = WorkOrder::where('company_id', $companyId)
+            ->whereHas('status', function ($q) { $q->where('slug', 'in-progress'); })
+            ->count();
+        $completedWorkOrders = WorkOrder::where('company_id', $companyId)
+            ->whereHas('status', function ($q) { $q->where('slug', 'completed'); })
+            ->count();
         $overdueWorkOrders = WorkOrder::where('company_id', $companyId)->overdue()->count();
 
         // Average resolution time (for completed work orders)
         $avgResolutionTime = WorkOrder::where('company_id', $companyId)
-            ->where('status', 'completed')
+            ->whereHas('status', function ($q) { $q->where('slug', 'completed'); })
             ->whereNotNull('completed_at')
             ->whereNotNull('created_at')
             ->avg(DB::raw('DATEDIFF(completed_at, created_at)'));
@@ -351,33 +355,36 @@ class WorkOrderController extends Controller
 
         // Active technicians (users with assigned work orders)
         $activeTechnicians = WorkOrder::where('company_id', $companyId)
-            ->whereIn('status', ['open', 'in_progress'])
+            ->whereHas('status', function ($q) { $q->whereIn('slug', ['open', 'in-progress']); })
             ->whereNotNull('assigned_to')
             ->distinct('assigned_to')
             ->count('assigned_to');
 
         // Status distribution
         $statusDistribution = WorkOrder::where('company_id', $companyId)
-            ->selectRaw('status, COUNT(*) as count')
-            ->groupBy('status')
-            ->pluck('count', 'status')
+            ->join('work_order_status as s', 's.id', '=', 'work_orders.status_id')
+            ->selectRaw('s.slug as status_slug, COUNT(*) as count')
+            ->groupBy('status_slug')
+            ->pluck('count', 'status_slug')
             ->toArray();
 
         // Priority distribution
         $priorityDistribution = WorkOrder::where('company_id', $companyId)
-            ->selectRaw('priority, COUNT(*) as count')
-            ->groupBy('priority')
-            ->pluck('count', 'priority')
+            ->join('work_order_priority as p', 'p.id', '=', 'work_orders.priority_id')
+            ->selectRaw('p.slug as priority_slug, COUNT(*) as count')
+            ->groupBy('priority_slug')
+            ->pluck('count', 'priority_slug')
             ->toArray();
 
         // Monthly performance trend (created vs completed)
         $monthlyTrend = WorkOrder::where('company_id', $companyId)
-            ->whereBetween('created_at', [$startDate, $endDate])
+            ->join('work_order_status as s', 's.id', '=', 'work_orders.status_id')
+            ->whereBetween('work_orders.created_at', [$startDate, $endDate])
             ->selectRaw('
-                YEAR(created_at) as year,
-                MONTH(created_at) as month,
+                YEAR(work_orders.created_at) as year,
+                MONTH(work_orders.created_at) as month,
                 COUNT(*) as created_count,
-                SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed_count
+                SUM(CASE WHEN s.slug = "completed" THEN 1 ELSE 0 END) as completed_count
             ')
             ->groupBy('year', 'month')
             ->orderBy('year')
@@ -386,16 +393,17 @@ class WorkOrderController extends Controller
 
         // Top technician performance
         $topTechnicians = WorkOrder::where('company_id', $companyId)
-            ->where('status', 'completed')
+            ->join('work_order_status as s', 's.id', '=', 'work_orders.status_id')
+            ->where('s.slug', 'completed')
             ->whereNotNull('assigned_to')
-            ->whereBetween('completed_at', [$startDate, $endDate])
+            ->whereBetween('work_orders.completed_at', [$startDate, $endDate])
             ->selectRaw('
-                assigned_to,
+                work_orders.assigned_to,
                 COUNT(*) as completed_count,
-                AVG(DATEDIFF(completed_at, created_at)) as avg_resolution_days
+                AVG(DATEDIFF(work_orders.completed_at, work_orders.created_at)) as avg_resolution_days
             ')
             ->with('assignedTo:id,first_name,last_name')
-            ->groupBy('assigned_to')
+            ->groupBy('work_orders.assigned_to')
             ->orderByDesc('completed_count')
             ->limit(10)
             ->get();
@@ -435,16 +443,18 @@ class WorkOrderController extends Controller
 
         // Basic counts by status
         $statusCounts = WorkOrder::where('company_id', $companyId)
-            ->selectRaw('status, COUNT(*) as count')
-            ->groupBy('status')
-            ->pluck('count', 'status')
+            ->join('work_order_status as s', 's.id', '=', 'work_orders.status_id')
+            ->selectRaw('s.slug as status_slug, COUNT(*) as count')
+            ->groupBy('status_slug')
+            ->pluck('count', 'status_slug')
             ->toArray();
 
         // Priority counts
         $priorityCounts = WorkOrder::where('company_id', $companyId)
-            ->selectRaw('priority, COUNT(*) as count')
-            ->groupBy('priority')
-            ->pluck('count', 'priority')
+            ->join('work_order_priority as p', 'p.id', '=', 'work_orders.priority_id')
+            ->selectRaw('p.slug as priority_slug, COUNT(*) as count')
+            ->groupBy('priority_slug')
+            ->pluck('count', 'priority_slug')
             ->toArray();
 
         // Overdue count
@@ -456,7 +466,7 @@ class WorkOrderController extends Controller
             ->count();
 
         $recentCompleted = WorkOrder::where('company_id', $companyId)
-            ->where('status', 'completed')
+            ->whereHas('status', function ($q) { $q->where('slug', 'completed'); })
             ->where('completed_at', '>=', now()->subDays(7))
             ->count();
 
