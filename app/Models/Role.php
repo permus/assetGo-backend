@@ -15,6 +15,10 @@ class Role extends Model
         'company_id',
     ];
 
+    protected $appends = [
+        'has_location_access',
+    ];
+
     /**
      * Get the company that owns the role
      */
@@ -59,5 +63,16 @@ class Role extends Model
     public function getAllPermissions()
     {
         return $this->permissions ? $this->permissions->permissions : [];
+    }
+
+    public function getHasLocationAccessAttribute(): bool
+    {
+        $permissions = $this->permissions?->permissions ?? [];
+        foreach (['can_view','can_create','can_edit','can_delete'] as $key) {
+            if (data_get($permissions, "locations.$key", false) === true) {
+                return true;
+            }
+        }
+        return false;
     }
 } 

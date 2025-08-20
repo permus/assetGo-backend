@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Team\StoreTeamRequest;
+use App\Http\Requests\Team\UpdateTeamRequest;
 use App\Models\User;
+use App\Models\Location;
 use App\Mail\TeamInvitationMail;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -22,8 +25,14 @@ class TeamController extends Controller
         $user = $request->user();
         $teams = $user->company->users()
             ->where('user_type', 'team')
-            ->with(['roles.permissions'])
+            ->with(['roles.permissions', 'locations:id,name,parent_id'])
             ->get();
+
+        // Attach has_full_location_access
+        $teams->transform(function ($t) {
+            $t->setAttribute('has_full_location_access', $t->locations->count() === 0);
+            return $t;
+        });
 
         return response()->json([
             'success' => true,
@@ -34,28 +43,12 @@ class TeamController extends Controller
     /**
      * Store a newly created team member (invite)
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreTeamRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'role_id' => 'required|exists:roles,id',
-            'hourly_rate' => 'nullable|numeric|min:0',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
         $user = $request->user();
 
-        // Validate that the role belongs to the user's company
-        $role = $user->company->roles()->find($request->role_id);
+        // Validate that the role belongs to the user's company and load permissions
+        $role = $user->company->roles()->with('permissions')->find($request->role_id);
         if (!$role) {
             return response()->json([
                 'success' => false,
@@ -75,20 +68,35 @@ class TeamController extends Controller
             'user_type' => 'team',
             'company_id' => $user->company_id,
             'created_by' => $user->id,
+            'hourly_rate' => $request->input('hourly_rate'),
         ]);
 
         // Assign the role to the team member
-        $teamMember->roles()->attach($request->role_id);
+        $teamMember->roles()->attach($role->id);
+
+        // Apply location scoping based on role's location access
+        if ($role->has_location_access) {
+            $this->syncUserLocationScope(
+                $teamMember,
+                $request->input('location_ids'),
+                $request->boolean('expand_descendants', true)
+            );
+        } else {
+            // Full access (empty pivot)
+            $teamMember->locations()->sync([]);
+        }
 
         // Send invitation email
         $this->sendInvitationEmail($teamMember, $password);
 
-        $teamMember->load(['roles.permissions']);
+        $teamMember->load(['roles.permissions', 'locations:id,name,parent_id']);
 
         return response()->json([
             'success' => true,
             'message' => 'Team member invited successfully',
-            'data' => $teamMember
+            'data' => array_merge($teamMember->toArray(), [
+                'has_full_location_access' => $teamMember->hasFullLocationAccess(),
+            ]),
         ], 201);
     }
 
@@ -101,7 +109,7 @@ class TeamController extends Controller
         $teamMember = $user->company->users()
             ->where('user_type', 'team')
             ->where('id', $id)
-            ->with(['roles.permissions'])
+            ->with(['roles.permissions', 'locations:id,name,parent_id'])
             ->first();
 
         if (!$teamMember) {
@@ -113,31 +121,17 @@ class TeamController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $teamMember
+            'data' => array_merge($teamMember->toArray(), [
+                'has_full_location_access' => $teamMember->hasFullLocationAccess(),
+            ]),
         ]);
     }
 
     /**
      * Update the specified team member
      */
-    public function update(Request $request, $id): JsonResponse
+    public function update(UpdateTeamRequest $request, $id): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'first_name' => 'sometimes|required|string|max:255',
-            'last_name' => 'sometimes|required|string|max:255',
-            'email' => 'sometimes|required|email|unique:users,email,' . $id,
-            'role_id' => 'sometimes|required|exists:roles,id',
-            'hourly_rate' => 'nullable|numeric|min:0',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
         $user = $request->user();
         $teamMember = $user->company->users()
             ->where('user_type', 'team')
@@ -151,32 +145,82 @@ class TeamController extends Controller
             ], 404);
         }
 
-        // Validate that the role belongs to the user's company
+        // Update basic info
+        $teamMember->update($request->only(['first_name', 'last_name', 'email', 'hourly_rate']));
+
+        // Determine current role
+        $role = $teamMember->roles()->with('permissions')->first();
+
+        // Update role if provided
         if ($request->has('role_id')) {
-            $role = $user->company->roles()->find($request->role_id);
-            if (!$role) {
+            $newRole = $user->company->roles()->with('permissions')->find($request->role_id);
+            if (!$newRole) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid role for this company'
                 ], 422);
             }
+            $teamMember->roles()->sync([$newRole->id]);
+            $role = $newRole;
         }
 
-        // Update basic info
-        $teamMember->update($request->only(['first_name', 'last_name', 'email']));
-
-        // Update role if provided
-        if ($request->has('role_id')) {
-            $teamMember->roles()->sync([$request->role_id]);
+        // Apply/refresh location scope
+        if ($role && $role->has_location_access && $request->hasAny(['location_ids','expand_descendants'])) {
+            $this->syncUserLocationScope(
+                $teamMember,
+                $request->input('location_ids'),
+                $request->boolean('expand_descendants', true)
+            );
+        } elseif ($role && !$role->has_location_access) {
+            // Full access
+            $teamMember->locations()->sync([]);
         }
 
-        $teamMember->load(['roles.permissions']);
+        $teamMember->load(['roles.permissions', 'locations:id,name,parent_id']);
 
         return response()->json([
             'success' => true,
             'message' => 'Team member updated successfully',
-            'data' => $teamMember
+            'data' => array_merge($teamMember->toArray(), [
+                'has_full_location_access' => $teamMember->hasFullLocationAccess(),
+            ]),
         ]);
+    }
+
+    protected function syncUserLocationScope(User $user, $ids, bool $expand): void
+    {
+        if (is_array($ids) && count($ids) > 0) {
+            if ($expand) {
+                $ids = app(\App\Services\LocationScopeService::class)
+                    ->expandWithDescendants($ids, $user->company_id);
+            }
+            $user->locations()->sync($ids);
+        } else {
+            $user->locations()->sync([]);
+        }
+    }
+
+    public function locationTree(Request $request): JsonResponse
+    {
+        $companyId = $request->user()->company_id;
+        $all = Location::where('company_id', $companyId)
+            ->select('id','name','parent_id','location_type_id')
+            ->orderBy('name')
+            ->get();
+
+        $byParent = $all->groupBy('parent_id');
+        $build = function($parentId) use (&$build, $byParent) {
+            return ($byParent[$parentId] ?? collect())->map(function($n) use ($build) {
+                return [
+                    'id' => $n->id,
+                    'name' => $n->name,
+                    'type' => $n->location_type_id,
+                    'children' => $build($n->id),
+                ];
+            })->values();
+        };
+
+        return response()->json(['success' => true, 'data' => $build(null)]);
     }
 
     /**

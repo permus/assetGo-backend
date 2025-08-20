@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\AssetStatusController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\FeatureFlagsController;
 use App\Http\Controllers\Api\WorkOrderController;
 use App\Http\Controllers\Api\MetaWorkOrderController;
 use App\Http\Controllers\Api\Inventory\PartController as InventoryPartController;
@@ -63,6 +64,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/company/users', [CompanyController::class, 'users']);
 
     // Location Management routes
+    // Place static routes BEFORE resource to avoid model-binding catching 'tree' as {location}
+    Route::get('locations/tree', [TeamController::class, 'locationTree']);
     Route::apiResource('locations', LocationController::class);
     Route::post('locations/bulk', [LocationController::class, 'bulkCreate']);
     Route::post('locations/move', [LocationController::class, 'move']);
@@ -133,6 +136,10 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('teams/{id}/resend-invitation', [TeamController::class, 'resendInvitation']);
     Route::get('teams/statistics', [TeamController::class, 'statistics']);
     Route::get('teams/available-roles', [TeamController::class, 'getAvailableRoles']);
+    // (moved above before apiResource to avoid conflicts)
+
+    // Feature flags for current user
+    Route::get('me/features', [FeatureFlagsController::class, 'me']);
 
     // Work Order routes
     Route::get('work-orders/count', [WorkOrderController::class, 'count']);

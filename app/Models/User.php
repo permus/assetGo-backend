@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Notifications\ResetPasswordNotification;
 use App\Notifications\VerifyEmailNotification;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -28,6 +29,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'company_id',
         'created_by',
+        'hourly_rate',
         'permissions',
     ];
 
@@ -49,6 +51,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'hourly_rate' => 'decimal:2',
         'permissions' => 'array',
     ];
 
@@ -126,6 +129,38 @@ class User extends Authenticatable implements MustVerifyEmail
         }
         
         return $permissions;
+    }
+
+    /**
+     * Location scoping: Many-to-Many pivot user_location_scopes
+     */
+    public function locations(): BelongsToMany
+    {
+        return $this->belongsToMany(Location::class, 'user_location_scopes')->withTimestamps();
+    }
+
+    public function hasFullLocationAccess(): bool
+    {
+        return $this->locations()->count() === 0;
+    }
+
+    /**
+     * If full access => return null (no restriction). Else => selected IDs
+     * Optionally include descendants via LocationScopeService.
+     */
+    public function effectiveLocationIds(bool $withDescendants = true): ?array
+    {
+        if ($this->hasFullLocationAccess()) {
+            return null;
+        }
+
+        $ids = $this->locations()->pluck('locations.id')->all();
+        if (!$withDescendants) {
+            return array_values(array_unique($ids));
+        }
+
+        return app(\App\Services\LocationScopeService::class)
+            ->expandWithDescendants($ids, $this->company_id);
     }
 
 
