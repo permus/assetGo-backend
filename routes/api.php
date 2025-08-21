@@ -192,8 +192,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 
     // Inventory module routes
     // Parts Catalog
-    Route::apiResource('inventory/parts', InventoryPartController::class);
+    // Important: put specific routes BEFORE resource to avoid capturing 'overview' as {part}
     Route::get('inventory/parts/overview', [InventoryPartController::class, 'overview']);
+    Route::apiResource('inventory/parts', InventoryPartController::class);
 
     // Stock Levels & Adjustments
     Route::get('inventory/stocks', [InventoryStockController::class, 'index']);
@@ -222,6 +223,11 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('inventory/dashboard/overview', [InventoryDashboardController::class, 'overview']);
     Route::get('inventory/analytics/abc-analysis', [InventoryAnalyticsController::class, 'abcAnalysis']);
     Route::get('inventory/analytics/abc-analysis/export', [InventoryAnalyticsController::class, 'abcAnalysisExport']);
+    Route::get('inventory/analytics/kpis', [InventoryAnalyticsController::class, 'kpis']);
+    Route::get('inventory/analytics/turnover', [InventoryAnalyticsController::class, 'turnover']);
+    Route::get('inventory/analytics/turnover-by-category', [InventoryAnalyticsController::class, 'turnoverByCategory']);
+    Route::get('inventory/analytics/monthly-turnover-trend', [InventoryAnalyticsController::class, 'monthlyTurnoverTrend']);
+    Route::get('inventory/analytics/stock-aging', [InventoryAnalyticsController::class, 'stockAging']);
 
 // New: categories, templates, alerts
     Route::get('inventory/categories', [InventoryCategoryController::class, 'index']);

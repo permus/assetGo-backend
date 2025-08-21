@@ -42,6 +42,60 @@ class DashboardController extends Controller
             ->where('available', '<=', 0)
             ->count();
 
+        // Average Turnover (annualized) for last 6 months window
+        $end = now();
+        $start = now()->copy()->subMonths(6);
+        $cogs = (float) DB::table('inventory_transactions')
+            ->where('company_id', $companyId)
+            ->whereIn('type', ['issue', 'transfer_out'])
+            ->whereBetween('created_at', [$start, $end])
+            ->selectRaw('COALESCE(SUM(ABS(quantity) * unit_cost), 0) as total')
+            ->value('total');
+
+        $endValue = (float) DB::table('inventory_stocks')
+            ->where('company_id', $companyId)
+            ->selectRaw('COALESCE(SUM(on_hand * average_cost), 0) as value')
+            ->value('value');
+
+        $inValue = (float) DB::table('inventory_transactions')
+            ->where('company_id', $companyId)
+            ->whereIn('type', ['receipt', 'return', 'transfer_in'])
+            ->whereBetween('created_at', [$start, $end])
+            ->selectRaw('COALESCE(SUM(ABS(quantity) * unit_cost), 0) as total')
+            ->value('total');
+        $outValue = (float) DB::table('inventory_transactions')
+            ->where('company_id', $companyId)
+            ->whereIn('type', ['issue', 'transfer_out'])
+            ->whereBetween('created_at', [$start, $end])
+            ->selectRaw('COALESCE(SUM(ABS(quantity) * unit_cost), 0) as total')
+            ->value('total');
+        $netChange = $inValue - $outValue;
+        $startValue = max(0.0, $endValue - $netChange);
+        $avgInv = ($startValue + $endValue) / 2.0;
+        $windowTurnover = ($avgInv > 0 && $cogs > 0) ? ($cogs / $avgInv) : 0.0;
+        $avgTurnover = $windowTurnover * 2.0; // annualize 6 months → x2
+
+        // Slow moving items count (>= 90 days since last movement)
+        $slowThreshold = 90;
+        $lastMovement = DB::table('inventory_transactions')
+            ->select('part_id', DB::raw('MAX(created_at) as last_movement_at'))
+            ->where('company_id', $companyId)
+            ->groupBy('part_id');
+
+        $slowCount = DB::table('inventory_parts')
+            ->join('inventory_stocks', 'inventory_parts.id', '=', 'inventory_stocks.part_id')
+            ->leftJoinSub($lastMovement, 'lm', function ($join) {
+                $join->on('inventory_parts.id', '=', 'lm.part_id');
+            })
+            ->where('inventory_parts.company_id', $companyId)
+            ->where('inventory_stocks.on_hand', '>', 0)
+            ->where(function ($q) use ($slowThreshold) {
+                $q->whereNull('lm.last_movement_at')
+                  ->orWhere('lm.last_movement_at', '<=', now()->subDays($slowThreshold));
+            })
+            ->distinct('inventory_parts.id')
+            ->count('inventory_parts.id');
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -49,6 +103,9 @@ class DashboardController extends Controller
                 'total_parts' => $totalParts,
                 'low_stock_count' => $lowStock,
                 'out_of_stock_count' => $outOfStock,
+                // New fields
+                'average_turnover' => round($avgTurnover, 4), // times per year
+                'slow_moving_count' => $slowCount,
             ]
         ]);
     }
