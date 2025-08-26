@@ -244,6 +244,37 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('inventory/alerts', [InventoryAlertController::class, 'store']);
     Route::post('inventory/alerts/{alert}/resolve', [InventoryAlertController::class, 'resolve']);
 
+    // Maintenance module routes
+    Route::prefix('maintenance')->group(function () {
+        // Plans
+        Route::get('plans', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'index']);
+        Route::post('plans', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'store']);
+        Route::get('plans/{maintenancePlan}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'show']);
+        Route::put('plans/{maintenancePlan}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'update']);
+        Route::delete('plans/{maintenancePlan}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'destroy']);
+        Route::patch('plans/{maintenancePlan}/toggle-active', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'toggleActive']);
+
+        // Checklists
+        Route::get('plans-checklists', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansChecklistsController::class, 'index']);
+        Route::post('plans-checklists', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansChecklistsController::class, 'store']);
+        Route::get('plans-checklists/{maintenancePlanChecklist}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansChecklistsController::class, 'show']);
+        Route::put('plans-checklists/{maintenancePlanChecklist}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansChecklistsController::class, 'update']);
+        Route::delete('plans-checklists/{maintenancePlanChecklist}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansChecklistsController::class, 'destroy']);
+
+        // Schedules
+        Route::get('schedules', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceController::class, 'index']);
+        Route::post('schedules', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceController::class, 'store']);
+        Route::get('schedules/{scheduleMaintenance}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceController::class, 'show']);
+        Route::put('schedules/{scheduleMaintenance}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceController::class, 'update']);
+        Route::delete('schedules/{scheduleMaintenance}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceController::class, 'destroy']);
+
+        // Assignments
+        Route::get('schedule-assignments', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'index']);
+        Route::post('schedule-assignments', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'store']);
+        Route::get('schedule-assignments/{scheduleMaintenanceAssigned}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'show']);
+        Route::put('schedule-assignments/{scheduleMaintenanceAssigned}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'update']);
+        Route::delete('schedule-assignments/{scheduleMaintenanceAssigned}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'destroy']);
+    });
 });
 
 // Routes for verified users only (but don't require full verification middleware)
