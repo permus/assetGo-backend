@@ -76,6 +76,58 @@ class WorkOrderAssignmentController extends Controller
         ]);
     }
 
+    public function assign(Request $request, WorkOrder $workOrder)
+    {
+        if ($workOrder->company_id !== $request->user()->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Work order not found'
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'user_id' => 'required|integer|exists:users,id',
+            'due_date' => 'nullable|date',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        // Check if work order is already assigned to this user
+        $existingAssignment = WorkOrderAssignment::where('work_order_id', $workOrder->id)
+            ->where('user_id', $validated['user_id'])
+            ->first();
+
+        if ($existingAssignment) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Work order is already assigned to this user'
+            ], 400);
+        }
+
+        // Create new assignment
+        $assignment = WorkOrderAssignment::create([
+            'work_order_id' => $workOrder->id,
+            'user_id' => $validated['user_id'],
+            'assigned_by' => Auth::id(),
+            'status' => 'assigned',
+            'due_date' => $validated['due_date'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+        ]);
+
+        // Update the main work order for backward compatibility
+        $workOrder->update([
+            'assigned_to' => $validated['user_id'],
+            'assigned_by' => Auth::id(),
+        ]);
+
+        $assignment->load('user');
+
+        return response()->json([
+            'success' => true,
+            'data' => $assignment,
+            'message' => 'Work order assigned successfully'
+        ]);
+    }
+
     public function update(Request $request, WorkOrder $workOrder, WorkOrderAssignment $assignment)
     {
         if ($workOrder->company_id !== $request->user()->company_id) {

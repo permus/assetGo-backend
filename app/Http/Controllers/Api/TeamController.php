@@ -28,9 +28,16 @@ class TeamController extends Controller
             ->with(['roles.permissions', 'locations:id,name,parent_id'])
             ->get();
 
-        // Attach has_full_location_access
+        // Attach has_full_location_access and assigned work order count
         $teams->transform(function ($t) {
             $t->setAttribute('has_full_location_access', $t->locations->count() === 0);
+            
+            // Count assigned work orders for this team member
+            $assignedCount = \App\Models\WorkOrderAssignment::where('user_id', $t->id)
+                ->where('status', 'assigned')
+                ->count();
+            $t->setAttribute('assigned_work_orders_count', $assignedCount);
+            
             return $t;
         });
 
