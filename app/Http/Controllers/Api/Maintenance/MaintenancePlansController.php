@@ -17,6 +17,7 @@ class MaintenancePlansController extends Controller
     {
         $perPage = min((int)$request->get('per_page', 15), 100);
         $query = MaintenancePlan::query()
+            ->where('company_id', auth()->user()->company_id)
             ->withCount(['schedules as scheduled_count']);
 
         if ($name = $request->get('name')) {
@@ -63,6 +64,8 @@ class MaintenancePlansController extends Controller
 
         $plan = DB::transaction(function () use ($validated, $checklistItems) {
             unset($validated['checklist_items']);
+            // Automatically set company_id from authenticated user
+            $validated['company_id'] = auth()->user()->company_id;
             $plan = MaintenancePlan::create($validated);
 
             $normalized = [];
@@ -83,6 +86,11 @@ class MaintenancePlansController extends Controller
 
     public function show(MaintenancePlan $maintenancePlan)
     {
+        // Ensure user can only access plans from their company
+        if ($maintenancePlan->company_id !== auth()->user()->company_id) {
+            abort(403, 'Unauthorized access to maintenance plan.');
+        }
+        
         $maintenancePlan->load('checklists');
         return response()->json([
             'success' => true,
@@ -94,6 +102,11 @@ class MaintenancePlansController extends Controller
 
     public function update(UpdateMaintenancePlanRequest $request, MaintenancePlan $maintenancePlan)
     {
+        // Ensure user can only update plans from their company
+        if ($maintenancePlan->company_id !== auth()->user()->company_id) {
+            abort(403, 'Unauthorized access to maintenance plan.');
+        }
+        
         $validated = $request->validated();
         $incomingChecklist = array_key_exists('checklist_items', $validated) ? ($validated['checklist_items'] ?? []) : null;
 
@@ -142,12 +155,22 @@ class MaintenancePlansController extends Controller
 
     public function destroy(MaintenancePlan $maintenancePlan)
     {
+        // Ensure user can only delete plans from their company
+        if ($maintenancePlan->company_id !== auth()->user()->company_id) {
+            abort(403, 'Unauthorized access to maintenance plan.');
+        }
+        
         $maintenancePlan->delete();
         return response()->json(['success' => true]);
     }
 
     public function toggleActive(MaintenancePlan $maintenancePlan)
     {
+        // Ensure user can only toggle plans from their company
+        if ($maintenancePlan->company_id !== auth()->user()->company_id) {
+            abort(403, 'Unauthorized access to maintenance plan.');
+        }
+        
         $maintenancePlan->is_active = !$maintenancePlan->is_active;
         // Enforce checklist rule if toggling to active
         if ($maintenancePlan->is_active && $maintenancePlan->checklists()->count() === 0) {

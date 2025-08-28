@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Maintenance;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreMaintenancePlanRequest extends FormRequest
 {
@@ -14,7 +15,14 @@ class StoreMaintenancePlanRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255|unique:maintenance_plans,name',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('maintenance_plans', 'name')->where(function ($query) {
+                    return $query->where('company_id', auth()->user()->company_id);
+                })
+            ],
             'priority_id' => 'nullable|integer',
             'sort' => 'nullable|integer|min:0',
             'descriptions' => 'nullable|string',

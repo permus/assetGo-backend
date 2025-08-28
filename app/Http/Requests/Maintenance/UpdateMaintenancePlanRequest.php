@@ -16,7 +16,17 @@ class UpdateMaintenancePlanRequest extends FormRequest
     {
         $planId = $this->route('maintenancePlan')?->id;
         return [
-            'name' => ['sometimes','required','string','max:255', Rule::unique('maintenance_plans','name')->ignore($planId)],
+            'name' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:255', 
+                Rule::unique('maintenance_plans', 'name')
+                    ->where(function ($query) {
+                        return $query->where('company_id', auth()->user()->company_id);
+                    })
+                    ->ignore($planId)
+            ],
             'priority_id' => 'sometimes|nullable|integer',
             'sort' => 'sometimes|nullable|integer|min:0',
             'descriptions' => 'sometimes|nullable|string',

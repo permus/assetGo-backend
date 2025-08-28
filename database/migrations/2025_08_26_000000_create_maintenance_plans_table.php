@@ -10,7 +10,8 @@ return new class extends Migration
     {
         Schema::create('maintenance_plans', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique();
+            $table->unsignedBigInteger('company_id');
+            $table->string('name');
             $table->unsignedInteger('priority_id')->nullable();
             $table->unsignedInteger('sort')->default(0);
             $table->text('descriptions')->nullable();
@@ -30,6 +31,10 @@ return new class extends Migration
             $table->index(['is_active','plan_type']);
             $table->index('priority_id');
             $table->index('category_id');
+            $table->index('company_id');
+            
+            // Unique constraint: name must be unique within each company
+            $table->unique(['company_id', 'name']);
         });
     }
 
