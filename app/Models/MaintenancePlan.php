@@ -62,6 +62,16 @@ class MaintenancePlan extends Model
     {
         return $query->where('company_id', $companyId);
     }
+
+    public function priority(): BelongsTo
+    {
+        return $this->belongsTo(WorkOrderPriority::class, 'priority_id');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(WorkOrderCategory::class, 'category_id');
+    }
 }
 
 

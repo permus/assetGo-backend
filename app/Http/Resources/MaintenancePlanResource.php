@@ -32,6 +32,9 @@ class MaintenancePlanResource extends JsonResource
             'updated_at' => $this->updated_at,
 
             'checklists' => MaintenancePlanChecklistResource::collection($this->whenLoaded('checklists')),
+            'priority' => new WorkOrderPriorityResource($this->whenLoaded('priority')),
+            'category' => new WorkOrderCategoryResource($this->whenLoaded('category')),
+            'assets' => $this->when(isset($this->assets_data), $this->assets_data),
         ];
     }
 }

@@ -8,6 +8,7 @@ use App\Http\Requests\Maintenance\UpdateMaintenancePlanRequest;
 use App\Http\Resources\MaintenancePlanResource;
 use App\Models\MaintenancePlan;
 use App\Models\MaintenancePlanChecklist;
+use App\Models\Asset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -91,7 +92,28 @@ class MaintenancePlansController extends Controller
             abort(403, 'Unauthorized access to maintenance plan.');
         }
         
-        $maintenancePlan->load('checklists');
+        $maintenancePlan->load(['checklists', 'priority', 'category']);
+
+        // Attach assets data based on asset_ids
+        $assetIds = is_array($maintenancePlan->asset_ids) ? $maintenancePlan->asset_ids : [];
+        $assetsData = [];
+        if (!empty($assetIds)) {
+            $assets = Asset::query()
+                ->forCompany(auth()->user()->company_id)
+                ->whereIn('id', $assetIds)
+                ->get(['id', 'name', 'serial_number', 'description']);
+
+            $assetsData = $assets->map(function ($asset) {
+                return [
+                    'id' => $asset->id,
+                    'name' => $asset->name,
+                    'serial_number' => $asset->serial_number,
+                    'description' => $asset->description,
+                ];
+            })->values();
+        }
+
+        $maintenancePlan->setAttribute('assets_data', $assetsData);
         return response()->json([
             'success' => true,
             'data' => [
