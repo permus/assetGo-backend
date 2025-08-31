@@ -16,8 +16,9 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('maintenance_plan_id')->index();
             $table->json('asset_ids')->nullable();
-            $table->date('start_date')->nullable();
-            $table->date('due_date')->nullable();
+            // store full datetime to support time selection in UI
+            $table->dateTime('start_date')->nullable();
+            $table->dateTime('due_date')->nullable();
             $table->enum('status', ['scheduled','in_progress','completed'])->default('scheduled');
             $table->unsignedInteger('priority_id')->nullable();
             $table->timestamps();

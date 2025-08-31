@@ -24,8 +24,8 @@ class ScheduleMaintenance extends Model
 
     protected $casts = [
         'asset_ids' => 'array',
-        'start_date' => 'date',
-        'due_date' => 'date',
+        'start_date' => 'datetime',
+        'due_date' => 'datetime',
     ];
 
     public function plan(): BelongsTo

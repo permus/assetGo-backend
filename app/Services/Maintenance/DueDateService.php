@@ -19,7 +19,7 @@ class DueDateService
             return null;
         }
 
-        $base = $start ? $start->copy() : Carbon::today();
+        $base = $start ? $start->copy() : Carbon::now();
 
         return match ($unit) {
             'days' => $base->copy()->addDays($value),

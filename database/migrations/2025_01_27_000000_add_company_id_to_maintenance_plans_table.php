@@ -44,8 +44,8 @@ return new class extends Migration
             // Drop company_id column
             $table->dropColumn('company_id');
             
-            // Restore the old unique constraint on name
-            $table->string('name')->unique();
+            // Restore the old unique constraint on existing name column
+            $table->unique('name');
         });
     }
 };
