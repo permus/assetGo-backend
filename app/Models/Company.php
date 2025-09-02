@@ -16,6 +16,8 @@ class Company extends Model
         'owner_id',
         'subscription_status',
         'subscription_expires_at',
+        'currency',
+        'settings',
         'business_type',
         'industry',
         'phone',
@@ -27,6 +29,7 @@ class Company extends Model
     protected $casts = [
         'subscription_expires_at' => 'datetime',
         'deleted_at' => 'datetime',
+        'settings' => 'array',
     ];
 
     /**

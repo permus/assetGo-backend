@@ -31,6 +31,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'created_by',
         'hourly_rate',
         'permissions',
+        'preferences',
     ];
 
     /**
@@ -53,6 +54,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password' => 'hashed',
         'hourly_rate' => 'decimal:2',
         'permissions' => 'array',
+        'preferences' => 'array',
     ];
 
     /**

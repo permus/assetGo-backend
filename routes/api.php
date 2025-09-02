@@ -25,6 +25,9 @@ use App\Http\Controllers\Api\Inventory\DashboardController as InventoryDashboard
 use App\Http\Controllers\Api\Inventory\CategoryController as InventoryCategoryController;
 use App\Http\Controllers\Api\Inventory\PurchaseOrderTemplateController as InventoryPurchaseOrderTemplateController;
 use App\Http\Controllers\Api\Inventory\AlertController as InventoryAlertController;
+use App\Http\Controllers\Api\CompanySettingsController;
+use App\Http\Controllers\Api\ModuleSettingsController;
+use App\Http\Controllers\Api\PreferencesController;
 
 /*
 |--------------------------------------------------------------------------
@@ -62,6 +65,19 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('/company', [CompanyController::class, 'show']);
     Route::put('/company', [CompanyController::class, 'update']);
     Route::get('/company/users', [CompanyController::class, 'users']);
+
+    // Settings - Company
+    Route::put('/settings/currency', [CompanySettingsController::class, 'updateCurrency']);
+    Route::post('/settings/company/logo', [CompanySettingsController::class, 'uploadLogo']);
+
+    // Settings - Modules
+    Route::get('/settings/modules', [ModuleSettingsController::class, 'index']);
+    Route::post('/settings/modules/{module}/enable', [ModuleSettingsController::class, 'enable']);
+    Route::post('/settings/modules/{module}/disable', [ModuleSettingsController::class, 'disable']);
+
+    // Settings - Preferences (optional)
+    Route::get('/settings/preferences', [PreferencesController::class, 'show']);
+    Route::put('/settings/preferences', [PreferencesController::class, 'update']);
 
     // Location Management routes
     // Place static routes BEFORE resource to avoid model-binding catching 'tree' as {location}

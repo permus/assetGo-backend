@@ -25,6 +25,7 @@ class CompanyController extends Controller
             ], 404);
         }
 
+        $company->setAttribute('logo_url', $company->logo);
         return response()->json([
             'success' => true,
             'data' => [
@@ -48,8 +49,10 @@ class CompanyController extends Controller
             ], 404);
         }
 
-        // Check if user is the owner or has permission to update
-        if ($company->owner_id !== $user->id) {
+        // Check if user is the owner or admin (super_admin/company_admin)
+        $isOwner = ($company->owner_id === $user->id);
+        $isAdmin = in_array($user->user_type, ['super_admin', 'company_admin'], true);
+        if (!$isOwner && !$isAdmin) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized to update company details'
@@ -87,11 +90,13 @@ class CompanyController extends Controller
 
         $company->update($updateData);
 
+        $fresh = $company->fresh()->load('owner');
+        $fresh->setAttribute('logo_url', $fresh->logo);
         return response()->json([
             'success' => true,
             'message' => 'Company updated successfully',
             'data' => [
-                'company' => $company->fresh()->load('owner')
+                'company' => $fresh
             ]
         ]);
     }

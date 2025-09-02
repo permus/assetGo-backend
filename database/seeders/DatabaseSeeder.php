@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
         $this->call(RoleSeeder::class);
         $this->call(WorkOrderSeeder::class);
         $this->call(SupplierSeeder::class);
+        $this->call(ModuleDefinitionsSeeder::class);
         
         // Work Order Meta seeders
         $this->call(WorkOrderStatusSeeder::class);
