@@ -151,6 +151,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::apiResource('teams', TeamController::class);
     Route::post('teams/{id}/resend-invitation', [TeamController::class, 'resendInvitation']);
     Route::get('teams/statistics', [TeamController::class, 'statistics']);
+    Route::get('teams/analytics', [TeamController::class, 'analytics']);
     Route::get('teams/available-roles', [TeamController::class, 'getAvailableRoles']);
     // (moved above before apiResource to avoid conflicts)
 
