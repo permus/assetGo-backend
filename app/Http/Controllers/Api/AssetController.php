@@ -39,7 +39,17 @@ class AssetController extends Controller
     public function index(Request $request)
     {
         $companyId = $request->user()->company_id;
-        $query = Asset::with(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company'])->where('company_id', $companyId);
+        $query = Asset::with([
+                'category',
+                'assetType:id,name,icon',
+                'assetStatus',
+                'department',
+                'tags',
+                'images',
+                'location',
+                'user',
+                'company'
+            ])->where('company_id', $companyId);
 
         // Search
         if ($search = $request->get('search')) {
@@ -86,8 +96,12 @@ class AssetController extends Controller
         // Archived filter
         if ($request->filled('archived') && $request->boolean('archived')) {
             $query->onlyTrashed();
+            $query->where('is_active', 2);
         } else {
             $query->withoutTrashed();
+            $query->where(function ($q) {
+                $q->whereNull('is_active')->orWhere('is_active', 1);
+            });
         }
 
         // Sorting
@@ -350,7 +364,7 @@ class AssetController extends Controller
             if ($request->filled('archive_reason')) {
                 $asset->archive_reason = $request->archive_reason;
             }
-            $asset->status = 'archived';
+            $asset->is_active = 2;
             $asset->save();
             $asset->delete(); // Soft delete
 
@@ -404,7 +418,7 @@ class AssetController extends Controller
             if ($request->filled('archive_reason')) {
                 $asset->archive_reason = $request->archive_reason;
             }
-            $asset->status = 'archived';
+            $asset->is_active = 2;
             $asset->save();
             $asset->delete(); // Soft delete
 
@@ -1146,14 +1160,37 @@ class AssetController extends Controller
         $perPage = min($request->get('per_page', 15), 100);
         $activities = $query->paginate($perPage);
 
-        // Transform the data to include more readable information
+        // Transform the data: hide raw before/after JSON, add concise change summary
         $activities->getCollection()->transform(function ($activity) {
+            $beforeArr = is_array($activity->before)
+                ? $activity->before
+                : (is_string($activity->before) ? json_decode($activity->before, true) : []);
+            $afterArr = is_array($activity->after)
+                ? $activity->after
+                : (is_string($activity->after) ? json_decode($activity->after, true) : []);
+
+            $changedKeys = [];
+            $allKeys = array_unique(array_merge(array_keys((array) $beforeArr), array_keys((array) $afterArr)));
+            foreach ($allKeys as $key) {
+                $beforeVal = $beforeArr[$key] ?? null;
+                $afterVal = $afterArr[$key] ?? null;
+                if ($beforeVal !== $afterVal) {
+                    $changedKeys[] = $key;
+                }
+            }
+            $summary = null;
+            if (!empty($changedKeys)) {
+                $display = array_slice($changedKeys, 0, 5);
+                $more = count($changedKeys) - count($display);
+                $summary = 'Changed: ' . implode(', ', $display) . ($more > 0 ? (' +' . $more . ' more') : '');
+            }
+
             return [
                 'id' => $activity->id,
                 'action' => $activity->action,
                 'comment' => $activity->comment,
-                'before' => $activity->before,
-                'after' => $activity->after,
+                'summary' => $summary,
+                'changed_fields' => $changedKeys, // for UI chips if needed
                 'user' => $activity->user ? [
                     'id' => $activity->user->id,
                     'name' => $activity->user->name,
@@ -1668,7 +1705,13 @@ class AssetController extends Controller
     {
         $companyId = $request->user()->company_id;
         $totalAssets = \App\Models\Asset::withTrashed()->where('company_id', $companyId)->count();
-        $activeAssets = \App\Models\Asset::where('company_id', $companyId)->where('status', 'active')->count();
+        // Count active assets based on the new is_active flag when present; fall back to non-archived
+        $activeAssets = \App\Models\Asset::where('company_id', $companyId)
+            ->withoutTrashed()
+            ->where(function ($q) {
+                $q->whereNull('is_active')->orWhere('is_active', 1);
+            })
+            ->count();
         $archivedAssets = \App\Models\Asset::onlyTrashed()->where('company_id', $companyId)->count();
         $archivedByMonth = \App\Models\Asset::onlyTrashed()
             ->where('company_id', $companyId)
@@ -1698,7 +1741,7 @@ class AssetController extends Controller
         $archived = $request->boolean('archived', false);
         $query = \App\Models\Asset::query()->where('company_id', $companyId);
         if ($archived) {
-            $query->onlyTrashed();
+            $query->onlyTrashed()->where('is_active', 2);
         }
         $assets = $query->get();
         $headers = [
@@ -1708,7 +1751,7 @@ class AssetController extends Controller
         $columns = [
             'id', 'asset_id', 'name', 'description', 'category_id', 'type', 'serial_number', 'model', 'manufacturer',
             'capacity', 'purchase_date', 'purchase_price', 'depreciation', 'location_id', 'department_id', 'user_id', 'company_id',
-            'warranty', 'insurance', 'health_score', 'status', 'archive_reason', 'deleted_at', 'created_at', 'updated_at'
+            'warranty', 'insurance', 'health_score', 'status', 'is_active', 'archive_reason', 'deleted_at', 'created_at', 'updated_at'
         ];
         $callback = function() use ($assets, $columns) {
             $file = fopen('php://output', 'w');
@@ -1717,7 +1760,7 @@ class AssetController extends Controller
             $headers = [
                 'id', 'asset_id', 'name', 'description', 'category_id', 'type', 'serial_number', 'model', 'manufacturer',
                 'Capacity/Rating', 'purchase_date', 'purchase_price', 'depreciation', 'location_id', 'department_id', 'user_id', 'company_id',
-                'warranty', 'insurance', 'health_score', 'status', 'archive_reason', 'deleted_at', 'created_at', 'updated_at'
+                'warranty', 'insurance', 'health_score', 'status', 'is_active', 'archive_reason', 'deleted_at', 'created_at', 'updated_at'
             ];
 
             fputcsv($file, $headers);
@@ -1867,7 +1910,7 @@ class AssetController extends Controller
                 if ($archiveReason) {
                     $asset->archive_reason = $archiveReason;
                 }
-                $asset->status = 'archived';
+                $asset->is_active = 2;
                 $asset->save();
                 $asset->delete();
                 $asset->activities()->create([
@@ -1977,6 +2020,7 @@ class AssetController extends Controller
             $asset->restore();
             // Optionally clear archive_reason
             $asset->archive_reason = null;
+            $asset->is_active = 1;
             $asset->save();
             // Log activity
             $asset->activities()->create([
@@ -2030,6 +2074,7 @@ class AssetController extends Controller
                 $before = $asset->toArray();
                 $asset->restore();
                 $asset->archive_reason = null;
+                $asset->is_active = 1;
                 $asset->save();
                 $asset->activities()->create([
                     'user_id' => $userId,

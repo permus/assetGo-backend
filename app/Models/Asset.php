@@ -19,7 +19,10 @@ class Asset extends Model
         'serial_number',
         'model',
         'manufacturer',
+        'brand',
         'capacity',
+        'dimensions',
+        'weight',
         'purchase_date',
         'purchase_price',
         'depreciation',
@@ -34,6 +37,7 @@ class Asset extends Model
         'status',
         'qr_code_path',
         'parent_id',
+        'is_active',
     ];
 
     protected $casts = [
@@ -42,6 +46,7 @@ class Asset extends Model
         'depreciation' => 'decimal:2',
         'depreciation_life' => 'integer',
         'health_score' => 'decimal:2',
+        'is_active' => 'integer',
     ];
 
     protected $appends = ['qr_code_url', 'public_url', 'full_path', 'has_children', 'location_hierarchy'];
@@ -91,7 +96,8 @@ class Asset extends Model
 
     public function assetType()
     {
-        return $this->belongsTo(AssetType::class, 'type', 'name');
+        // Map asset.type (stores AssetType id) to AssetType.id
+        return $this->belongsTo(AssetType::class, 'type', 'id');
     }
 
     public function assetStatus()
