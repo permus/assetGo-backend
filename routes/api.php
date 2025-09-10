@@ -90,7 +90,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('location-types', [LocationController::class, 'types']);
     Route::get('locations/possible-parents/{locationId?}', [LocationController::class, 'possibleParents']);
 
-    // Asset resource routes
+    // Asset resource routes (guarded by module enablement)
+    Route::middleware('module:assets')->group(function () {
     Route::post('assets/bulk-delete', [AssetController::class, 'bulkDelete']);
     Route::post('assets/bulk-archive', [AssetController::class, 'bulkArchive']);
     Route::post('assets/import-bulk-excel', [AssetController::class, 'bulkImportAssetsFromExcel']);
@@ -103,7 +104,6 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('assets/possible-parents/{assetId?}', [AssetController::class, 'possibleParents']);
     Route::post('assets/move', [AssetController::class, 'move']);
     Route::apiResource('assets', AssetController::class);
-
     Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);
     Route::post('assets/{asset}/transfer', [AssetController::class, 'transfer']);
     Route::post('assets/{asset}/restore', [AssetController::class, 'restore']);
@@ -117,6 +117,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::get('assets/{asset}/activity-history', [AssetController::class, 'activityHistory']);
     Route::get('assets/activities', [AssetController::class, 'allActivities']);
     Route::get('assets/analytics', [AssetController::class, 'analytics']);
+    });
 
     // Maintenance schedule CRUD
     Route::get('assets/{asset}/maintenance-schedules', [AssetController::class, 'listMaintenanceSchedules']);
@@ -148,36 +149,38 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::apiResource('roles', RoleController::class);
 
     // Team routes (team members are users with user_type = 'team')
-    Route::apiResource('teams', TeamController::class);
-    Route::post('teams/{id}/resend-invitation', [TeamController::class, 'resendInvitation']);
+    // Place static routes BEFORE resource to avoid model-binding catching them as {team}
     Route::get('teams/statistics', [TeamController::class, 'statistics']);
     Route::get('teams/analytics', [TeamController::class, 'analytics']);
     Route::get('teams/available-roles', [TeamController::class, 'getAvailableRoles']);
-    // (moved above before apiResource to avoid conflicts)
+    Route::post('teams/{id}/resend-invitation', [TeamController::class, 'resendInvitation']);
+    Route::apiResource('teams', TeamController::class);
 
     // Feature flags for current user
     Route::get('me/features', [FeatureFlagsController::class, 'me']);
 
-    // Work Order routes
-    Route::get('work-orders/count', [WorkOrderController::class, 'count']);
-    Route::get('work-orders/analytics', [WorkOrderController::class, 'analytics']);
-    Route::get('work-orders/statistics', [WorkOrderController::class, 'statistics']);
-    Route::get('work-orders/filters', [WorkOrderController::class, 'filters']);
-    Route::post('work-orders/{workOrder}/status', [WorkOrderController::class, 'updateStatus']);
-    Route::get('work-orders/{workOrder}/history', [WorkOrderController::class, 'history']);
-    // Work Order assignments
-    Route::get('work-orders/{workOrder}/assignments', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'index']);
-Route::post('work-orders/{workOrder}/assignments', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'store']);
-Route::post('work-orders/{workOrder}/assign', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'assign']);
-Route::put('work-orders/{workOrder}/assignments/{assignment}', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'update']);
-Route::patch('work-orders/{workOrder}/assignments/{assignment}', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'update']);
-Route::delete('work-orders/{workOrder}/assignments/{assignment}', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'destroy']);
-    // Work Order parts
-    Route::get('work-orders/{workOrder}/parts', [\App\Http\Controllers\Api\WorkOrderPartController::class, 'index']);
-    Route::post('work-orders/{workOrder}/parts', [\App\Http\Controllers\Api\WorkOrderPartController::class, 'store']);
-    Route::put('work-orders/{workOrder}/parts/{part}', [\App\Http\Controllers\Api\WorkOrderPartController::class, 'update']);
-    Route::delete('work-orders/{workOrder}/parts/{part}', [\App\Http\Controllers\Api\WorkOrderPartController::class, 'destroy']);
-    Route::apiResource('work-orders', WorkOrderController::class);
+    // Work Order routes (guarded)
+    Route::middleware('module:work_orders')->group(function () {
+        Route::get('work-orders/count', [WorkOrderController::class, 'count']);
+        Route::get('work-orders/analytics', [WorkOrderController::class, 'analytics']);
+        Route::get('work-orders/statistics', [WorkOrderController::class, 'statistics']);
+        Route::get('work-orders/filters', [WorkOrderController::class, 'filters']);
+        Route::post('work-orders/{workOrder}/status', [WorkOrderController::class, 'updateStatus']);
+        Route::get('work-orders/{workOrder}/history', [WorkOrderController::class, 'history']);
+        // Work Order assignments
+        Route::get('work-orders/{workOrder}/assignments', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'index']);
+        Route::post('work-orders/{workOrder}/assignments', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'store']);
+        Route::post('work-orders/{workOrder}/assign', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'assign']);
+        Route::put('work-orders/{workOrder}/assignments/{assignment}', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'update']);
+        Route::patch('work-orders/{workOrder}/assignments/{assignment}', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'update']);
+        Route::delete('work-orders/{workOrder}/assignments/{assignment}', [\App\Http\Controllers\Api\WorkOrderAssignmentController::class, 'destroy']);
+        // Work Order parts
+        Route::get('work-orders/{workOrder}/parts', [\App\Http\Controllers\Api\WorkOrderPartController::class, 'index']);
+        Route::post('work-orders/{workOrder}/parts', [\App\Http\Controllers\Api\WorkOrderPartController::class, 'store']);
+        Route::put('work-orders/{workOrder}/parts/{part}', [\App\Http\Controllers\Api\WorkOrderPartController::class, 'update']);
+        Route::delete('work-orders/{workOrder}/parts/{part}', [\App\Http\Controllers\Api\WorkOrderPartController::class, 'destroy']);
+        Route::apiResource('work-orders', WorkOrderController::class);
+    });
 
     // Work Order comments
     Route::get('work-orders/{workOrder}/comments', [\App\Http\Controllers\Api\WorkOrderCommentController::class, 'index']);
@@ -208,44 +211,46 @@ Route::delete('work-orders/{workOrder}/assignments/{assignment}', [\App\Http\Con
         Route::delete('categories/{id}', [MetaWorkOrderController::class, 'categoryDestroy']);
     });
 
-    // Inventory module routes
-    // Parts Catalog
-    // Important: put specific routes BEFORE resource to avoid capturing 'overview' as {part}
-    Route::get('inventory/parts/overview', [InventoryPartController::class, 'overview']);
-    Route::apiResource('inventory/parts', InventoryPartController::class);
+    // Inventory module routes (guarded)
+    Route::middleware('module:inventory')->group(function () {
+        // Parts Catalog
+        // Important: put specific routes BEFORE resource to avoid capturing 'overview' as {part}
+        Route::get('inventory/parts/overview', [InventoryPartController::class, 'overview']);
+        Route::apiResource('inventory/parts', InventoryPartController::class);
 
-    // Stock Levels & Adjustments
-    Route::get('inventory/stocks', [InventoryStockController::class, 'index']);
-    Route::post('inventory/stocks/adjust', [InventoryStockController::class, 'adjust']);
-    Route::post('inventory/stocks/transfer', [InventoryStockController::class, 'transfer']);
-    Route::post('inventory/stocks/reserve', [InventoryStockController::class, 'reserve']);
-    Route::post('inventory/stocks/release', [InventoryStockController::class, 'release']);
-    Route::post('inventory/stocks/count', [InventoryStockController::class, 'count']);
+        // Stock Levels & Adjustments
+        Route::get('inventory/stocks', [InventoryStockController::class, 'index']);
+        Route::post('inventory/stocks/adjust', [InventoryStockController::class, 'adjust']);
+        Route::post('inventory/stocks/transfer', [InventoryStockController::class, 'transfer']);
+        Route::post('inventory/stocks/reserve', [InventoryStockController::class, 'reserve']);
+        Route::post('inventory/stocks/release', [InventoryStockController::class, 'release']);
+        Route::post('inventory/stocks/count', [InventoryStockController::class, 'count']);
 
-    // Transactions
-    Route::get('inventory/transactions', [InventoryTransactionController::class, 'index']);
+        // Transactions
+        Route::get('inventory/transactions', [InventoryTransactionController::class, 'index']);
 
-    // Suppliers
-    Route::apiResource('inventory/suppliers', InventorySupplierController::class)->only(['index', 'store', 'update']);
+        // Suppliers
+        Route::apiResource('inventory/suppliers', InventorySupplierController::class)->only(['index', 'store', 'update']);
 
-    // Purchase Orders
-    Route::get('inventory/purchase-orders', [InventoryPOController::class, 'index']);
-    Route::get('inventory/purchase-orders/overview', [InventoryPOController::class, 'overview']);
-    Route::post('inventory/purchase-orders', [InventoryPOController::class, 'store']);
-    Route::put('inventory/purchase-orders/{purchaseOrder}', [InventoryPOController::class, 'update']);
-    Route::post('inventory/purchase-orders/{purchaseOrder}/receive', [InventoryPOController::class, 'receive']);
-    Route::post('inventory/purchase-orders/approve', [InventoryPOController::class, 'approve']);
+        // Purchase Orders
+        Route::get('inventory/purchase-orders', [InventoryPOController::class, 'index']);
+        Route::get('inventory/purchase-orders/overview', [InventoryPOController::class, 'overview']);
+        Route::post('inventory/purchase-orders', [InventoryPOController::class, 'store']);
+        Route::put('inventory/purchase-orders/{purchaseOrder}', [InventoryPOController::class, 'update']);
+        Route::post('inventory/purchase-orders/{purchaseOrder}/receive', [InventoryPOController::class, 'receive']);
+        Route::post('inventory/purchase-orders/approve', [InventoryPOController::class, 'approve']);
 
-    // Analytics
-    Route::get('inventory/analytics/dashboard', [InventoryAnalyticsController::class, 'dashboard']);
-    Route::get('inventory/dashboard/overview', [InventoryDashboardController::class, 'overview']);
-    Route::get('inventory/analytics/abc-analysis', [InventoryAnalyticsController::class, 'abcAnalysis']);
-    Route::get('inventory/analytics/abc-analysis/export', [InventoryAnalyticsController::class, 'abcAnalysisExport']);
-    Route::get('inventory/analytics/kpis', [InventoryAnalyticsController::class, 'kpis']);
-    Route::get('inventory/analytics/turnover', [InventoryAnalyticsController::class, 'turnover']);
-    Route::get('inventory/analytics/turnover-by-category', [InventoryAnalyticsController::class, 'turnoverByCategory']);
-    Route::get('inventory/analytics/monthly-turnover-trend', [InventoryAnalyticsController::class, 'monthlyTurnoverTrend']);
-    Route::get('inventory/analytics/stock-aging', [InventoryAnalyticsController::class, 'stockAging']);
+        // Analytics
+        Route::get('inventory/analytics/dashboard', [InventoryAnalyticsController::class, 'dashboard']);
+        Route::get('inventory/dashboard/overview', [InventoryDashboardController::class, 'overview']);
+        Route::get('inventory/analytics/abc-analysis', [InventoryAnalyticsController::class, 'abcAnalysis']);
+        Route::get('inventory/analytics/abc-analysis/export', [InventoryAnalyticsController::class, 'abcAnalysisExport']);
+        Route::get('inventory/analytics/kpis', [InventoryAnalyticsController::class, 'kpis']);
+        Route::get('inventory/analytics/turnover', [InventoryAnalyticsController::class, 'turnover']);
+        Route::get('inventory/analytics/turnover-by-category', [InventoryAnalyticsController::class, 'turnoverByCategory']);
+        Route::get('inventory/analytics/monthly-turnover-trend', [InventoryAnalyticsController::class, 'monthlyTurnoverTrend']);
+        Route::get('inventory/analytics/stock-aging', [InventoryAnalyticsController::class, 'stockAging']);
+    });
 
 // New: categories, templates, alerts
     Route::get('inventory/categories', [InventoryCategoryController::class, 'index']);
