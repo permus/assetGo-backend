@@ -80,11 +80,12 @@ class BulkCreateLocationRequest extends FormRequest
             $duplicates = $names->duplicates();
             
             if ($duplicates->isNotEmpty()) {
-                foreach ($locations as $index => $locationData) {
-                    if ($duplicates->contains($locationData['name'])) {
-                        $validator->errors()->add("locations.{$index}.name", 'Duplicate names in batch will be automatically suffixed with "copy".');
-                    }
-                }
+                // Log warning about duplicates but don't add validation errors
+                // The controller will handle duplicate names by adding "copy" suffix
+                \Log::info('Bulk location creation with duplicate names detected. Names will be automatically suffixed with "copy".', [
+                    'duplicates' => $duplicates->toArray(),
+                    'user_id' => $this->user()->id ?? null
+                ]);
             }
         });
     }

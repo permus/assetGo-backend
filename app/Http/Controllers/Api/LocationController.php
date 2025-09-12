@@ -453,6 +453,90 @@ class LocationController extends Controller
     }
 
     /**
+     * Export all locations QR codes as PDF
+     */
+    public function exportQRCodes(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $company = $user->company;
+
+            if (!$company) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No company found for this user'
+                ], 404);
+            }
+
+            // Get all locations for the company
+            $locations = Location::where('company_id', $company->id)
+                ->with(['type'])
+                ->orderBy('name')
+                ->get();
+
+            if ($locations->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No locations found to export'
+                ], 404);
+            }
+
+            // Generate QR codes for all locations
+            $qrCodes = [];
+            foreach ($locations as $location) {
+                // Generate QR code if it doesn't exist
+                if (!$location->qr_code_path) {
+                    $qrPath = $this->qrCodeService->generateLocationQRCode($location);
+                    if ($qrPath) {
+                        $location->update(['qr_code_path' => $qrPath]);
+                    }
+                }
+
+                if ($location->qr_code_path) {
+                    $qrCodes[] = [
+                        'location' => $location,
+                        'qr_path' => $location->qr_code_path,
+                        'qr_url' => \Storage::disk('public')->url($location->qr_code_path)
+                    ];
+                }
+            }
+
+            // Generate PDF with all QR codes
+            $pdf = $this->generateQRCodesPDF($qrCodes, $company->name);
+
+            $filename = 'locations-qr-codes-' . date('Y-m-d-H-i-s') . '.pdf';
+
+            return response($pdf, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('QR Codes export failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to export QR codes',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate PDF with QR codes
+     */
+    private function generateQRCodesPDF($qrCodes, $companyName)
+    {
+        $pdf = \PDF::loadView('pdf.locations-qr-codes', [
+            'qrCodes' => $qrCodes,
+            'companyName' => $companyName,
+            'generatedAt' => now()->format('Y-m-d H:i:s')
+        ]);
+
+        $pdf->setPaper('A4', 'portrait');
+        return $pdf->output();
+    }
+
+    /**
      * Get location hierarchy tree
      */
     public function hierarchy(Request $request)

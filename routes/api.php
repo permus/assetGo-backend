@@ -82,10 +82,11 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     // Location Management routes
     // Place static routes BEFORE resource to avoid model-binding catching 'tree' as {location}
     Route::get('locations/tree', [TeamController::class, 'locationTree']);
-    Route::apiResource('locations', LocationController::class);
+    Route::get('locations/export-qr', [LocationController::class, 'exportQRCodes']);
     Route::post('locations/bulk', [LocationController::class, 'bulkCreate']);
     Route::post('locations/move', [LocationController::class, 'move']);
     Route::get('locations/{location}/qr', [LocationController::class, 'qrCode']);
+    Route::apiResource('locations', LocationController::class);
     Route::get('locations-hierarchy', [LocationController::class, 'hierarchy']);
     Route::get('location-types', [LocationController::class, 'types']);
     Route::get('locations/possible-parents/{locationId?}', [LocationController::class, 'possibleParents']);

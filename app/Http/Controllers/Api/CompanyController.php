@@ -25,7 +25,9 @@ class CompanyController extends Controller
             ], 404);
         }
 
-        $company->setAttribute('logo_url', $company->logo);
+        // Generate full logo URL if logo exists
+        $logoUrl = $company->logo ? \Storage::disk('public')->url(str_replace('/storage/', '', $company->logo)) : null;
+        $company->setAttribute('logo_url', $logoUrl);
         return response()->json([
             'success' => true,
             'data' => [
@@ -91,7 +93,9 @@ class CompanyController extends Controller
         $company->update($updateData);
 
         $fresh = $company->fresh()->load('owner');
-        $fresh->setAttribute('logo_url', $fresh->logo);
+        // Generate full logo URL if logo exists
+        $logoUrl = $fresh->logo ? \Storage::disk('public')->url(str_replace('/storage/', '', $fresh->logo)) : null;
+        $fresh->setAttribute('logo_url', $logoUrl);
         return response()->json([
             'success' => true,
             'message' => 'Company updated successfully',
