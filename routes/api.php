@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\Inventory\AlertController as InventoryAlertControll
 use App\Http\Controllers\Api\CompanySettingsController;
 use App\Http\Controllers\Api\ModuleSettingsController;
 use App\Http\Controllers\Api\PreferencesController;
+use App\Http\Controllers\Api\AIImageRecognitionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -78,6 +79,16 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     // Settings - Preferences (optional)
     Route::get('/settings/preferences', [PreferencesController::class, 'show']);
     Route::put('/settings/preferences', [PreferencesController::class, 'update']);
+
+    // AI Image Recognition routes
+    Route::prefix('ai/image-recognition')->group(function () {
+        Route::post('analyze', [AIImageRecognitionController::class, 'analyze'])
+            ->middleware('throttle:10,1'); // 10 requests per minute
+        Route::post('feedback', [AIImageRecognitionController::class, 'feedback'])
+            ->middleware('throttle:30,1'); // 30 requests per minute
+        Route::get('history', [AIImageRecognitionController::class, 'history'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
+    });
 
     // Location Management routes
     // Place static routes BEFORE resource to avoid model-binding catching 'tree' as {location}

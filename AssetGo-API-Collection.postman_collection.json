@@ -18,7 +18,7 @@
 	"variable": [
 		{
 			"key": "base_url",
-			"value": "https://assetgo.thethemeai.com/api",
+			"value": "http://assetgo-backend.test/api",
 			"type": "string"
 		},
 		{
@@ -28,17 +28,32 @@
 		},
 		{
 			"key": "asset_id",
-			"value": "",
+			"value": "1",
 			"type": "string"
 		},
 		{
 			"key": "location_id",
-			"value": "",
+			"value": "1",
 			"type": "string"
 		},
 		{
 			"key": "job_id",
 			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "work_order_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "part_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "supplier_id",
+			"value": "1",
 			"type": "string"
 		}
 	],
@@ -335,6 +350,170 @@
 							"raw": "{{base_url}}/company/users",
 							"host": ["{{base_url}}"],
 							"path": ["company", "users"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Company Settings",
+			"description": "Company settings and configuration endpoints",
+			"item": [
+				{
+					"name": "updateCurrency",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"currency\": \"USD\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/currency",
+							"host": ["{{base_url}}"],
+							"path": ["settings", "currency"]
+						}
+					}
+				},
+				{
+					"name": "uploadLogo",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "logo",
+									"description": "Company logo image file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/company/logo",
+							"host": ["{{base_url}}"],
+							"path": ["settings", "company", "logo"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Module Settings",
+			"description": "Module enablement and configuration endpoints",
+			"item": [
+				{
+					"name": "index",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/modules",
+							"host": ["{{base_url}}"],
+							"path": ["settings", "modules"]
+						}
+					}
+				},
+				{
+					"name": "enableModule",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/modules/assets/enable",
+							"host": ["{{base_url}}"],
+							"path": ["settings", "modules", "assets", "enable"]
+						}
+					}
+				},
+				{
+					"name": "disableModule",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/modules/assets/disable",
+							"host": ["{{base_url}}"],
+							"path": ["settings", "modules", "assets", "disable"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Preferences",
+			"description": "User preferences endpoints",
+			"item": [
+				{
+					"name": "show",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/settings/preferences",
+							"host": ["{{base_url}}"],
+							"path": ["settings", "preferences"]
+						}
+					}
+				},
+				{
+					"name": "update",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"dark_mode\": false,\n    \"date_format\": \"DD/MM/YYYY\",\n    \"time_format\": \"12\",\n    \"number_format\": \"US\",\n    \"dashboard_layout\": \"list\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/preferences",
+							"host": ["{{base_url}}"],
+							"path": ["settings", "preferences"]
 						}
 					}
 				}
@@ -1276,6 +1455,23 @@
 									"path": ["locations", "{{location_id}}", "qr"]
 								}
 							}
+						},
+						{
+							"name": "exportQRCodes",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/pdf"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/locations/export-qr",
+									"host": ["{{base_url}}"],
+									"path": ["locations", "export-qr"]
+								}
+							}
 						}
 					]
 				},
@@ -2162,6 +2358,349 @@
 							"path": ["teams", "available-roles"]
 						}
 					}
+				}
+			]
+		},
+		{
+			"name": "Work Orders",
+			"description": "Work order management endpoints",
+			"item": [
+				{
+					"name": "Work Order CRUD",
+					"item": [
+						{
+							"name": "index",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/work-orders?page=1&per_page=10",
+									"host": ["{{base_url}}"],
+									"path": ["work-orders"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "10"
+										},
+										{
+											"key": "status",
+											"value": "",
+											"disabled": true
+										},
+										{
+											"key": "priority",
+											"value": "",
+											"disabled": true
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "store",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"title\": \"Fix Printer Issue\",\n    \"description\": \"Printer is not printing correctly\",\n    \"priority\": \"high\",\n    \"status\": \"open\",\n    \"asset_id\": 1,\n    \"assigned_to\": 2,\n    \"due_date\": \"2024-02-15\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/work-orders",
+									"host": ["{{base_url}}"],
+									"path": ["work-orders"]
+								}
+							}
+						},
+						{
+							"name": "show",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/work-orders/1",
+									"host": ["{{base_url}}"],
+									"path": ["work-orders", "1"]
+								}
+							}
+						},
+						{
+							"name": "update",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"title\": \"Updated Work Order Title\",\n    \"status\": \"in_progress\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/work-orders/1",
+									"host": ["{{base_url}}"],
+									"path": ["work-orders", "1"]
+								}
+							}
+						},
+						{
+							"name": "destroy",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/work-orders/1",
+									"host": ["{{base_url}}"],
+									"path": ["work-orders", "1"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Work Order Operations",
+					"item": [
+						{
+							"name": "updateStatus",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"status\": \"completed\",\n    \"notes\": \"Issue resolved successfully\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/work-orders/1/status",
+									"host": ["{{base_url}}"],
+									"path": ["work-orders", "1", "status"]
+								}
+							}
+						},
+						{
+							"name": "analytics",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/work-orders/analytics",
+									"host": ["{{base_url}}"],
+									"path": ["work-orders", "analytics"]
+								}
+							}
+						},
+						{
+							"name": "statistics",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/work-orders/statistics",
+									"host": ["{{base_url}}"],
+									"path": ["work-orders", "statistics"]
+								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Inventory",
+			"description": "Inventory management endpoints",
+			"item": [
+				{
+					"name": "Parts",
+					"item": [
+						{
+							"name": "index",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/inventory/parts",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "parts"]
+								}
+							}
+						},
+						{
+							"name": "store",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Printer Cartridge\",\n    \"description\": \"HP LaserJet Cartridge\",\n    \"sku\": \"HP-CART-001\",\n    \"category_id\": 1,\n    \"unit_price\": 25.99,\n    \"min_stock_level\": 10\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/inventory/parts",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "parts"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Stock Management",
+					"item": [
+						{
+							"name": "index",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/inventory/stocks",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "stocks"]
+								}
+							}
+						},
+						{
+							"name": "adjust",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"part_id\": 1,\n    \"quantity\": 50,\n    \"reason\": \"Stock replenishment\",\n    \"notes\": \"Monthly stock adjustment\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/inventory/stocks/adjust",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "stocks", "adjust"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Purchase Orders",
+					"item": [
+						{
+							"name": "index",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/inventory/purchase-orders",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "purchase-orders"]
+								}
+							}
+						},
+						{
+							"name": "store",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"supplier_id\": 1,\n    \"items\": [\n        {\n            \"part_id\": 1,\n            \"quantity\": 100,\n            \"unit_price\": 25.99\n        }\n    ],\n    \"expected_delivery\": \"2024-02-15\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/inventory/purchase-orders",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "purchase-orders"]
+								}
+							}
+						}
+					]
 				}
 			]
 		},
