@@ -9,12 +9,20 @@ use Illuminate\Support\Facades\Auth;
 class AIImageRecognitionService {
     public function __construct(private OpenAIService $openAI) {}
 
-    public function processImages(array $dataUrls): RecognitionResult {
+    public function processImages(array $cleanBase64Images): RecognitionResult {
         // Basic validation
-        if (count($dataUrls) < 1 || count($dataUrls) > 5) abort(422, 'Provide 1–5 images');
-        foreach ($dataUrls as $u) {
-            if (!preg_match('#^data:image/(png|jpeg|jpg);base64,#', $u)) abort(422, 'PNG/JPG only');
-            if (strlen($u) > 10_485_760 * 1.38) abort(413, 'Image too large'); // approx check
+        if (count($cleanBase64Images) < 1 || count($cleanBase64Images) > 5) abort(422, 'Provide 1–5 images');
+        
+        // Convert clean base64 back to data URLs for OpenAI API
+        $dataUrls = [];
+        foreach ($cleanBase64Images as $base64) {
+            // Validate base64
+            if (base64_decode($base64, true) === false) {
+                abort(422, 'Invalid base64 image data');
+            }
+            
+            // Convert to data URL (assume JPEG for simplicity)
+            $dataUrls[] = 'data:image/jpeg;base64,' . $base64;
         }
 
         $resultArr = $this->openAI->analyzeImages($dataUrls, $this->analysisPrompt());

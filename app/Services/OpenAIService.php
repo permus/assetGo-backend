@@ -13,6 +13,7 @@ class OpenAIService {
         $totalSize = array_sum(array_map('strlen', $dataUrls));
         abort_if($totalSize > 20 * 1024 * 1024, 413, 'Request too large. Please use smaller images.');
 
+
         $messages = [[
             'role' => 'system',
             'content' => $this->systemPrompt(),
@@ -68,12 +69,49 @@ class OpenAIService {
                 abort(502, 'Unable to parse AI response. Please try with clearer images.');
                 
             } catch (\GuzzleHttp\Exception\ClientException $e) {
+                $response = $e->getResponse();
+                $responseBody = $response ? $response->getBody()->getContents() : '';
+                $responseData = json_decode($responseBody, true);
+                
+                // Handle specific API key errors
+                if ($e->getCode() === 401) {
+                    $errorMessage = $responseData['error']['message'] ?? 'Invalid API key';
+                    abort(401, "OpenAI API Error: {$errorMessage}. Please check your API key configuration.");
+                }
+                
+                // Handle rate limiting
                 if ($e->getCode() === 429 && $attempt < $maxRetries) {
                     $delay = $baseDelay * pow(2, $attempt) + rand(0, 1000) / 1000;
                     sleep($delay);
                     continue;
                 }
+                
+                // Handle other client errors
+                if ($e->getCode() >= 400 && $e->getCode() < 500) {
+                    $errorMessage = $responseData['error']['message'] ?? 'API request failed';
+                    abort(400, "OpenAI API Error: {$errorMessage}");
+                }
+                
                 throw $e;
+            } catch (\GuzzleHttp\Exception\ServerException $e) {
+                // Handle server errors (5xx)
+                if ($attempt < $maxRetries) {
+                    $delay = $baseDelay * pow(2, $attempt) + rand(0, 1000) / 1000;
+                    sleep($delay);
+                    continue;
+                }
+                abort(502, 'OpenAI service is temporarily unavailable. Please try again later.');
+            } catch (\GuzzleHttp\Exception\ConnectException $e) {
+                // Handle network/connection errors
+                if ($attempt < $maxRetries) {
+                    $delay = $baseDelay * pow(2, $attempt) + rand(0, 1000) / 1000;
+                    sleep($delay);
+                    continue;
+                }
+                abort(503, 'Unable to connect to OpenAI service. Please check your internet connection.');
+            } catch (\Exception $e) {
+                // Handle any other errors
+                abort(500, 'An unexpected error occurred while processing your request.');
             }
         }
     }
@@ -147,4 +185,6 @@ TXT;
             return null;
         }
     }
+
+
 }

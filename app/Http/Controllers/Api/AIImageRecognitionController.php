@@ -22,12 +22,12 @@ class AIImageRecognitionController extends Controller {
 
         $data = $req->validate([
             'images'   => ['required','array','min:1','max:5'],
-            'images.*' => ['required','string','max:10485760'], // 10MB per image
+            'images.*' => ['required','string','max:10485760','regex:/^[A-Za-z0-9+\/=]+$/'], // Clean base64 only
         ]);
 
         try {
             $dto = $this->svc->processImages($data['images']);
-            
+
             // Log successful analysis (without sensitive data)
             \Log::info('AI Image Recognition completed', [
                 'user_id' => $req->user()->id,
@@ -37,9 +37,9 @@ class AIImageRecognitionController extends Controller {
                 'asset_type' => $dto->assetType,
                 'fields_found' => $dto->evidence['fieldsFound'] ?? []
             ]);
-            
+
             return response()->json(['success' => true, 'data' => $dto->toArray()]);
-            
+
         } catch (\Exception $e) {
             // Log error without sensitive data
             \Log::error('AI Image Recognition failed', [
@@ -48,10 +48,10 @@ class AIImageRecognitionController extends Controller {
                 'error' => $e->getMessage(),
                 'image_count' => count($data['images'] ?? [])
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Analysis failed. Please try with clearer images.'
+                'message' => $e->getMessage()
             ], 500);
         }
     }

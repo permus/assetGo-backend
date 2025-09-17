@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AIAssetAnalyticsController;
 use App\Http\Controllers\Api\LocationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -88,6 +89,12 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
             ->middleware('throttle:30,1'); // 30 requests per minute
         Route::get('history', [AIImageRecognitionController::class, 'history'])
             ->middleware('throttle:60,1'); // 60 requests per minute
+    });
+
+    // AI Asset Analytics routes
+    Route::prefix('ai/asset-analytics')->group(function () {
+        Route::post('analyze', [AIAssetAnalyticsController::class, 'analyze'])
+            ->middleware('throttle:5,1'); // 5 requests per minute (more complex analysis)
     });
 
     // Location Management routes
