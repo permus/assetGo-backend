@@ -13,20 +13,29 @@ class OpenAIService {
         $totalSize = array_sum(array_map('strlen', $dataUrls));
         abort_if($totalSize > 20 * 1024 * 1024, 413, 'Request too large. Please use smaller images.');
 
+        // Temporary mock response for development (remove when quota is resolved)
+        if (config('app.env') === 'local' && config('openai.use_mock', false)) {
+            return $this->getMockResponse($dataUrls, $prompt);
+        }
 
-        $messages = [[
-            'role' => 'system',
-            'content' => $this->systemPrompt(),
-        ],[
-            'role' => 'user',
-            'content' => array_merge(
-                [['type' => 'text', 'text' => $prompt]],
-                array_map(fn($url) => [
-                    'type' => 'image_url',
-                    'image_url' => ['url' => $url, 'detail' => 'high']
-                ], $dataUrls)
-            ),
-        ]];
+
+        // Prepare messages for chat completions API
+        $messages = [
+            [
+                'role' => 'system',
+                'content' => $this->systemPrompt(),
+            ],
+            [
+                'role' => 'user',
+                'content' => array_merge(
+                    [['type' => 'text', 'text' => $prompt]],
+                    array_map(fn($url) => [
+                        'type' => 'image_url',
+                        'image_url' => ['url' => $url, 'detail' => 'high']
+                    ], $dataUrls)
+                ),
+            ],
+        ];
 
         $client = new Client(['timeout' => config('openai.timeout')]);
         
@@ -46,7 +55,6 @@ class OpenAIService {
                         'messages' => $messages,
                         'temperature' => (float) config('openai.temperature'),
                         'max_tokens' => (int) config('openai.max_tokens'),
-                        'response_format' => ['type' => 'json_object'], // Force JSON mode
                     ],
                 ]);
 
@@ -111,7 +119,12 @@ class OpenAIService {
                 abort(503, 'Unable to connect to OpenAI service. Please check your internet connection.');
             } catch (\Exception $e) {
                 // Handle any other errors
-                abort(500, 'An unexpected error occurred while processing your request.');
+                \Log::error('OpenAI Service Error: ' . $e->getMessage(), [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                abort(500, 'An unexpected error occurred while processing your request: ' . $e->getMessage());
             }
         }
     }
@@ -119,6 +132,8 @@ class OpenAIService {
     private function systemPrompt(): string {
         return <<<TXT
 You are an image recognition assistant for an asset management system.
+You MUST respond with ONLY a valid JSON object. Do not include any text before or after the JSON.
+
 Return ONLY a single JSON object with EXACT keys:
 {
   "assetType": string,
@@ -135,12 +150,27 @@ Return ONLY a single JSON object with EXACT keys:
     "notes": string | null
   }
 }
-Use all images jointly; prefer nameplates/labels. If unsure, put null and lower confidence. Provide 3–6 practical recommendations. No text outside JSON.
+
+Use all images jointly; prefer nameplates/labels. If unsure, put null and lower confidence. Provide 3–6 practical recommendations. 
+CRITICAL: Return ONLY the JSON object, no markdown formatting, no code blocks, no additional text.
 TXT;
     }
 
     private function validateAndParseJson(string $content): ?array {
         try {
+            // Clean up content - remove markdown code blocks if present
+            $content = trim($content);
+            if (str_starts_with($content, '```json')) {
+                $content = substr($content, 7);
+            }
+            if (str_starts_with($content, '```')) {
+                $content = substr($content, 3);
+            }
+            if (str_ends_with($content, '```')) {
+                $content = substr($content, 0, -3);
+            }
+            $content = trim($content);
+            
             $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
             
             // Validate required fields and structure
@@ -186,5 +216,83 @@ TXT;
         }
     }
 
-
+    /**
+     * Temporary mock response for development when quota is exceeded
+     */
+    private function getMockResponse(array $dataUrls, string $prompt): array {
+        // Generate different responses based on prompt content
+        $isAnalytics = str_contains($prompt, 'Asset Analytics') || str_contains($prompt, 'portfolio');
+        
+        if ($isAnalytics) {
+            return [
+                'healthScore' => rand(70, 95),
+                'riskAssets' => [
+                    [
+                        'name' => 'HVAC Unit A-001',
+                        'riskLevel' => 'high',
+                        'reason' => 'Visible corrosion and wear detected',
+                        'confidence' => 92
+                    ],
+                    [
+                        'name' => 'Generator B-002',
+                        'riskLevel' => 'medium',
+                        'reason' => 'Scheduled maintenance overdue',
+                        'confidence' => 78
+                    ]
+                ],
+                'insights' => [
+                    [
+                        'title' => 'Preventive Maintenance Optimization',
+                        'description' => 'Implement regular maintenance schedule to reduce downtime',
+                        'impact' => 'High',
+                        'action' => 'Schedule monthly inspections'
+                    ],
+                    [
+                        'title' => 'Energy Efficiency Improvement',
+                        'description' => 'Upgrade older equipment to improve energy efficiency',
+                        'impact' => 'Medium',
+                        'action' => 'Plan equipment replacement strategy'
+                    ]
+                ],
+                'optimizations' => [
+                    [
+                        'title' => 'Equipment Replacement Program',
+                        'description' => 'Replace aging equipment with energy-efficient models',
+                        'estimatedSavings' => 45000,
+                        'paybackPeriod' => '18 months',
+                        'confidence' => 85
+                    ],
+                    [
+                        'title' => 'Maintenance Contract Optimization',
+                        'description' => 'Negotiate better maintenance contracts with suppliers',
+                        'estimatedSavings' => 12000,
+                        'paybackPeriod' => '6 months',
+                        'confidence' => 90
+                    ]
+                ]
+            ];
+        } else {
+            // Image recognition response
+            return [
+                'assetType' => 'Industrial Equipment',
+                'confidence' => rand(75, 95),
+                'manufacturer' => 'Sample Manufacturer',
+                'model' => 'Model ' . rand(100, 999),
+                'serialNumber' => 'SN' . rand(100000, 999999),
+                'assetTag' => 'TAG-' . rand(1000, 9999),
+                'condition' => ['Excellent', 'Good', 'Fair', 'Poor'][rand(0, 3)],
+                'recommendations' => [
+                    'Schedule regular maintenance',
+                    'Monitor performance metrics',
+                    'Check for wear and tear',
+                    'Update maintenance records'
+                ],
+                'evidence' => [
+                    'fieldsFound' => ['manufacturer', 'model', 'serialNumber'],
+                    'imagesUsed' => count($dataUrls),
+                    'notes' => 'Based on visual inspection, the asset appears to be in good working condition with no visible signs of damage or excessive wear.'
+                ]
+            ];
+        }
+    }
 }

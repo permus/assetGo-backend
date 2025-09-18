@@ -7,4 +7,5 @@ return [
     'max_tokens'   => (int) env('OPENAI_MAX_TOKENS', 1200),
     'temperature'  => (float) env('OPENAI_TEMPERATURE', 0.2),
     'timeout'      => (int) env('OPENAI_TIMEOUT', 25), // seconds
+    'use_mock'     => env('OPENAI_USE_MOCK', false), // Use mock responses for development
 ];
