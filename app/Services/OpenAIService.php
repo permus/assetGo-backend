@@ -7,16 +7,23 @@ use GuzzleHttp\Client;
 class OpenAIService {
     public function analyzeImages(array $dataUrls, string $prompt): array {
         $apiKey = config('openai.api_key');
-        abort_if(empty($apiKey), 500, 'OPENAI_API_KEY missing');
+        abort_if(empty($apiKey), 500, 'OPENAI_API_KEY missing. Please configure your OpenAI API key in the environment variables.');
 
         // Enforce request size limits (base64 is ~33% larger)
         $totalSize = array_sum(array_map('strlen', $dataUrls));
         abort_if($totalSize > 20 * 1024 * 1024, 413, 'Request too large. Please use smaller images.');
 
-        // Temporary mock response for development (remove when quota is resolved)
-        if (config('app.env') === 'local' && config('openai.use_mock', false)) {
-            return $this->getMockResponse($dataUrls, $prompt);
-        }
+        // Mock response disabled - use real OpenAI API
+        // if (config('app.env') === 'local' && config('openai.use_mock', false)) {
+        //     return $this->getMockResponse($dataUrls, $prompt);
+        // }
+
+        // Log API request for debugging
+        \Log::info('OpenAI API Request', [
+            'image_count' => count($dataUrls),
+            'prompt_length' => strlen($prompt),
+            'total_size' => $totalSize
+        ]);
 
 
         // Prepare messages for chat completions API

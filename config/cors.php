@@ -19,16 +19,30 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => [
+        'http://localhost:4200',
+        'http://127.0.0.1:4200',
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'https://portal.assetgo.thethemeai.com',
+        'http://assetgo-backend.test',
+        'https://assetgo-backend.test',
+        '*'
+    ],
 
     'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => [],
+    'exposed_headers' => [
+        'Authorization',
+        'Content-Type',
+        'Accept',
+        'X-Requested-With'
+    ],
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+    'supports_credentials' => true,
 
 ];

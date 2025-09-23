@@ -30,6 +30,10 @@ use App\Http\Controllers\Api\CompanySettingsController;
 use App\Http\Controllers\Api\ModuleSettingsController;
 use App\Http\Controllers\Api\PreferencesController;
 use App\Http\Controllers\Api\AIImageRecognitionController;
+use App\Http\Controllers\Api\PredictiveMaintenanceController;
+use App\Http\Controllers\Api\NaturalLanguageController;
+use App\Http\Controllers\Api\AIRecommendationsController;
+use App\Http\Controllers\Api\AIAnalyticsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -96,6 +100,32 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::post('analyze', [AIAssetAnalyticsController::class, 'analyze'])
             ->middleware('throttle:5,1'); // 5 requests per minute (more complex analysis)
     });
+
+// AI Predictive Maintenance routes
+Route::prefix('ai/predictive-maintenance')->group(function () {
+    Route::get('/', [PredictiveMaintenanceController::class, 'index'])
+        ->middleware('throttle:60,1'); // 60 requests per minute
+    Route::post('generate', [PredictiveMaintenanceController::class, 'generate'])
+        ->middleware('throttle:2,1'); // 2 requests per minute (AI intensive)
+    Route::get('export', [PredictiveMaintenanceController::class, 'export'])
+        ->middleware('throttle:10,1'); // 10 requests per minute
+    Route::get('summary', [PredictiveMaintenanceController::class, 'summary'])
+        ->middleware('throttle:60,1'); // 60 requests per minute
+    Route::delete('clear', [PredictiveMaintenanceController::class, 'clear'])
+        ->middleware('throttle:5,1'); // 5 requests per minute
+});
+
+// AI Natural Language routes
+Route::prefix('ai/natural-language')->group(function () {
+    Route::get('context', [NaturalLanguageController::class, 'getContext'])
+        ->middleware('throttle:60,1'); // 60 requests per minute
+    Route::post('chat', [NaturalLanguageController::class, 'chat'])
+        ->middleware('throttle:10,1'); // 10 requests per minute (AI intensive)
+    Route::get('check-api-key', [NaturalLanguageController::class, 'checkApiKey'])
+        ->middleware('throttle:30,1'); // 30 requests per minute
+});
+
+
 
     // Location Management routes
     // Place static routes BEFORE resource to avoid model-binding catching 'tree' as {location}
@@ -316,6 +346,34 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         Route::get('schedule-assignments/{scheduleMaintenanceAssigned}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'show']);
         Route::put('schedule-assignments/{scheduleMaintenanceAssigned}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'update']);
         Route::delete('schedule-assignments/{scheduleMaintenanceAssigned}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'destroy']);
+    });
+
+    // AI Recommendations routes
+    Route::prefix('ai/recommendations')->group(function () {
+        Route::get('/', [AIRecommendationsController::class, 'index'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
+        Route::post('generate', [AIRecommendationsController::class, 'generate'])
+            ->middleware('throttle:2,1'); // 2 requests per minute (AI intensive)
+        Route::post('{id}/toggle', [AIRecommendationsController::class, 'toggleImplementation'])
+            ->middleware('throttle:30,1'); // 30 requests per minute
+        Route::get('export', [AIRecommendationsController::class, 'export'])
+            ->middleware('throttle:10,1'); // 10 requests per minute
+        Route::get('summary', [AIRecommendationsController::class, 'summary'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
+    });
+
+    // AI Analytics routes
+    Route::prefix('ai/analytics')->group(function () {
+        Route::get('/', [AIAnalyticsController::class, 'index'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
+        Route::post('generate', [AIAnalyticsController::class, 'generate'])
+            ->middleware('throttle:2,1'); // 2 requests per minute (AI intensive)
+        Route::get('export', [AIAnalyticsController::class, 'export'])
+            ->middleware('throttle:10,1'); // 10 requests per minute
+        Route::get('schedule', [AIAnalyticsController::class, 'getSchedule'])
+            ->middleware('throttle:30,1'); // 30 requests per minute
+        Route::post('schedule', [AIAnalyticsController::class, 'updateSchedule'])
+            ->middleware('throttle:10,1'); // 10 requests per minute
     });
 });
 
