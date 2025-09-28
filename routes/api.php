@@ -34,6 +34,9 @@ use App\Http\Controllers\Api\PredictiveMaintenanceController;
 use App\Http\Controllers\Api\NaturalLanguageController;
 use App\Http\Controllers\Api\AIRecommendationsController;
 use App\Http\Controllers\Api\AIAnalyticsController;
+use App\Http\Controllers\Api\AssetReportController;
+use App\Http\Controllers\Api\MaintenanceReportController;
+use App\Http\Controllers\Api\ReportExportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -374,6 +377,55 @@ Route::prefix('ai/natural-language')->group(function () {
             ->middleware('throttle:30,1'); // 30 requests per minute
         Route::post('schedule', [AIAnalyticsController::class, 'updateSchedule'])
             ->middleware('throttle:10,1'); // 10 requests per minute
+    });
+
+    // Reports routes
+    Route::prefix('reports')->group(function () {
+        // Asset Reports
+        Route::prefix('assets')->group(function () {
+            Route::get('summary', [AssetReportController::class, 'summary'])
+                ->middleware('throttle:60,1'); // 60 requests per minute
+            Route::get('utilization', [AssetReportController::class, 'utilization'])
+                ->middleware('throttle:60,1'); // 60 requests per minute
+            Route::get('depreciation', [AssetReportController::class, 'depreciation'])
+                ->middleware('throttle:60,1'); // 60 requests per minute
+            Route::get('warranty', [AssetReportController::class, 'warranty'])
+                ->middleware('throttle:60,1'); // 60 requests per minute
+            Route::get('compliance', [AssetReportController::class, 'compliance'])
+                ->middleware('throttle:60,1'); // 60 requests per minute
+            Route::get('available', [AssetReportController::class, 'available'])
+                ->middleware('throttle:60,1'); // 60 requests per minute
+        });
+
+        // Maintenance Reports
+        Route::prefix('maintenance')->group(function () {
+            Route::get('summary', [MaintenanceReportController::class, 'summary'])
+                ->middleware('throttle:60,1'); // 60 requests per minute
+            Route::get('compliance', [MaintenanceReportController::class, 'compliance'])
+                ->middleware('throttle:60,1'); // 60 requests per minute
+            Route::get('costs', [MaintenanceReportController::class, 'costs'])
+                ->middleware('throttle:60,1'); // 60 requests per minute
+            Route::get('downtime', [MaintenanceReportController::class, 'downtime'])
+                ->middleware('throttle:60,1'); // 60 requests per minute
+            Route::get('failure-analysis', [MaintenanceReportController::class, 'failureAnalysis'])
+                ->middleware('throttle:60,1'); // 60 requests per minute
+            Route::get('technician-performance', [MaintenanceReportController::class, 'technicianPerformance'])
+                ->middleware('throttle:60,1'); // 60 requests per minute
+            Route::get('available', [MaintenanceReportController::class, 'available'])
+                ->middleware('throttle:60,1'); // 60 requests per minute
+        });
+
+        // Export routes
+        Route::post('export', [ReportExportController::class, 'export'])
+            ->middleware('throttle:10,1'); // 10 requests per minute
+        Route::get('runs/{id}', [ReportExportController::class, 'show'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
+        Route::get('runs/{id}/download', [ReportExportController::class, 'download'])
+            ->middleware('throttle:30,1'); // 30 requests per minute
+        Route::get('history', [ReportExportController::class, 'history'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
+        Route::delete('runs/{id}/cancel', [ReportExportController::class, 'cancel'])
+            ->middleware('throttle:30,1'); // 30 requests per minute
     });
 });
 
