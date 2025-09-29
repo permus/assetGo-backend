@@ -177,6 +177,11 @@ class ReportExportService
     private function isValidReportKey(string $reportKey): bool
     {
         $validKeys = [
+            'assets.asset-summary',
+            'assets.asset-utilization',
+            'assets.depreciation-analysis',
+            'assets.warranty-status',
+            'assets.compliance-report',
             'assets.summary',
             'assets.utilization',
             'assets.depreciation',

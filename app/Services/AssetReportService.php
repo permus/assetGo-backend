@@ -304,20 +304,45 @@ class AssetReportService extends ReportService
     private function calculateWarrantyData(array $assets): array
     {
         return array_map(function ($asset) {
-            $warrantyEndDate = Carbon::parse($asset->warranty);
-            $daysToExpire = now()->diffInDays($warrantyEndDate, false);
+            // Handle different warranty formats
+            $warrantyValue = $asset->warranty;
+            $warrantyEndDate = null;
+            $daysToExpire = 0;
+            $status = 'no_warranty';
             
-            $status = 'active';
-            if ($daysToExpire < 0) {
-                $status = 'expired';
-            } elseif ($daysToExpire <= 30) {
-                $status = 'expiring_soon';
+            if ($warrantyValue) {
+                try {
+                    // Try to parse as date first
+                    if (is_numeric($warrantyValue)) {
+                        // If it's a number, treat it as days from purchase date
+                        $purchaseDate = $asset->purchase_date ? Carbon::parse($asset->purchase_date) : now();
+                        $warrantyEndDate = $purchaseDate->addDays($warrantyValue);
+                    } else {
+                        // Try to parse as date string
+                        $warrantyEndDate = Carbon::parse($warrantyValue);
+                    }
+                    
+                    $daysToExpire = now()->diffInDays($warrantyEndDate, false);
+                    
+                    if ($daysToExpire < 0) {
+                        $status = 'expired';
+                    } elseif ($daysToExpire <= 30) {
+                        $status = 'expiring_soon';
+                    } else {
+                        $status = 'active';
+                    }
+                } catch (\Exception $e) {
+                    // If parsing fails, treat as no warranty
+                    $status = 'invalid_warranty';
+                    $warrantyEndDate = null;
+                    $daysToExpire = 0;
+                }
             }
 
             return [
                 'id' => $asset->id,
                 'name' => $asset->name,
-                'warranty_end_date' => $asset->warranty,
+                'warranty_end_date' => $warrantyEndDate ? $warrantyEndDate->toDateString() : null,
                 'days_to_expire' => $daysToExpire,
                 'status' => $status,
                 'location' => $asset->location?->name ?? 'N/A',
@@ -369,6 +394,13 @@ class AssetReportService extends ReportService
     public function generateReport(string $reportKey, array $params = []): array
     {
         return match($reportKey) {
+            // New format (from frontend)
+            'assets.asset-summary' => $this->generateSummary($params),
+            'assets.asset-utilization' => $this->generateUtilization($params),
+            'assets.depreciation-analysis' => $this->generateDepreciation($params),
+            'assets.warranty-status' => $this->generateWarranty($params),
+            'assets.compliance-report' => $this->generateCompliance($params),
+            // Old format (for backward compatibility)
             'assets.summary' => $this->generateSummary($params),
             'assets.utilization' => $this->generateUtilization($params),
             'assets.depreciation' => $this->generateDepreciation($params),
