@@ -63,6 +63,8 @@ Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])-
 Route::post('/email/resend', [AuthController::class, 'resendVerification']);
 
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
+    // Dashboard
+    Route::get('dashboard', [\App\Http\Controllers\Api\DashboardController::class, 'index']);
     // Auth routes
     Route::get('/profile', [AuthController::class, 'profile']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
