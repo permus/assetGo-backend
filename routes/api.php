@@ -353,6 +353,8 @@ Route::prefix('ai/natural-language')->group(function () {
         Route::delete('schedule-assignments/{scheduleMaintenanceAssigned}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'destroy']);
     });
 
+    
+
     // AI Recommendations routes
     Route::prefix('ai/recommendations')->group(function () {
         Route::get('/', [AIRecommendationsController::class, 'index'])

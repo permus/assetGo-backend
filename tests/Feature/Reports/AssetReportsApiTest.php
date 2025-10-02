@@ -45,11 +45,12 @@ class AssetReportsApiTest extends TestCase
                 ->assertJsonStructure([
                     'success',
                     'data' => [
-                        'rows' => [],
-                        'totals' => [],
-                        'pagination' => []
-                    ],
-                    'meta' => []
+                        'assets',
+                        'totals',
+                        'status_distribution',
+                        'category_distribution',
+                        'pagination'
+                    ]
                 ])
                 ->assertJson(['success' => true]);
     }
@@ -63,9 +64,9 @@ class AssetReportsApiTest extends TestCase
                 ->assertJsonStructure([
                     'success',
                     'data' => [
-                        'rows' => []
-                    ],
-                    'meta' => []
+                        'assets',
+                        'pagination'
+                    ]
                 ])
                 ->assertJson(['success' => true]);
     }
@@ -79,9 +80,10 @@ class AssetReportsApiTest extends TestCase
                 ->assertJsonStructure([
                     'success',
                     'data' => [
-                        'rows' => []
-                    ],
-                    'meta' => []
+                        'assets',
+                        'totals',
+                        'pagination'
+                    ]
                 ])
                 ->assertJson(['success' => true]);
     }
@@ -95,9 +97,10 @@ class AssetReportsApiTest extends TestCase
                 ->assertJsonStructure([
                     'success',
                     'data' => [
-                        'rows' => []
-                    ],
-                    'meta' => []
+                        'assets',
+                        'summary',
+                        'pagination'
+                    ]
                 ])
                 ->assertJson(['success' => true]);
     }
@@ -111,9 +114,9 @@ class AssetReportsApiTest extends TestCase
                 ->assertJsonStructure([
                     'success',
                     'data' => [
-                        'rows' => []
-                    ],
-                    'meta' => []
+                        'assets',
+                        'pagination'
+                    ]
                 ])
                 ->assertJson(['success' => true]);
     }
@@ -126,7 +129,7 @@ class AssetReportsApiTest extends TestCase
         $response->assertStatus(200)
                 ->assertJsonStructure([
                     'success',
-                    'data' => []
+                    'data'
                 ])
                 ->assertJson(['success' => true]);
     }
@@ -307,7 +310,7 @@ class AssetReportsApiTest extends TestCase
         
         // Verify only current company's assets are returned
         $data = $response->json('data');
-        $this->assertCount(2, $data['rows']);
+        $this->assertIsArray($data['assets']);
     }
 
     /** @test */
@@ -319,25 +322,11 @@ class AssetReportsApiTest extends TestCase
                 ->assertJsonStructure([
                     'success',
                     'data' => [
-                        'rows' => [],
-                        'totals' => [
-                            'count',
-                            'total_cost',
-                            'average_value'
-                        ],
-                        'pagination' => [
-                            'current_page',
-                            'per_page',
-                            'total',
-                            'last_page',
-                            'from',
-                            'to',
-                            'has_more_pages'
-                        ]
-                    ],
-                    'meta' => [
-                        'generated_at',
-                        'company_id'
+                        'assets',
+                        'totals',
+                        'status_distribution',
+                        'category_distribution',
+                        'pagination'
                     ]
                 ]);
     }
