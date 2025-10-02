@@ -188,23 +188,26 @@ abstract class ReportService
      */
     protected function buildQuery($model, array $filters = [])
     {
-        $query = $model::forCompany($this->getCompanyId());
+        // Qualify column names with the model table to avoid ambiguous columns after joins
+        $table = (new $model)->getTable();
+
+        $query = $model::query()->where("{$table}.company_id", $this->getCompanyId());
         
-        // Apply common filters
+        // Apply common filters (qualified)
         if (!empty($filters['date_from'])) {
-            $query->where('created_at', '>=', $filters['date_from']);
+            $query->where("{$table}.created_at", '>=', $filters['date_from']);
         }
         
         if (!empty($filters['date_to'])) {
-            $query->where('created_at', '<=', $filters['date_to']);
+            $query->where("{$table}.created_at", '<=', $filters['date_to']);
         }
         
         if (!empty($filters['location_ids'])) {
-            $query->whereIn('location_id', $filters['location_ids']);
+            $query->whereIn("{$table}.location_id", $filters['location_ids']);
         }
         
         if (!empty($filters['asset_ids'])) {
-            $query->whereIn('asset_id', $filters['asset_ids']);
+            $query->whereIn("{$table}.asset_id", $filters['asset_ids']);
         }
 
         return $query;

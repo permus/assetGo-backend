@@ -135,7 +135,8 @@ class ReportRun extends Model
             return null;
         }
 
-        return \Storage::disk('local')->url($this->file_path);
+        // Serve downloads via controller route to ensure access to private/local files
+        return route('reports.download', ['id' => $this->id]);
     }
 
     /**

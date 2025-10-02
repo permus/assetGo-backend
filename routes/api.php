@@ -425,7 +425,8 @@ Route::prefix('ai/natural-language')->group(function () {
         Route::get('runs/{id}', [ReportExportController::class, 'show'])
             ->middleware('throttle:60,1'); // 60 requests per minute
         Route::get('runs/{id}/download', [ReportExportController::class, 'download'])
-            ->middleware('throttle:30,1'); // 30 requests per minute
+            ->name('reports.download')
+            ->withoutMiddleware(['auth:sanctum', 'verified']);
         Route::get('history', [ReportExportController::class, 'history'])
             ->middleware('throttle:60,1'); // 60 requests per minute
         Route::delete('runs/{id}/cancel', [ReportExportController::class, 'cancel'])

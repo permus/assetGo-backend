@@ -238,7 +238,7 @@ class MaintenanceReportService extends ReportService
      */
     private function getStatusDistribution(array $filters): array
     {
-        $query = $this->buildQuery(WorkOrder::class, $filters)
+        $result = $this->buildQuery(WorkOrder::class, $filters)
             ->join('work_order_status', 'work_orders.status_id', '=', 'work_order_status.id')
             ->select('work_order_status.name', DB::raw('COUNT(*) as count'))
             ->groupBy('work_order_status.id', 'work_order_status.name')
@@ -247,6 +247,8 @@ class MaintenanceReportService extends ReportService
                 return [$item->name => $item->count];
             })
             ->toArray();
+
+        return $result;
     }
 
     /**
@@ -254,7 +256,7 @@ class MaintenanceReportService extends ReportService
      */
     private function getPriorityDistribution(array $filters): array
     {
-        $query = $this->buildQuery(WorkOrder::class, $filters)
+        $result = $this->buildQuery(WorkOrder::class, $filters)
             ->join('work_order_priority', 'work_orders.priority_id', '=', 'work_order_priority.id')
             ->select('work_order_priority.name', DB::raw('COUNT(*) as count'))
             ->groupBy('work_order_priority.id', 'work_order_priority.name')
@@ -263,6 +265,8 @@ class MaintenanceReportService extends ReportService
                 return [$item->name => $item->count];
             })
             ->toArray();
+
+        return $result;
     }
 
     /**

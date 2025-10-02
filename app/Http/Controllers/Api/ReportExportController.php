@@ -124,11 +124,8 @@ class ReportExportController extends Controller
      */
     public function download($id)
     {
-        $companyId = Auth::user()->company_id;
-        
         try {
-            $reportRun = ReportRun::forCompany($companyId)
-                ->where('status', 'success')
+            $reportRun = ReportRun::where('status', 'success')
                 ->findOrFail($id);
 
             if (!$reportRun->file_path || !\Storage::disk('local')->exists($reportRun->file_path)) {
@@ -145,7 +142,6 @@ class ReportExportController extends Controller
             
         } catch (Exception $e) {
             Log::error('Failed to download export file', [
-                'company_id' => $companyId,
                 'run_id' => $id,
                 'error' => $e->getMessage()
             ]);

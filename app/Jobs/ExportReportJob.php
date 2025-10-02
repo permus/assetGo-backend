@@ -14,6 +14,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Exception;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ExportReportJob implements ShouldQueue
 {
@@ -99,6 +100,10 @@ class ExportReportJob implements ShouldQueue
             $service = app(AssetReportService::class);
         } elseif (str_starts_with($reportKey, 'maintenance.')) {
             $service = app(MaintenanceReportService::class);
+        } elseif (str_starts_with($reportKey, 'inventory.')) {
+            $service = app(\App\Services\InventoryReportService::class);
+        } elseif (str_starts_with($reportKey, 'financial.')) {
+            $service = app(\App\Services\FinancialReportService::class);
         } else {
             throw new Exception("Unknown report key: {$reportKey}");
         }
@@ -174,10 +179,12 @@ class ExportReportJob implements ShouldQueue
      */
     private function exportToPdf(array $data, string $filePath): string
     {
-        // This would use DomPDF or similar library
-        // For now, we'll create a simple text file
-        $pdfData = $this->convertToPdf($data);
-        Storage::disk('local')->put($filePath, $pdfData);
+        $html = $this->buildPdfHtml($data);
+        $pdfBinary = Pdf::loadHTML($html)
+            ->setPaper('a4')
+            ->output();
+
+        Storage::disk('local')->put($filePath, $pdfBinary);
         return $filePath;
     }
 
@@ -231,22 +238,52 @@ class ExportReportJob implements ShouldQueue
     }
 
     /**
-     * Convert data to PDF format (simplified)
+     * Build minimal HTML for PDF rendering
      */
-    private function convertToPdf(array $data): string
+    private function buildPdfHtml(array $data): string
     {
-        $content = "Report Export\n";
-        $content .= "Generated: " . now()->format('Y-m-d H:i:s') . "\n\n";
-        
-        if (isset($data['assets'])) {
-            $content .= "Asset Report\n";
-            $content .= "Total Assets: " . count($data['assets']) . "\n\n";
-        } elseif (isset($data['work_orders'])) {
-            $content .= "Maintenance Report\n";
-            $content .= "Total Work Orders: " . count($data['work_orders']) . "\n\n";
+        $title = 'Report Export';
+        $subtitle = 'Generated: ' . now()->format('Y-m-d H:i:s');
+
+        $summaryRows = '';
+        if (isset($data['assets']) && is_array($data['assets'])) {
+            $title = 'Asset Summary Report';
+            $summaryRows .= '<tr><td>Assets</td><td>' . count($data['assets']) . '</td></tr>';
+        } elseif (isset($data['work_orders']) && is_array($data['work_orders'])) {
+            $title = 'Maintenance Summary Report';
+            $summaryRows .= '<tr><td>Work Orders</td><td>' . count($data['work_orders']) . '</td></tr>';
         }
-        
-        return $content;
+
+        return <<<HTML
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: DejaVu Sans, Helvetica, Arial, sans-serif; color: #111; }
+        h1 { font-size: 22px; margin: 0; }
+        .subtitle { color: #666; font-size: 12px; margin-bottom: 16px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { border: 1px solid #ddd; padding: 8px; font-size: 12px; }
+        th { background: #f7f7f7; text-align: left; }
+    </style>
+    <title>{$title}</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+</head>
+<body>
+    <h1>{$title}</h1>
+    <div class="subtitle">{$subtitle}</div>
+    <table>
+        <thead>
+            <tr><th>Metric</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+            {$summaryRows}
+        </tbody>
+    </table>
+</body>
+<html>
+HTML;
     }
 
     /**
