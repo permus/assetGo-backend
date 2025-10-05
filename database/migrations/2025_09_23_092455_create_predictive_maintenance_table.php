@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -36,6 +37,9 @@ return new class extends Migration
             $table->index(['company_id', 'created_at']);
         });
 
+        // Drop view if it exists (in case of failed migration)
+        DB::statement('DROP VIEW IF EXISTS predictive_maintenance_summary');
+        
         // Create materialized summary view
         DB::statement('
             CREATE VIEW predictive_maintenance_summary AS

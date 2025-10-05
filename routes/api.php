@@ -62,7 +62,7 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');
 Route::post('/email/resend', [AuthController::class, 'resendVerification']);
 
-Route::middleware(['auth:sanctum', 'verified'])->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
     // Dashboard
     Route::get('dashboard', [\App\Http\Controllers\Api\DashboardController::class, 'index']);
     // Auth routes
@@ -426,7 +426,7 @@ Route::prefix('ai/natural-language')->group(function () {
             ->middleware('throttle:60,1'); // 60 requests per minute
         Route::get('runs/{id}/download', [ReportExportController::class, 'download'])
             ->name('reports.download')
-            ->withoutMiddleware(['auth:sanctum', 'verified']);
+            ->withoutMiddleware(['auth:sanctum']);
         Route::get('history', [ReportExportController::class, 'history'])
             ->middleware('throttle:60,1'); // 60 requests per minute
         Route::delete('runs/{id}/cancel', [ReportExportController::class, 'cancel'])

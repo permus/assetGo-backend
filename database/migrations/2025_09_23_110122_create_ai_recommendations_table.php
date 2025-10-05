@@ -41,6 +41,9 @@ return new class extends Migration
             $table->index(['company_id', 'created_at']);
         });
 
+        // Drop view if it exists (in case of failed migration)
+        DB::statement('DROP VIEW IF EXISTS ai_recommendations_summary');
+        
         // Create summary view
         DB::statement('
             CREATE VIEW ai_recommendations_summary AS

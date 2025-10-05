@@ -17,15 +17,17 @@ class TeamInvitationMail extends Mailable
     public $user;
     public $password;
     public $company;
+    public $isCustomPassword;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(User $user, string $password)
+    public function __construct(User $user, string $password, bool $isCustomPassword = false)
     {
         $this->user = $user;
         $this->password = $password;
         $this->company = $user->company;
+        $this->isCustomPassword = $isCustomPassword;
     }
 
     /**
@@ -49,6 +51,7 @@ class TeamInvitationMail extends Mailable
                 'user' => $this->user,
                 'password' => $this->password,
                 'company' => $this->company,
+                'isCustomPassword' => $this->isCustomPassword,
             ],
         );
     }

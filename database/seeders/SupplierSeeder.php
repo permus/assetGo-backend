@@ -17,12 +17,26 @@ class SupplierSeeder extends Seeder
         // Get the first company or create one
         $company = Company::first();
         if (!$company) {
+            // Create a default user first (required for owner_id)
+            $user = \App\Models\User::create([
+                'first_name' => 'Admin',
+                'last_name' => 'User',
+                'email' => 'admin@defaultcompany.com',
+                'password' => bcrypt('password'),
+                'user_type' => 'company',
+            ]);
+            
             $company = Company::create([
                 'name' => 'Default Company',
+                'slug' => 'default-company',
+                'owner_id' => $user->id,
                 'email' => 'admin@defaultcompany.com',
                 'phone' => '+1-555-0000',
                 'address' => '123 Main St, City, Country'
             ]);
+            
+            // Update user's company_id
+            $user->update(['company_id' => $company->id]);
         }
 
         // Create sample suppliers

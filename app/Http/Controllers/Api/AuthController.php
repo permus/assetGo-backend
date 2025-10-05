@@ -31,14 +31,14 @@ class AuthController extends Controller
         try {
             DB::beginTransaction();
 
-            // Create user
+            // Create user (created_by will be null for self-registration)
             $user = User::create([
                 'first_name' => $request->first_name,
                 'last_name' => $request->last_name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'user_type' => $request->user_type ?? 'owner',
-                'created_by' => 0,
+                'created_by' => null, // Self-registration, no creator
             ]);
 
             // Create company with user as owner
@@ -54,6 +54,9 @@ class AuthController extends Controller
 
             // Create default roles for the company
             $this->createDefaultRoles($company);
+
+            // Enable all modules for the new company
+            $this->enableAllModulesForCompany($company);
 
             // Send email verification notification
             // $user->sendEmailVerificationNotification();
@@ -103,9 +106,14 @@ class AuthController extends Controller
 
         // Get user permissions based on user type
         $permissions = [];
+        $moduleAccess = [];
+        
         if ($user->user_type === 'team') {
             // For team users, get permissions from their roles
             $permissions = $user->getAllPermissions();
+            
+            // Determine module access based on permissions
+            $moduleAccess = $this->getModuleAccessFromPermissions($permissions);
         } else {
             // For company users (owners, etc.), return all permissions as true
             $permissions = [
@@ -173,6 +181,34 @@ class AuthController extends Controller
                     'can_export' => true,
                 ],
             ];
+            
+            // Company users have access to all modules
+            $moduleAccess = [
+                'dashboard' => true,
+                'settings' => true,
+                'assets' => true,
+                'locations' => true,
+                'work_orders' => true,
+                'teams' => true,
+                'maintenance' => true,
+                'inventory' => true,
+                'sensors' => true,
+                'ai_features' => true,
+                'reports' => true,
+                'facilities_locations' => true,
+                'sla' => true,
+                'eservices' => true,
+                'tenant_portal' => true,
+                'maintenance_requests' => true,
+                'amenity_bookings' => true,
+                'move_in_out_requests' => true,
+                'fitout_requests' => true,
+                'inhouse_services' => true,
+                'parcel_management' => true,
+                'visitor_management' => true,
+                'business_directory' => true,
+                'tenant_communication' => true,
+            ];
         }
 
         return response()->json([
@@ -183,9 +219,66 @@ class AuthController extends Controller
                 'token' => $token,
                 'token_type' => 'Bearer',
                 'email_verified' => true,
-                'permissions' => $permissions
+                'permissions' => $permissions,
+                'module_access' => $moduleAccess
             ]
         ]);
+    }
+
+    /**
+     * Determine module access based on user permissions
+     */
+    private function getModuleAccessFromPermissions(array $permissions): array
+    {
+        $moduleAccess = [
+            'dashboard' => true, // Always accessible
+            'settings' => false, // Only for company users
+        ];
+
+        // Map permission modules to module keys
+        $moduleMapping = [
+            'assets' => 'assets',
+            'locations' => 'locations',
+            'work_orders' => 'work_orders',
+            'teams' => 'teams',
+            'maintenance' => 'maintenance',
+            'inventory' => 'inventory',
+            'sensors' => 'sensors',
+            'ai_features' => 'ai_features',
+            'reports' => 'reports',
+            'facilities_locations' => 'facilities_locations',
+            'sla' => 'sla',
+            'eservices' => 'eservices',
+            'tenant_portal' => 'tenant_portal',
+            'maintenance_requests' => 'maintenance_requests',
+            'amenity_bookings' => 'amenity_bookings',
+            'move_in_out_requests' => 'move_in_out_requests',
+            'fitout_requests' => 'fitout_requests',
+            'inhouse_services' => 'inhouse_services',
+            'parcel_management' => 'parcel_management',
+            'visitor_management' => 'visitor_management',
+            'business_directory' => 'business_directory',
+            'tenant_communication' => 'tenant_communication',
+        ];
+
+        // Check if user has any permission for each module
+        foreach ($moduleMapping as $permissionModule => $moduleKey) {
+            $hasAccess = false;
+            
+            if (isset($permissions[$permissionModule])) {
+                // Check if user has any permission for this module
+                foreach ($permissions[$permissionModule] as $action => $value) {
+                    if ($value === true) {
+                        $hasAccess = true;
+                        break;
+                    }
+                }
+            }
+            
+            $moduleAccess[$moduleKey] = $hasAccess;
+        }
+
+        return $moduleAccess;
     }
 
     /**
@@ -193,11 +286,50 @@ class AuthController extends Controller
      */
     public function profile(Request $request)
     {
+        $user = $request->user();
+        $permissions = [];
+        $moduleAccess = [];
+        
+        if ($user->user_type === 'team') {
+            $permissions = $user->getAllPermissions();
+            $moduleAccess = $this->getModuleAccessFromPermissions($permissions);
+        } else {
+            // Company users have access to all modules
+            $moduleAccess = [
+                'dashboard' => true,
+                'settings' => true,
+                'assets' => true,
+                'locations' => true,
+                'work_orders' => true,
+                'teams' => true,
+                'maintenance' => true,
+                'inventory' => true,
+                'sensors' => true,
+                'ai_features' => true,
+                'reports' => true,
+                'facilities_locations' => true,
+                'sla' => true,
+                'eservices' => true,
+                'tenant_portal' => true,
+                'maintenance_requests' => true,
+                'amenity_bookings' => true,
+                'move_in_out_requests' => true,
+                'fitout_requests' => true,
+                'inhouse_services' => true,
+                'parcel_management' => true,
+                'visitor_management' => true,
+                'business_directory' => true,
+                'tenant_communication' => true,
+            ];
+        }
+        
         return response()->json([
             'success' => true,
             'data' => [
-                'user' => $request->user()->load('company'),
-                'email_verified' => $request->user()->hasVerifiedEmail()
+                'user' => $user->load(['company', 'roles.permissions']),
+                'permissions' => $permissions,
+                'module_access' => $moduleAccess,
+                'email_verified' => $user->hasVerifiedEmail()
             ]
         ]);
     }
@@ -627,6 +759,25 @@ class AuthController extends Controller
             Permission::create([
                 'role_id' => $role->id,
                 'permissions' => $roleData['permissions'],
+            ]);
+        }
+    }
+
+    /**
+     * Enable all modules for a newly registered company
+     */
+    private function enableAllModulesForCompany(Company $company): void
+    {
+        // Get all module definitions
+        $modules = \App\Models\ModuleDefinition::all();
+
+        foreach ($modules as $module) {
+            // Enable all modules for the new company
+            // System modules are always enabled, but we still create the record
+            \App\Models\CompanyModule::create([
+                'company_id' => $company->id,
+                'module_id' => $module->id,
+                'is_enabled' => true,
             ]);
         }
     }

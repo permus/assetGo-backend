@@ -42,6 +42,9 @@ return new class extends Migration
             $table->index(['status', 'created_at']);
         });
 
+        // Drop view if it exists (in case of failed migration)
+        DB::statement('DROP VIEW IF EXISTS report_runs_summary');
+        
         // Create view for report run statistics
         DB::statement('
             CREATE VIEW report_runs_summary AS

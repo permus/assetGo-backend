@@ -103,22 +103,41 @@
 
         <p>You have been invited to join <strong>{{ $company->name }}</strong> as a team member. We're excited to have you on board!</p>
 
-        <p>Below are your login credentials to access the AssetGo platform:</p>
+        @if($isCustomPassword)
+            <p>Your account has been created with the password you provided. Below are your login credentials to access the AssetGo platform:</p>
 
-        <div class="credentials-box">
-            <div class="credential-item">
-                <span class="label">Email:</span>
-                <span class="value">{{ $user->email }}</span>
+            <div class="credentials-box">
+                <div class="credential-item">
+                    <span class="label">Email:</span>
+                    <span class="value">{{ $user->email }}</span>
+                </div>
+                <div class="credential-item">
+                    <span class="label">Password:</span>
+                    <span class="value">{{ $password }}</span>
+                </div>
             </div>
-            <div class="credential-item">
-                <span class="label">Password:</span>
-                <span class="value">{{ $password }}</span>
-            </div>
-        </div>
 
-        <div class="warning">
-            <strong>Important:</strong> Please keep your login credentials secure and do not share them with anyone. You can change your password after your first login.
-        </div>
+            <div class="warning">
+                <strong>Important:</strong> Please keep your login credentials secure and do not share them with anyone. You can change your password after your first login.
+            </div>
+        @else
+            <p>Below are your login credentials to access the AssetGo platform:</p>
+
+            <div class="credentials-box">
+                <div class="credential-item">
+                    <span class="label">Email:</span>
+                    <span class="value">{{ $user->email }}</span>
+                </div>
+                <div class="credential-item">
+                    <span class="label">Password:</span>
+                    <span class="value">{{ $password }}</span>
+                </div>
+            </div>
+
+            <div class="warning">
+                <strong>Important:</strong> Please keep your login credentials secure and do not share them with anyone. You can change your password after your first login.
+            </div>
+        @endif
 
         <p>To get started:</p>
         <ol>
