@@ -1,0 +1,88 @@
+AssetGo - Project Overview & Technology Stack
+
+Overview
+- AssetGo is a full-featured asset, maintenance, inventory, and reporting platform.
+- Monorepo layout: Laravel API backend plus an Angular SPA frontend located at assetGo-frontend/.
+- Primary focus areas include: Assets, Maintenance/Work Orders, Inventory, Suppliers, Teams/Roles, and a rich Reports module (export to PDF/XLSX/CSV/JSON).
+
+High-Level Architecture
+- Backend (Laravel 10, PHP 8.1): RESTful API exposed under /api/*, authenticated via Laravel Sanctum.
+- Frontend (Angular + TypeScript): SPA that consumes the Laravel API; modularized features (Reports, Assets, Inventory, etc.).
+- Background processing: Laravel Queue (database driver) executes export/report jobs.
+- Storage: Local filesystem (storage/app) and public disk (storage/app/public) with a web-accessible storage symlink.
+
+Backend - Technologies & Libraries
+- Language/Framework: PHP 8.1+, Laravel 10.x
+- Auth & Security: Laravel Sanctum, Email verification flows
+- HTTP Client: guzzlehttp/guzzle
+- Queue/Jobs: Laravel Queue (database driver), queued jobs (e.g., ExportReportJob)
+- File Export/Processing:
+  - barryvdh/laravel-dompdf (PDF generation)
+  - maatwebsite/excel (Excel/CSV exports)
+- QR Codes & Barcodes: simplesoftwareio/simple-qrcode
+- OpenAI Integration: Configured under config/openai.php (model: gpt-4o-mini; optional mock mode)
+- CORS: config/cors.php includes allowed origins for local and test domains
+- Config/Environment: Standard Laravel configs in config/*.php, .env-driven
+- Testing: PHPUnit (Feature/Unit tests), test scripts and Postman collections provided
+- Notable Directories:
+  - app/Http/Controllers/Api: Feature controllers (Assets, Maintenance, Inventory, Reports, AI, etc.)
+  - app/Services: Domain services (AssetReportService, MaintenanceReportService, InventoryReportService, FinancialReportService, ReportExportService, etc.)
+  - app/Jobs: Background jobs (ExportReportJob)
+  - app/Models: Eloquent models (Assets, WorkOrders, Inventory entities, Users, etc.)
+  - routes/api.php: API routes for modules incl. /api/reports/* and /api/inventory/*
+  - storage/: Logs, exports, and cached data
+
+Backend - Reports & Exports
+- Reports module supports: assets.*, maintenance.*, inventory.*, financial.* report keys.
+- Exports saved under storage/app/reports with controller-based downloads:
+  - GET /api/reports/runs/{id}/download (named route: reports.download)
+- ReportRun model tracks export runs (status, file_path, timings) and exposes a generated download URL.
+- Queue: ExportReportJob dispatches to the appropriate Service based on report_key prefix:
+  - assets.* → AssetReportService
+  - maintenance.* → MaintenanceReportService
+  - inventory.* → InventoryReportService
+  - financial.* → FinancialReportService
+
+Frontend - Technologies & Libraries
+- Framework: Angular (standalone components), TypeScript
+- State/Streams: RxJS (timer polling for export progress)
+- HTTP: Angular HttpClient (ReportsApiService)
+- Styling: SCSS; Tailwind configuration present (tailwind.config.js)
+- Build/Config: angular.json, tsconfig.*
+- UI Components (selected):
+  - Reports module (pages/reports.page.*) with export drawer (components/reports-export-panel.*)
+  - Custom global dropdown (shared/components/global-dropdown) replacing native selects
+  - Report grids, KPI sections, and export progress UI
+
+Frontend - Reports Experience
+- Tabs: Assets, Maintenance, Inventory, Financial (Custom tab hidden)
+- Filters: Replaced native selects with custom dropdown component
+- Export Flow:
+  - Start export from each tab using an "Export Selected" button
+  - Export drawer presents format options (PDF/XLSX/CSV/JSON), options (include charts/KPIs/filters), filename preview
+  - Polling (every 2s, bounded window) updates run status: queued (10%) → running (50%) → success (100%)
+  - Auto-download upon success (uses backend-provided download_url when available)
+
+Key Features by Module (selected)
+- Assets: Listing, analytics, QR/barcode, statistics, exports
+- Maintenance: Work orders, KPIs, compliance, costs, downtime, technician performance
+- Inventory: Stocks, ABC analysis, KPIs, transactions, suppliers, purchase orders
+- Financial: TCO summary, maintenance cost breakdown, budget vs actual (extensible)
+
+Developer Notes & Ops
+- API Base URL: .env APP_URL (e.g., http://assetgo-backend.test); CORS configured for local/dev domains
+- Queue: For exports, run the worker: php artisan queue:work --queue=reports
+- Storage Link: Ensure php artisan storage:link for public-serving files when needed
+- Exports/Downloads: Prefer controller download route over direct /storage paths for secured files
+- Postman Collections: Provided in repo for API exploration
+
+Documentation & Artifacts
+- docs/: API and module overviews (asset-api.md, inventory-api.md, work-order-api.md, etc.)
+- *.md roadmaps: Implementation summaries and missing components (e.g., INVENTORY_MODULE_MISSING_COMPONENTS.md)
+- Postman collections: AssetGo-API-Collection.postman_collection.json, Supplier-API-Collection.postman_collection.json
+
+Summary of Stack
+- Backend: PHP 8.1, Laravel 10, Sanctum, DomPDF, Maatwebsite/Excel, Guzzle, Simple QrCode, MySQL (inferred), Laravel Queue (database)
+- Frontend: Angular, TypeScript, RxJS, SCSS, Tailwind config present
+- Tooling/Testing: PHPUnit, Postman collections
+- Deployment: Conventional Laravel + Node/Angular build; storage and queue configuration required
