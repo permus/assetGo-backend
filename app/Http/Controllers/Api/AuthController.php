@@ -323,6 +323,9 @@ class AuthController extends Controller
             ];
         }
         
+        // Add avatar URL to user data
+        $user->avatar_url = $user->avatar ? \Storage::disk('public')->url($user->avatar) : null;
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -340,19 +343,68 @@ class AuthController extends Controller
     public function updateProfile(UpdateProfileRequest $request)
     {
         $user = $request->user();
-        $updateData = $request->only(['first_name', 'last_name', 'email', 'user_type']);
+        $updateData = $request->only(['first_name', 'last_name', 'email']);
 
         if ($request->filled('password')) {
             $updateData['password'] = Hash::make($request->password);
         }
 
+        // Handle avatar upload
+        if ($request->hasFile('avatar')) {
+            // Delete old avatar if exists
+            if ($user->avatar) {
+                \Storage::disk('public')->delete($user->avatar);
+            }
+
+            // Store new avatar
+            $avatarPath = $request->file('avatar')->store('avatars', 'public');
+            $updateData['avatar'] = $avatarPath;
+        }
+
         $user->update($updateData);
+
+        // Load the updated user with avatar URL
+        $user = $user->fresh();
+        $user->avatar_url = $user->avatar ? \Storage::disk('public')->url($user->avatar) : null;
 
         return response()->json([
             'success' => true,
             'message' => 'Profile updated successfully',
             'data' => [
                 'user' => $user->load('company')
+            ]
+        ]);
+    }
+
+    /**
+     * Upload user avatar
+     */
+    public function uploadAvatar(Request $request)
+    {
+        $request->validate([
+            'avatar' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+        ]);
+
+        $user = $request->user();
+
+        // Delete old avatar if exists
+        if ($user->avatar) {
+            \Storage::disk('public')->delete($user->avatar);
+        }
+
+        // Store new avatar
+        $avatarPath = $request->file('avatar')->store('avatars', 'public');
+        $user->update(['avatar' => $avatarPath]);
+
+        // Return avatar URL
+        $avatarUrl = \Storage::disk('public')->url($avatarPath);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Avatar uploaded successfully',
+            'data' => [
+                'avatar_url' => $avatarUrl,
+                'avatar_path' => $avatarPath
             ]
         ]);
     }

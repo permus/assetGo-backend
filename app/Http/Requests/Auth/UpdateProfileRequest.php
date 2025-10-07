@@ -26,7 +26,7 @@ class UpdateProfileRequest extends FormRequest
             'last_name' => 'nullable|string|max:255',
             'email' => 'nullable|string|email|max:255|unique:users,email,' . $this->user()->id,
             'password' => 'nullable|string|min:8|confirmed',
-            'user_type' => 'nullable|string|in:admin,user,manager',
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ];
     }
 
@@ -40,7 +40,9 @@ class UpdateProfileRequest extends FormRequest
             'email.unique' => 'This email address is already taken',
             'password.min' => 'Password must be at least 8 characters long',
             'password.confirmed' => 'Password confirmation does not match',
-            'user_type.in' => 'User type must be one of: admin, user, manager',
+            'avatar.image' => 'Avatar must be an image file',
+            'avatar.mimes' => 'Avatar must be a file of type: jpeg, png, jpg, gif, svg',
+            'avatar.max' => 'Avatar must not be larger than 2MB',
         ];
     }
 
@@ -52,6 +54,7 @@ class UpdateProfileRequest extends FormRequest
         return [
             'first_name' => 'first name',
             'last_name' => 'last name',
+            'avatar' => 'avatar',
         ];
     }
 }
