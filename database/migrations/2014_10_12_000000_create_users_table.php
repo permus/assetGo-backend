@@ -19,11 +19,14 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->integer('company_id')->nullable();
-            $table->integer('created_by')->default(0);
-            $table->json('permissions')->nullable();
+            $table->unsignedBigInteger('company_id')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->decimal('hourly_rate', 10, 2)->nullable();
+            $table->json('preferences')->nullable();
             $table->rememberToken();
             $table->timestamps();
+            
+            // Foreign keys will be added after companies table is created
         });
     }
 

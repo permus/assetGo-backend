@@ -172,15 +172,24 @@ class TeamController extends Controller
             ], 422);
         }
 
-        // Generate a random password
-        $password = Str::random(12);
+        // Handle password: use provided password or generate random one
+        $plainPassword = null;
+        if ($request->filled('password')) {
+            // Use provided password
+            $plainPassword = $request->password;
+            $hashedPassword = Hash::make($plainPassword);
+        } else {
+            // Generate a random password
+            $plainPassword = Str::random(12);
+            $hashedPassword = Hash::make($plainPassword);
+        }
 
         // Create the team member (user with user_type = 'team')
         $teamMember = User::create([
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'email' => $request->email,
-            'password' => Hash::make($password),
+            'password' => $hashedPassword,
             'user_type' => 'team',
             'company_id' => $user->company_id,
             'created_by' => $user->id,
@@ -203,7 +212,7 @@ class TeamController extends Controller
         }
 
         // Send invitation email
-        $this->sendInvitationEmail($teamMember, $password);
+        $this->sendInvitationEmail($teamMember, $plainPassword, $request->filled('password'));
 
         $teamMember->load(['roles.permissions', 'locations:id,name,parent_id']);
 
@@ -388,7 +397,7 @@ class TeamController extends Controller
         $teamMember->update(['password' => Hash::make($password)]);
 
         // Send invitation email
-        $this->sendInvitationEmail($teamMember, $password);
+        $this->sendInvitationEmail($teamMember, $password, false);
 
         return response()->json([
             'success' => true,
@@ -535,17 +544,18 @@ class TeamController extends Controller
     /**
      * Send invitation email
      */
-    private function sendInvitationEmail($user, $password)
+    private function sendInvitationEmail($user, $password, $isCustomPassword = false)
     {
         try {
             // Send the invitation email
-            Mail::to($user->email)->send(new TeamInvitationMail($user, $password));
+            Mail::to($user->email)->send(new TeamInvitationMail($user, $password, $isCustomPassword));
             
             // Log successful email sending
             \Log::info('Team member invitation email sent', [
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'company' => $user->company->name,
+                'custom_password' => $isCustomPassword,
             ]);
         } catch (\Exception $e) {
             // Log email sending error

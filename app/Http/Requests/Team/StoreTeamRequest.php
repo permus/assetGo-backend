@@ -18,6 +18,8 @@ class StoreTeamRequest extends FormRequest
             'location_ids' => ['nullable','array'],
             'location_ids.*' => ['integer','exists:locations,id'],
             'expand_descendants' => ['sometimes','boolean'],
+            'password' => ['nullable','string','min:8','max:72'],
+            'password_confirmation' => ['required_with:password','same:password'],
         ];
     }
 }

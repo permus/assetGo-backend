@@ -38,6 +38,9 @@ return new class extends Migration
             $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
         });
 
+        // Drop view if it exists (in case of failed migration)
+        DB::statement('DROP VIEW IF EXISTS ai_analytics_latest');
+        
         // Create view for latest snapshot (MySQL compatible)
         DB::statement('
             CREATE VIEW ai_analytics_latest AS
