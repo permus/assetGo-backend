@@ -19,10 +19,6 @@ return new class extends Migration
             $table->string('status')->default('assigned');
             $table->timestamps();
 
-            $table->foreign('work_order_id')->references('id')->on('work_orders')->onDelete('cascade');
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('assigned_by')->references('id')->on('users')->onDelete('set null');
-
             $table->unique(['work_order_id', 'user_id'], 'wo_user_unique');
         });
     }

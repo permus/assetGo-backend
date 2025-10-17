@@ -220,6 +220,17 @@ class WorkOrderController extends Controller
             'category',
         ]);
 
+        // Audit logging
+        app(\App\Services\WorkOrderAuditService::class)->logCreated(
+            $workOrder->id,
+            $workOrder->title,
+            $request->user()->id,
+            $request->ip()
+        );
+
+        // Clear cache
+        app(\App\Services\WorkOrderCacheService::class)->clearCompanyCache($request->user()->company_id);
+
         return response()->json([
             'success' => true,
             'data' => $workOrder,
@@ -243,6 +254,17 @@ class WorkOrderController extends Controller
 
         $data = $request->validated();
 
+        // Track changes for audit
+        $changes = [];
+        foreach ($data as $key => $value) {
+            if ($workOrder->{$key} != $value) {
+                $changes[$key] = [
+                    'old' => $workOrder->{$key},
+                    'new' => $value
+                ];
+            }
+        }
+
         // If assigned_to is being changed, set assigned_by to current user
         if (isset($data['assigned_to']) && $data['assigned_to'] !== $workOrder->assigned_to) {
             $data['assigned_by'] = $request->user()->id;
@@ -258,6 +280,20 @@ class WorkOrderController extends Controller
             'createdBy', 
             'company'
         ]);
+
+        // Audit logging
+        if (!empty($changes)) {
+            app(\App\Services\WorkOrderAuditService::class)->logUpdated(
+                $workOrder->id,
+                $workOrder->title,
+                $changes,
+                $request->user()->id,
+                $request->ip()
+            );
+        }
+
+        // Clear cache
+        app(\App\Services\WorkOrderCacheService::class)->clearCompanyCache($request->user()->company_id);
 
         return response()->json([
             'success' => true,
@@ -283,10 +319,26 @@ class WorkOrderController extends Controller
             'status_id' => 'required|exists:work_order_status,id',
         ]);
 
+        // Track old status for audit
+        $oldStatusId = $workOrder->status_id;
+
         $workOrder->status_id = $validated['status_id'];
         $workOrder->save();
 
         $workOrder->load(['status']);
+
+        // Audit logging for status change
+        app(\App\Services\WorkOrderAuditService::class)->logStatusChanged(
+            $workOrder->id,
+            $workOrder->title,
+            $oldStatusId,
+            $validated['status_id'],
+            $request->user()->id,
+            $request->ip()
+        );
+
+        // Clear cache
+        app(\App\Services\WorkOrderCacheService::class)->clearCompanyCache($request->user()->company_id);
 
         return response()->json([
             'success' => true,
@@ -309,7 +361,22 @@ class WorkOrderController extends Controller
             ], 404);
         }
 
+        $workOrderId = $workOrder->id;
+        $workOrderTitle = $workOrder->title;
+        $companyId = $workOrder->company_id;
+
         $workOrder->delete();
+
+        // Audit logging
+        app(\App\Services\WorkOrderAuditService::class)->logDeleted(
+            $workOrderId,
+            $workOrderTitle,
+            request()->user()->id,
+            request()->ip()
+        );
+
+        // Clear cache
+        app(\App\Services\WorkOrderCacheService::class)->clearCompanyCache($companyId);
 
         return response()->json([
             'success' => true,
@@ -324,113 +391,117 @@ class WorkOrderController extends Controller
     public function analytics(Request $request)
     {
         $companyId = $request->user()->company_id;
-        $dateRange = $request->get('date_range', 30); // Default to last 30 days
+        $cacheService = app(\App\Services\WorkOrderCacheService::class);
+        
+        return $cacheService->getAnalytics($companyId, function() use ($companyId, $request) {
+            $dateRange = $request->get('date_range', 30); // Default to last 30 days
 
-        // Calculate date range
-        $endDate = now();
-        $startDate = $endDate->copy()->subDays($dateRange);
+            // Calculate date range
+            $endDate = now();
+            $startDate = $endDate->copy()->subDays($dateRange);
 
-        // Basic counts
-        $totalWorkOrders = WorkOrder::where('work_orders.company_id', $companyId)->count();
-        $openWorkOrders = WorkOrder::where('work_orders.company_id', $companyId)
-            ->whereHas('status', function ($q) { $q->where('slug', 'open'); })
-            ->count();
-        $inProgressWorkOrders = WorkOrder::where('work_orders.company_id', $companyId)
-            ->whereHas('status', function ($q) { $q->where('slug', 'in-progress'); })
-            ->count();
-        $completedWorkOrders = WorkOrder::where('work_orders.company_id', $companyId)
-            ->whereHas('status', function ($q) { $q->where('slug', 'completed'); })
-            ->count();
-        $overdueWorkOrders = WorkOrder::where('work_orders.company_id', $companyId)->overdue()->count();
+            // Basic counts
+            $totalWorkOrders = WorkOrder::where('work_orders.company_id', $companyId)->count();
+            $openWorkOrders = WorkOrder::where('work_orders.company_id', $companyId)
+                ->whereHas('status', function ($q) { $q->where('slug', 'open'); })
+                ->count();
+            $inProgressWorkOrders = WorkOrder::where('work_orders.company_id', $companyId)
+                ->whereHas('status', function ($q) { $q->where('slug', 'in-progress'); })
+                ->count();
+            $completedWorkOrders = WorkOrder::where('work_orders.company_id', $companyId)
+                ->whereHas('status', function ($q) { $q->where('slug', 'completed'); })
+                ->count();
+            $overdueWorkOrders = WorkOrder::where('work_orders.company_id', $companyId)->overdue()->count();
 
-        // Average resolution time (for completed work orders)
-        $avgResolutionTime = WorkOrder::where('work_orders.company_id', $companyId)
-            ->whereHas('status', function ($q) { $q->where('slug', 'completed'); })
-            ->whereNotNull('completed_at')
-            ->whereNotNull('created_at')
-            ->avg(DB::raw('DATEDIFF(completed_at, created_at)'));
+            // Average resolution time (for completed work orders)
+            $avgResolutionTime = WorkOrder::where('work_orders.company_id', $companyId)
+                ->whereHas('status', function ($q) { $q->where('slug', 'completed'); })
+                ->whereNotNull('completed_at')
+                ->whereNotNull('created_at')
+                ->avg(DB::raw('DATEDIFF(completed_at, created_at)'));
 
-        // Completion rate
-        $completionRate = $totalWorkOrders > 0 ? round(($completedWorkOrders / $totalWorkOrders) * 100, 1) : 0;
+            // Completion rate
+            $completionRate = $totalWorkOrders > 0 ? round(($completedWorkOrders / $totalWorkOrders) * 100, 1) : 0;
 
-        // Active technicians (users with assigned work orders)
-        $activeTechnicians = WorkOrder::where('work_orders.company_id', $companyId)
-            ->whereHas('status', function ($q) { $q->whereIn('slug', ['open', 'in-progress']); })
-            ->whereNotNull('assigned_to')
-            ->distinct('assigned_to')
-            ->count('assigned_to');
+            // Active technicians (users with assigned work orders)
+            $activeTechnicians = WorkOrder::where('work_orders.company_id', $companyId)
+                ->whereHas('status', function ($q) { $q->whereIn('slug', ['open', 'in-progress']); })
+                ->whereNotNull('assigned_to')
+                ->distinct('assigned_to')
+                ->count('assigned_to');
 
-        // Status distribution
-        $statusDistribution = WorkOrder::where('work_orders.company_id', $companyId)
-            ->join('work_order_status as s', 's.id', '=', 'work_orders.status_id')
-            ->selectRaw('s.slug as status_slug, COUNT(*) as count')
-            ->groupBy('status_slug')
-            ->pluck('count', 'status_slug')
-            ->toArray();
+            // Status distribution
+            $statusDistribution = WorkOrder::where('work_orders.company_id', $companyId)
+                ->join('work_order_status as s', 's.id', '=', 'work_orders.status_id')
+                ->selectRaw('s.slug as status_slug, COUNT(*) as count')
+                ->groupBy('status_slug')
+                ->pluck('count', 'status_slug')
+                ->toArray();
 
-        // Priority distribution
-        $priorityDistribution = WorkOrder::where('work_orders.company_id', $companyId)
-            ->join('work_order_priority as p', 'p.id', '=', 'work_orders.priority_id')
-            ->selectRaw('p.slug as priority_slug, COUNT(*) as count')
-            ->groupBy('priority_slug')
-            ->pluck('count', 'priority_slug')
-            ->toArray();
+            // Priority distribution
+            $priorityDistribution = WorkOrder::where('work_orders.company_id', $companyId)
+                ->join('work_order_priority as p', 'p.id', '=', 'work_orders.priority_id')
+                ->selectRaw('p.slug as priority_slug, COUNT(*) as count')
+                ->groupBy('priority_slug')
+                ->pluck('count', 'priority_slug')
+                ->toArray();
 
-        // Monthly performance trend (created vs completed)
-        $monthlyTrend = WorkOrder::where('work_orders.company_id', $companyId)
-            ->join('work_order_status as s', 's.id', '=', 'work_orders.status_id')
-            ->whereBetween('work_orders.created_at', [$startDate, $endDate])
-            ->selectRaw('
-                YEAR(work_orders.created_at) as year,
-                MONTH(work_orders.created_at) as month,
-                COUNT(*) as created_count,
-                SUM(CASE WHEN s.slug = "completed" THEN 1 ELSE 0 END) as completed_count
-            ')
-            ->groupBy('year', 'month')
-            ->orderBy('year')
-            ->orderBy('month')
-            ->get();
+            // Monthly performance trend (created vs completed)
+            $monthlyTrend = WorkOrder::where('work_orders.company_id', $companyId)
+                ->join('work_order_status as s', 's.id', '=', 'work_orders.status_id')
+                ->whereBetween('work_orders.created_at', [$startDate, $endDate])
+                ->selectRaw('
+                    YEAR(work_orders.created_at) as year,
+                    MONTH(work_orders.created_at) as month,
+                    COUNT(*) as created_count,
+                    SUM(CASE WHEN s.slug = "completed" THEN 1 ELSE 0 END) as completed_count
+                ')
+                ->groupBy('year', 'month')
+                ->orderBy('year')
+                ->orderBy('month')
+                ->get();
 
-        // Top technician performance
-        $topTechnicians = WorkOrder::where('work_orders.company_id', $companyId)
-            ->join('work_order_status as s', 's.id', '=', 'work_orders.status_id')
-            ->where('s.slug', 'completed')
-            ->whereNotNull('assigned_to')
-            ->whereBetween('work_orders.completed_at', [$startDate, $endDate])
-            ->selectRaw('
-                work_orders.assigned_to,
-                COUNT(*) as completed_count,
-                AVG(DATEDIFF(work_orders.completed_at, work_orders.created_at)) as avg_resolution_days
-            ')
-            ->with('assignedTo:id,first_name,last_name')
-            ->groupBy('work_orders.assigned_to')
-            ->orderByDesc('completed_count')
-            ->limit(10)
-            ->get();
+            // Top technician performance
+            $topTechnicians = WorkOrder::where('work_orders.company_id', $companyId)
+                ->join('work_order_status as s', 's.id', '=', 'work_orders.status_id')
+                ->where('s.slug', 'completed')
+                ->whereNotNull('assigned_to')
+                ->whereBetween('work_orders.completed_at', [$startDate, $endDate])
+                ->selectRaw('
+                    work_orders.assigned_to,
+                    COUNT(*) as completed_count,
+                    AVG(DATEDIFF(work_orders.completed_at, work_orders.created_at)) as avg_resolution_days
+                ')
+                ->with('assignedTo:id,first_name,last_name')
+                ->groupBy('work_orders.assigned_to')
+                ->orderByDesc('completed_count')
+                ->limit(10)
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                // KPIs
-                'total_work_orders' => $totalWorkOrders,
-                'open_work_orders' => $openWorkOrders,
-                'in_progress_work_orders' => $inProgressWorkOrders,
-                'completed_work_orders' => $completedWorkOrders,
-                'overdue_work_orders' => $overdueWorkOrders,
-                'average_resolution_time_days' => round($avgResolutionTime ?? 0, 1),
-                'completion_rate_percentage' => $completionRate,
-                'active_technicians' => $activeTechnicians,
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    // KPIs
+                    'total_work_orders' => $totalWorkOrders,
+                    'open_work_orders' => $openWorkOrders,
+                    'in_progress_work_orders' => $inProgressWorkOrders,
+                    'completed_work_orders' => $completedWorkOrders,
+                    'overdue_work_orders' => $overdueWorkOrders,
+                    'average_resolution_time_days' => round($avgResolutionTime ?? 0, 1),
+                    'completion_rate_percentage' => $completionRate,
+                    'active_technicians' => $activeTechnicians,
 
-                // Distributions
-                'status_distribution' => $statusDistribution,
-                'priority_distribution' => $priorityDistribution,
+                    // Distributions
+                    'status_distribution' => $statusDistribution,
+                    'priority_distribution' => $priorityDistribution,
 
-                // Trends
-                'monthly_performance_trend' => $monthlyTrend,
-                'top_technician_performance' => $topTechnicians,
-            ],
-            'message' => 'Work order analytics retrieved successfully'
-        ]);
+                    // Trends
+                    'monthly_performance_trend' => $monthlyTrend,
+                    'top_technician_performance' => $topTechnicians,
+                ],
+                'message' => 'Work order analytics retrieved successfully'
+            ]);
+        });
     }
 
     /**
@@ -440,47 +511,50 @@ class WorkOrderController extends Controller
     public function statistics(Request $request)
     {
         $companyId = $request->user()->company_id;
+        $cacheService = app(\App\Services\WorkOrderCacheService::class);
+        
+        return $cacheService->getStatistics($companyId, function() use ($companyId) {
+            // Basic counts by status
+            $statusCounts = WorkOrder::where('work_orders.company_id', $companyId)
+                ->join('work_order_status as s', 's.id', '=', 'work_orders.status_id')
+                ->selectRaw('s.slug as status_slug, COUNT(*) as count')
+                ->groupBy('status_slug')
+                ->pluck('count', 'status_slug')
+                ->toArray();
 
-        // Basic counts by status
-        $statusCounts = WorkOrder::where('work_orders.company_id', $companyId)
-            ->join('work_order_status as s', 's.id', '=', 'work_orders.status_id')
-            ->selectRaw('s.slug as status_slug, COUNT(*) as count')
-            ->groupBy('status_slug')
-            ->pluck('count', 'status_slug')
-            ->toArray();
+            // Priority counts
+            $priorityCounts = WorkOrder::where('work_orders.company_id', $companyId)
+                ->join('work_order_priority as p', 'p.id', '=', 'work_orders.priority_id')
+                ->selectRaw('p.slug as priority_slug, COUNT(*) as count')
+                ->groupBy('priority_slug')
+                ->pluck('count', 'priority_slug')
+                ->toArray();
 
-        // Priority counts
-        $priorityCounts = WorkOrder::where('work_orders.company_id', $companyId)
-            ->join('work_order_priority as p', 'p.id', '=', 'work_orders.priority_id')
-            ->selectRaw('p.slug as priority_slug, COUNT(*) as count')
-            ->groupBy('priority_slug')
-            ->pluck('count', 'priority_slug')
-            ->toArray();
+            // Overdue count
+            $overdueCount = WorkOrder::where('company_id', $companyId)->overdue()->count();
 
-        // Overdue count
-        $overdueCount = WorkOrder::where('company_id', $companyId)->overdue()->count();
+            // Recent activity (last 7 days)
+            $recentCreated = WorkOrder::where('company_id', $companyId)
+                ->where('created_at', '>=', now()->subDays(7))
+                ->count();
 
-        // Recent activity (last 7 days)
-        $recentCreated = WorkOrder::where('company_id', $companyId)
-            ->where('created_at', '>=', now()->subDays(7))
-            ->count();
+            $recentCompleted = WorkOrder::where('company_id', $companyId)
+                ->whereHas('status', function ($q) { $q->where('slug', 'completed'); })
+                ->where('completed_at', '>=', now()->subDays(7))
+                ->count();
 
-        $recentCompleted = WorkOrder::where('company_id', $companyId)
-            ->whereHas('status', function ($q) { $q->where('slug', 'completed'); })
-            ->where('completed_at', '>=', now()->subDays(7))
-            ->count();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'status_counts' => $statusCounts,
-                'priority_counts' => $priorityCounts,
-                'overdue_count' => $overdueCount,
-                'recent_created' => $recentCreated,
-                'recent_completed' => $recentCompleted,
-            ],
-            'message' => 'Work order statistics retrieved successfully'
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'status_counts' => $statusCounts,
+                    'priority_counts' => $priorityCounts,
+                    'overdue_count' => $overdueCount,
+                    'recent_created' => $recentCreated,
+                    'recent_completed' => $recentCompleted,
+                ],
+                'message' => 'Work order statistics retrieved successfully'
+            ]);
+        });
     }
 
     /**

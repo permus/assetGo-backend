@@ -11,11 +11,14 @@ return new class extends Migration {
             $table->id();
             $table->unsignedBigInteger('company_id');
             $table->unsignedBigInteger('purchase_order_id');
-            $table->unsignedBigInteger('part_id');
+            $table->unsignedBigInteger('part_id')->nullable();
+            $table->string('part_number');
+            $table->text('description');
             $table->integer('ordered_qty');
             $table->integer('received_qty')->default(0);
             $table->decimal('unit_cost', 12, 2)->default(0);
             $table->decimal('line_total', 12, 2)->default(0);
+            $table->text('notes')->nullable();
             $table->timestamps();
             $table->index(['company_id','purchase_order_id']);
         });

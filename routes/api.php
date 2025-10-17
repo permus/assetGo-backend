@@ -55,12 +55,17 @@ Route::get('/assets/public/statistics', [AssetController::class, 'publicStatisti
 
 
 // Public routes
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+Route::post('/register', [AuthController::class, 'register'])
+    ->middleware('throttle:10,1'); // 10 registration attempts per minute
+Route::post('/login', [AuthController::class, 'login'])
+    ->middleware(['throttle:5,1', \App\Http\Middleware\ThrottleLoginAttempts::class]); // 5 login attempts per minute + account lockout
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])
+    ->middleware('throttle:3,1'); // 3 password reset requests per minute
+Route::post('/reset-password', [AuthController::class, 'resetPassword'])
+    ->middleware('throttle:3,1'); // 3 password reset attempts per minute
 Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');
-Route::post('/email/resend', [AuthController::class, 'resendVerification']);
+Route::post('/email/resend', [AuthController::class, 'resendVerification'])
+    ->middleware('throttle:5,1'); // 5 resend attempts per minute
 
 Route::middleware(['auth:sanctum'])->group(function () {
     // Dashboard
@@ -136,24 +141,33 @@ Route::prefix('ai/natural-language')->group(function () {
     // Location Management routes
     // Place static routes BEFORE resource to avoid model-binding catching 'tree' as {location}
     Route::get('locations/tree', [TeamController::class, 'locationTree']);
-    Route::get('locations/export-qr', [LocationController::class, 'exportQRCodes']);
-    Route::post('locations/bulk', [LocationController::class, 'bulkCreate']);
-    Route::post('locations/move', [LocationController::class, 'move']);
+    Route::get('locations/export-qr', [LocationController::class, 'exportQRCodes'])
+        ->middleware('throttle:10,1'); // 10 QR exports per minute
+    Route::post('locations/bulk', [LocationController::class, 'bulkCreate'])
+        ->middleware('throttle:10,1'); // 10 bulk creates per minute
+    Route::post('locations/move', [LocationController::class, 'move'])
+        ->middleware('throttle:30,1'); // 30 moves per minute
     Route::get('locations/{location}/qr', [LocationController::class, 'qrCode']);
     Route::apiResource('locations', LocationController::class);
-    Route::get('locations-hierarchy', [LocationController::class, 'hierarchy']);
+    Route::get('locations-hierarchy', [LocationController::class, 'hierarchy'])
+        ->middleware('throttle:60,1'); // 60 hierarchy requests per minute
     Route::get('location-types', [LocationController::class, 'types']);
     Route::get('locations/possible-parents/{locationId?}', [LocationController::class, 'possibleParents']);
 
     // Asset resource routes (guarded by module enablement)
     Route::middleware('module:assets')->group(function () {
-    Route::post('assets/bulk-delete', [AssetController::class, 'bulkDelete']);
-    Route::post('assets/bulk-archive', [AssetController::class, 'bulkArchive']);
-    Route::post('assets/import-bulk-excel', [AssetController::class, 'bulkImportAssetsFromExcel']);
+    Route::post('assets/bulk-delete', [AssetController::class, 'bulkDelete'])
+        ->middleware('throttle:20,1'); // 20 bulk deletes per minute
+    Route::post('assets/bulk-archive', [AssetController::class, 'bulkArchive'])
+        ->middleware('throttle:20,1'); // 20 bulk archives per minute
+    Route::post('assets/import-bulk-excel', [AssetController::class, 'bulkImportAssetsFromExcel'])
+        ->middleware('throttle:5,1'); // 5 imports per minute
     Route::get('assets/import-progress/{jobId}', [AssetController::class, 'importProgress']);
     Route::get('assets/import/template', [AssetController::class, 'downloadTemplate']);
-    Route::get('assets/statistics', [AssetController::class, 'statistics']);
-    Route::get('assets/export-excel', [AssetController::class, 'exportExcel']);
+    Route::get('assets/statistics', [AssetController::class, 'statistics'])
+        ->middleware('throttle:30,1'); // 30 stats requests per minute
+    Route::get('assets/export-excel', [AssetController::class, 'exportExcel'])
+        ->middleware('throttle:10,1'); // 10 exports per minute
     Route::post('assets/{asset}/archive', [AssetController::class, 'archive']);
     Route::get('assets-hierarchy', [AssetController::class, 'hierarchy']);
     Route::get('assets/possible-parents/{assetId?}', [AssetController::class, 'possibleParents']);
@@ -162,7 +176,8 @@ Route::prefix('ai/natural-language')->group(function () {
     Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);
     Route::post('assets/{asset}/transfer', [AssetController::class, 'transfer']);
     Route::post('assets/{asset}/restore', [AssetController::class, 'restore']);
-    Route::post('assets/bulk-restore', [AssetController::class, 'bulkRestore']);
+    Route::post('assets/bulk-restore', [AssetController::class, 'bulkRestore'])
+        ->middleware('throttle:20,1'); // 20 bulk restores per minute
     Route::get('assets/{asset}/qr-code', [AssetController::class, 'qrCode']);
     Route::get('assets/{asset}/barcode', [AssetController::class, 'barcode']);
     Route::get('assets/barcode-types', [AssetController::class, 'barcodeTypes']);
@@ -171,7 +186,8 @@ Route::prefix('ai/natural-language')->group(function () {
     Route::get('assets/{asset}/health-performance-chart', [AssetController::class, 'healthPerformanceChart']);
     Route::get('assets/{asset}/activity-history', [AssetController::class, 'activityHistory']);
     Route::get('assets/activities', [AssetController::class, 'allActivities']);
-    Route::get('assets/analytics', [AssetController::class, 'analytics']);
+    Route::get('assets/analytics', [AssetController::class, 'analytics'])
+        ->middleware('throttle:30,1'); // 30 analytics requests per minute
     });
 
     // Maintenance schedule CRUD
@@ -205,8 +221,10 @@ Route::prefix('ai/natural-language')->group(function () {
 
     // Team routes (team members are users with user_type = 'team')
     // Place static routes BEFORE resource to avoid model-binding catching them as {team}
-    Route::get('teams/statistics', [TeamController::class, 'statistics']);
-    Route::get('teams/analytics', [TeamController::class, 'analytics']);
+    Route::get('teams/statistics', [TeamController::class, 'statistics'])
+        ->middleware('throttle:30,1');
+    Route::get('teams/analytics', [TeamController::class, 'analytics'])
+        ->middleware('throttle:30,1');
     Route::get('teams/available-roles', [TeamController::class, 'getAvailableRoles']);
     Route::post('teams/{id}/resend-invitation', [TeamController::class, 'resendInvitation']);
     Route::apiResource('teams', TeamController::class);
@@ -217,9 +235,12 @@ Route::prefix('ai/natural-language')->group(function () {
     // Work Order routes (guarded)
     Route::middleware('module:work_orders')->group(function () {
         Route::get('work-orders/count', [WorkOrderController::class, 'count']);
-        Route::get('work-orders/analytics', [WorkOrderController::class, 'analytics']);
-        Route::get('work-orders/statistics', [WorkOrderController::class, 'statistics']);
-        Route::get('work-orders/filters', [WorkOrderController::class, 'filters']);
+        Route::get('work-orders/analytics', [WorkOrderController::class, 'analytics'])
+            ->middleware('throttle:30,1');
+        Route::get('work-orders/statistics', [WorkOrderController::class, 'statistics'])
+            ->middleware('throttle:30,1');
+        Route::get('work-orders/filters', [WorkOrderController::class, 'filters'])
+            ->middleware('throttle:60,1');
         Route::post('work-orders/{workOrder}/status', [WorkOrderController::class, 'updateStatus']);
         Route::get('work-orders/{workOrder}/history', [WorkOrderController::class, 'history']);
         // Work Order assignments
@@ -270,13 +291,16 @@ Route::prefix('ai/natural-language')->group(function () {
     Route::middleware('module:inventory')->group(function () {
         // Parts Catalog
         // Important: put specific routes BEFORE resource to avoid capturing 'overview' as {part}
-        Route::get('inventory/parts/overview', [InventoryPartController::class, 'overview']);
+        Route::get('inventory/parts/overview', [InventoryPartController::class, 'overview'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
         Route::apiResource('inventory/parts', InventoryPartController::class);
 
         // Stock Levels & Adjustments
         Route::get('inventory/stocks', [InventoryStockController::class, 'index']);
-        Route::post('inventory/stocks/adjust', [InventoryStockController::class, 'adjust']);
-        Route::post('inventory/stocks/transfer', [InventoryStockController::class, 'transfer']);
+        Route::post('inventory/stocks/adjust', [InventoryStockController::class, 'adjust'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
+        Route::post('inventory/stocks/transfer', [InventoryStockController::class, 'transfer'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
         Route::post('inventory/stocks/reserve', [InventoryStockController::class, 'reserve']);
         Route::post('inventory/stocks/release', [InventoryStockController::class, 'release']);
         Route::post('inventory/stocks/count', [InventoryStockController::class, 'count']);
@@ -289,22 +313,33 @@ Route::prefix('ai/natural-language')->group(function () {
 
         // Purchase Orders
         Route::get('inventory/purchase-orders', [InventoryPOController::class, 'index']);
-        Route::get('inventory/purchase-orders/overview', [InventoryPOController::class, 'overview']);
-        Route::post('inventory/purchase-orders', [InventoryPOController::class, 'store']);
+        Route::get('inventory/purchase-orders/overview', [InventoryPOController::class, 'overview'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
+        Route::post('inventory/purchase-orders', [InventoryPOController::class, 'store'])
+            ->middleware('throttle:30,1'); // 30 requests per minute
         Route::put('inventory/purchase-orders/{purchaseOrder}', [InventoryPOController::class, 'update']);
         Route::post('inventory/purchase-orders/{purchaseOrder}/receive', [InventoryPOController::class, 'receive']);
         Route::post('inventory/purchase-orders/approve', [InventoryPOController::class, 'approve']);
 
         // Analytics
-        Route::get('inventory/analytics/dashboard', [InventoryAnalyticsController::class, 'dashboard']);
-        Route::get('inventory/dashboard/overview', [InventoryDashboardController::class, 'overview']);
-        Route::get('inventory/analytics/abc-analysis', [InventoryAnalyticsController::class, 'abcAnalysis']);
-        Route::get('inventory/analytics/abc-analysis/export', [InventoryAnalyticsController::class, 'abcAnalysisExport']);
-        Route::get('inventory/analytics/kpis', [InventoryAnalyticsController::class, 'kpis']);
-        Route::get('inventory/analytics/turnover', [InventoryAnalyticsController::class, 'turnover']);
-        Route::get('inventory/analytics/turnover-by-category', [InventoryAnalyticsController::class, 'turnoverByCategory']);
-        Route::get('inventory/analytics/monthly-turnover-trend', [InventoryAnalyticsController::class, 'monthlyTurnoverTrend']);
-        Route::get('inventory/analytics/stock-aging', [InventoryAnalyticsController::class, 'stockAging']);
+        Route::get('inventory/analytics/dashboard', [InventoryAnalyticsController::class, 'dashboard'])
+            ->middleware('throttle:30,1'); // 30 requests per minute
+        Route::get('inventory/dashboard/overview', [InventoryDashboardController::class, 'overview'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
+        Route::get('inventory/analytics/abc-analysis', [InventoryAnalyticsController::class, 'abcAnalysis'])
+            ->middleware('throttle:30,1'); // 30 requests per minute
+        Route::get('inventory/analytics/abc-analysis/export', [InventoryAnalyticsController::class, 'abcAnalysisExport'])
+            ->middleware('throttle:10,1'); // 10 exports per minute
+        Route::get('inventory/analytics/kpis', [InventoryAnalyticsController::class, 'kpis'])
+            ->middleware('throttle:30,1'); // 30 requests per minute
+        Route::get('inventory/analytics/turnover', [InventoryAnalyticsController::class, 'turnover'])
+            ->middleware('throttle:30,1'); // 30 requests per minute
+        Route::get('inventory/analytics/turnover-by-category', [InventoryAnalyticsController::class, 'turnoverByCategory'])
+            ->middleware('throttle:30,1'); // 30 requests per minute
+        Route::get('inventory/analytics/monthly-turnover-trend', [InventoryAnalyticsController::class, 'monthlyTurnoverTrend'])
+            ->middleware('throttle:30,1'); // 30 requests per minute
+        Route::get('inventory/analytics/stock-aging', [InventoryAnalyticsController::class, 'stockAging'])
+            ->middleware('throttle:30,1'); // 30 requests per minute
     });
 
 // New: categories, templates, alerts
@@ -325,7 +360,8 @@ Route::prefix('ai/natural-language')->group(function () {
     // Maintenance module routes
     Route::prefix('maintenance')->group(function () {
         // Plans
-        Route::get('plans', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'index']);
+        Route::get('plans', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'index'])
+            ->middleware('throttle:60,1');
         Route::post('plans', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'store']);
         Route::get('plans/{maintenancePlan}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'show']);
         Route::put('plans/{maintenancePlan}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'update']);
@@ -340,7 +376,8 @@ Route::prefix('ai/natural-language')->group(function () {
         Route::delete('plans-checklists/{maintenancePlanChecklist}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansChecklistsController::class, 'destroy']);
 
         // Schedules
-        Route::get('schedules', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceController::class, 'index']);
+        Route::get('schedules', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceController::class, 'index'])
+            ->middleware('throttle:60,1');
         Route::post('schedules', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceController::class, 'store']);
         Route::get('schedules/{scheduleMaintenance}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceController::class, 'show']);
         Route::put('schedules/{scheduleMaintenance}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceController::class, 'update']);

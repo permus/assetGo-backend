@@ -16,9 +16,13 @@ return new class extends Migration {
             $table->integer('reserved')->default(0);
             $table->integer('available')->default(0);
             $table->decimal('average_cost', 12, 2)->default(0);
+            $table->timestamp('last_counted_at')->nullable();
+            $table->unsignedBigInteger('last_counted_by')->nullable();
+            $table->text('bin_location')->nullable();
             $table->timestamps();
             $table->unique(['company_id','part_id','location_id']);
             $table->index(['company_id','location_id']);
+            $table->index('last_counted_by');
         });
     }
 

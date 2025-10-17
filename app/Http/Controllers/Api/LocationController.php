@@ -542,19 +542,23 @@ class LocationController extends Controller
     public function hierarchy(Request $request)
     {
         $user = $request->user();
-        
-        $locations = Location::with(['type', 'children.type', 'assetSummary'])
-            ->forCompany($user->company_id)
-            ->whereNull('parent_id')
-            ->orderBy('name')
-            ->get();
+        $companyId = $user->company_id;
+        $cacheService = app(\App\Services\LocationCacheService::class);
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'hierarchy' => $this->buildHierarchyTree($locations)
-            ]
-        ]);
+        return $cacheService->getHierarchy($companyId, function() use ($companyId) {
+            $locations = Location::with(['type', 'children.type', 'assetSummary'])
+                ->forCompany($companyId)
+                ->whereNull('parent_id')
+                ->orderBy('name')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'hierarchy' => $this->buildHierarchyTree($locations)
+                ]
+            ]);
+        });
     }
 
     /**

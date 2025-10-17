@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Services\SettingsAuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -89,6 +90,15 @@ class CompanyController extends Controller
         if ($request->filled('name')) {
             $updateData['slug'] = Str::slug($request->name);
         }
+
+        // Log company update
+        $auditService = app(SettingsAuditService::class);
+        $auditService->logCompanyUpdate(
+            $company->toArray(),
+            $updateData,
+            $user->id,
+            $request->ip()
+        );
 
         $company->update($updateData);
 

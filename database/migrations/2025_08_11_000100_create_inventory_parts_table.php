@@ -14,11 +14,20 @@ return new class extends Migration {
             $table->string('part_number')->unique();
             $table->string('name');
             $table->text('description')->nullable();
+            $table->text('manufacturer')->nullable();
+            $table->text('maintenance_category')->nullable();
             $table->string('uom')->default('each');
             $table->decimal('unit_cost', 12, 2)->default(0);
+            $table->json('specifications')->nullable();
+            $table->json('compatible_assets')->nullable();
             $table->unsignedBigInteger('category_id')->nullable();
             $table->integer('reorder_point')->default(0);
             $table->integer('reorder_qty')->default(0);
+            $table->integer('minimum_stock')->nullable();
+            $table->integer('maximum_stock')->nullable();
+            $table->boolean('is_consumable')->nullable();
+            $table->boolean('usage_tracking')->nullable();
+            $table->unsignedBigInteger('preferred_supplier_id')->nullable();
             $table->string('barcode')->nullable();
             $table->string('image_path')->nullable();
             $table->string('status')->default('active'); // active|archived
@@ -27,6 +36,7 @@ return new class extends Migration {
             $table->timestamps();
             $table->softDeletes();
             $table->index(['company_id', 'part_number']);
+            $table->index('preferred_supplier_id');
         });
     }
 

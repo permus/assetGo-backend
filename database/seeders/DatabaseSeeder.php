@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -12,28 +11,77 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Step 1: Seed lookup/reference tables (no dependencies)
+        $this->command->info('========================================');
+        $this->command->info('Starting database seeding...');
+        $this->command->info('========================================');
+
+        // Phase 1: Lookup/Reference Data
+        $this->command->info('Phase 1: Lookup tables...');
         $this->call(LocationTypeSeeder::class);
         $this->call(AssetCategoriesSeeder::class);
         $this->call(AssetTypeSeeder::class);
         $this->call(AssetStatusSeeder::class);
         $this->call(ModuleDefinitionsSeeder::class);
-        
-        // Step 2: Seed Work Order meta tables (before WorkOrderSeeder)
         $this->call(WorkOrderStatusSeeder::class);
         $this->call(WorkOrderPrioritySeeder::class);
         $this->call(WorkOrderCategorySeeder::class);
+        $this->call(InventoryCategorySeeder::class);
         
-        // Step 3: Seed Company, Users, Roles (SupplierSeeder creates these if missing)
-        $this->call(SupplierSeeder::class); // Creates company & user if needed
+        // Phase 2: Core Data
+        $this->command->info('Phase 2: Core tables...');
+        $this->call(CompanySeeder::class);
         $this->call(RoleSeeder::class);
+        $this->call(PermissionSeeder::class);
+        $this->call(UserSeeder::class);
+        
+        // Phase 3: Company-specific Data
+        $this->command->info('Phase 3: Company data...');
+        $this->call(CompanyModuleSeeder::class);
         $this->call(DepartmentSeeder::class);
+        $this->call(LocationSeeder::class);
+        $this->call(LocationTemplateSeeder::class);
+        $this->call(SupplierSeeder::class);
+        $this->call(InventoryLocationSeeder::class);
         
-        // Step 4: Seed Work Orders (requires company, users, assets, locations)
-        // Note: WorkOrderSeeder will skip if no companies exist
+        // Phase 4: Assets & Inventory
+        $this->command->info('Phase 4: Assets & Inventory...');
+        $this->call(AssetSeeder::class);
+        $this->call(AssetTagSeeder::class);
+        $this->call(AssetImageSeeder::class);
+        $this->call(InventoryPartSeeder::class);
+        $this->call(InventoryStockSeeder::class);
+        
+        // Phase 5: Transactions
+        $this->command->info('Phase 5: Transactions...');
+        $this->call(AssetActivitySeeder::class);
+        $this->call(AssetTransferSeeder::class);
+        $this->call(InventoryTransactionSeeder::class);
+        $this->call(InventoryAlertSeeder::class);
+        $this->call(PurchaseOrderSeeder::class);
+        $this->call(PurchaseOrderItemSeeder::class);
+        $this->call(PurchaseOrderTemplateSeeder::class);
+        
+        // Phase 6: Maintenance & Work Orders
+        $this->command->info('Phase 6: Maintenance & Work Orders...');
+        $this->call(AssetMaintenanceScheduleSeeder::class);
+        $this->call(MaintenancePlanSeeder::class);
+        $this->call(MaintenancePlanChecklistSeeder::class);
+        $this->call(ScheduleMaintenanceSeeder::class);
+        $this->call(ScheduleMaintenanceAssignedSeeder::class);
         $this->call(WorkOrderSeeder::class);
+        $this->call(WorkOrderAssignmentSeeder::class);
+        $this->call(WorkOrderCommentSeeder::class);
+        $this->call(WorkOrderTimeLogSeeder::class);
+        $this->call(WorkOrderPartSeeder::class);
         
-        // Optional: Seed test data for reports
-        // $this->call(ReportsTestDataSeeder::class);
+        // Phase 7: Reports & Scopes
+        $this->command->info('Phase 7: Reports & Scopes...');
+        $this->call(ReportTemplateSeeder::class);
+        $this->call(ReportScheduleSeeder::class);
+        $this->call(UserLocationScopeSeeder::class);
+        
+        $this->command->info('========================================');
+        $this->command->info('Database seeding completed!');
+        $this->command->info('========================================');
     }
 }

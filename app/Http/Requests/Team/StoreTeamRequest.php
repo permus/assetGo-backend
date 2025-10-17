@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Team;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreTeamRequest extends FormRequest
 {
@@ -21,6 +22,38 @@ class StoreTeamRequest extends FormRequest
             'password' => ['nullable','string','min:8','max:72'],
             'password_confirmation' => ['required_with:password','same:password'],
         ];
+    }
+
+    /**
+     * Add cross-company validation
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function ($validator) {
+            $user = $this->user();
+            if (!$user) {
+                return;
+            }
+
+            // Validate role belongs to the same company
+            if ($this->filled('role_id')) {
+                $role = \App\Models\Role::find($this->role_id);
+                if ($role && $role->company_id !== $user->company_id) {
+                    $validator->errors()->add('role_id', 'The selected role does not belong to your company.');
+                }
+            }
+
+            // Validate locations belong to the same company
+            if ($this->filled('location_ids') && is_array($this->location_ids)) {
+                $invalidLocations = \App\Models\Location::whereIn('id', $this->location_ids)
+                    ->where('company_id', '!=', $user->company_id)
+                    ->count();
+
+                if ($invalidLocations > 0) {
+                    $validator->errors()->add('location_ids', 'One or more selected locations do not belong to your company.');
+                }
+            }
+        });
     }
 }
 

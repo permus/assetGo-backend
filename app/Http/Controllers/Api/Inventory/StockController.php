@@ -4,12 +4,20 @@ namespace App\Http\Controllers\Api\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Models\{InventoryStock, InventoryPart, Location, InventoryTransaction};
-use App\Services\InventoryService;
+use App\Services\{InventoryService, InventoryAuditService, InventoryCacheService};
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 
 class StockController extends Controller
 {
+    protected $auditService;
+    protected $cacheService;
+
+    public function __construct(InventoryAuditService $auditService, InventoryCacheService $cacheService)
+    {
+        $this->auditService = $auditService;
+        $this->cacheService = $cacheService;
+    }
     public function index(Request $request)
     {
         $companyId = $request->user()->company_id;
@@ -60,6 +68,24 @@ class StockController extends Controller
                     'user_id' => $request->user()->id,
                 ]
             );
+
+            // Log the adjustment
+            $part = InventoryPart::find($data['part_id']);
+            $this->auditService->logStockAdjustment(
+                $txn->id,
+                $data['part_id'],
+                $part->name,
+                $data['location_id'],
+                $data['type'],
+                $data['quantity'],
+                $request->user()->id,
+                $request->user()->email,
+                $request->user()->company_id,
+                $request->ip()
+            );
+
+            // Clear cache
+            $this->cacheService->clearStockCache($request->user()->company_id);
         } catch (InvalidArgumentException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
@@ -95,6 +121,23 @@ class StockController extends Controller
                     'user_id' => $request->user()->id,
                 ]
             );
+
+            // Log the transfer
+            $part = InventoryPart::find($data['part_id']);
+            $this->auditService->logStockTransfer(
+                $data['part_id'],
+                $part->name,
+                $data['from_location_id'],
+                $data['to_location_id'],
+                $data['quantity'],
+                $request->user()->id,
+                $request->user()->email,
+                $request->user()->company_id,
+                $request->ip()
+            );
+
+            // Clear cache
+            $this->cacheService->clearStockCache($request->user()->company_id);
         } catch (InvalidArgumentException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
@@ -114,6 +157,24 @@ class StockController extends Controller
             'reference' => $data['reference'] ?? null,
             'user_id' => $request->user()->id,
         ]);
+
+        // Log the reservation
+        $part = InventoryPart::find($data['part_id']);
+        $this->auditService->logStockReservation(
+            $data['part_id'],
+            $part->name,
+            $data['location_id'],
+            $data['quantity'],
+            'reserve',
+            $request->user()->id,
+            $request->user()->email,
+            $request->user()->company_id,
+            $request->ip()
+        );
+
+        // Clear cache
+        $this->cacheService->clearStockCache($request->user()->company_id);
+
         return response()->json(['success' => true, 'data' => $stock]);
     }
 
@@ -129,6 +190,24 @@ class StockController extends Controller
             'reference' => $data['reference'] ?? null,
             'user_id' => $request->user()->id,
         ]);
+
+        // Log the release
+        $part = InventoryPart::find($data['part_id']);
+        $this->auditService->logStockReservation(
+            $data['part_id'],
+            $part->name,
+            $data['location_id'],
+            $data['quantity'],
+            'release',
+            $request->user()->id,
+            $request->user()->email,
+            $request->user()->company_id,
+            $request->ip()
+        );
+
+        // Clear cache
+        $this->cacheService->clearStockCache($request->user()->company_id);
+
         return response()->json(['success' => true, 'data' => $stock]);
     }
 
@@ -144,6 +223,24 @@ class StockController extends Controller
             'notes' => $data['notes'] ?? null,
             'user_id' => $request->user()->id,
         ]);
+
+        // Log the physical count
+        $part = InventoryPart::find($data['part_id']);
+        $this->auditService->logStockCount(
+            $data['part_id'],
+            $part->name,
+            $data['location_id'],
+            $data['counted_quantity'],
+            $result['adjustment'],
+            $request->user()->id,
+            $request->user()->email,
+            $request->user()->company_id,
+            $request->ip()
+        );
+
+        // Clear cache
+        $this->cacheService->clearStockCache($request->user()->company_id);
+
         return response()->json(['success' => true, 'data' => $result]);
     }
 }

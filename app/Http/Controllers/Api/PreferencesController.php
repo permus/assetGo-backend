@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\SettingsAuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -52,12 +53,21 @@ class PreferencesController extends Controller
         }
 
         $user = $request->user();
-        $preferences = $user->preferences ?? [];
+        $oldPreferences = $user->preferences ?? [];
+        $preferences = $oldPreferences;
         foreach ($validator->validated() as $k => $v) {
             $preferences[$k] = $v;
         }
         $user->preferences = $preferences;
         $user->save();
+
+        // Log preference update
+        app(SettingsAuditService::class)->logPreferenceUpdate(
+            $oldPreferences,
+            $preferences,
+            $user->id,
+            $request->ip()
+        );
 
         return response()->json([
             'success' => true,

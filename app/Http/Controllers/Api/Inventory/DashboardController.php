@@ -4,17 +4,26 @@ namespace App\Http\Controllers\Api\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Models\{InventoryPart, InventoryStock, InventoryTransaction};
+use App\Services\InventoryCacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    protected $cacheService;
+
+    public function __construct(InventoryCacheService $cacheService)
+    {
+        $this->cacheService = $cacheService;
+    }
+
     public function overview(Request $request)
     {
         $companyId = $request->user()->company_id;
 
-        // Total inventory value: sum of on_hand * average_cost across all stocks
-        $totalValue = InventoryStock::forCompany($companyId)
+        return $this->cacheService->getAnalyticsDashboard($companyId, function () use ($companyId) {
+            // Total inventory value: sum of on_hand * average_cost across all stocks
+            $totalValue = InventoryStock::forCompany($companyId)
             ->select(DB::raw('SUM(on_hand * average_cost) as value'))
             ->value('value') ?? 0;
 
@@ -96,18 +105,19 @@ class DashboardController extends Controller
             ->distinct('inventory_parts.id')
             ->count('inventory_parts.id');
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'total_value' => round($totalValue, 2),
-                'total_parts' => $totalParts,
-                'low_stock_count' => $lowStock,
-                'out_of_stock_count' => $outOfStock,
-                // New fields
-                'average_turnover' => round($avgTurnover, 4), // times per year
-                'slow_moving_count' => $slowCount,
-            ]
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total_value' => round($totalValue, 2),
+                    'total_parts' => $totalParts,
+                    'low_stock_count' => $lowStock,
+                    'out_of_stock_count' => $outOfStock,
+                    // New fields
+                    'average_turnover' => round($avgTurnover, 4), // times per year
+                    'slow_moving_count' => $slowCount,
+                ]
+            ]);
+        });
     }
 }
 

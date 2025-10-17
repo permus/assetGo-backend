@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\Company;
 use App\Models\Role;
 use App\Models\Permission;
+use App\Http\Middleware\ThrottleLoginAttempts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -39,6 +40,18 @@ class AuthController extends Controller
                 'password' => Hash::make($request->password),
                 'user_type' => $request->user_type ?? 'owner',
                 'created_by' => null, // Self-registration, no creator
+                'preferences' => [
+                    'email_notifications' => true,
+                    'push_notifications' => true,
+                    'maintenance_alerts' => true,
+                    'work_order_updates' => true,
+                    'dashboard_layout' => 'grid',
+                    'items_per_page' => 20,
+                    'auto_refresh' => false,
+                    'compact_view' => false,
+                    'show_avatars' => true,
+                    'dark_mode' => false,
+                ],
             ]);
 
             // Create company with user as owner
@@ -70,10 +83,17 @@ class AuthController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            // Log detailed error for debugging
+            \Log::error('Registration failed: ' . $e->getMessage(), [
+                'email' => $request->email,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Registration failed',
-                'error' => $e->getMessage()
+                'message' => 'Registration failed. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred during registration'
             ], 500);
         }
     }
@@ -84,6 +104,17 @@ class AuthController extends Controller
     public function login(LoginRequest $request)
     {
         if (!Auth::attempt($request->only('email', 'password'))) {
+            // Increment failed login attempts
+            ThrottleLoginAttempts::incrementAttempts($request->email);
+            
+            // Log failed login attempt
+            \Log::warning('Failed login attempt', [
+                'email' => $request->email,
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'timestamp' => now()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid credentials'
@@ -91,16 +122,28 @@ class AuthController extends Controller
         }
 
         $user = Auth::user();
+        
+        // Clear failed login attempts on successful login
+        ThrottleLoginAttempts::clearAttempts($request->email);
+        
+        // Log successful login
+        \Log::info('Successful login', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'timestamp' => now()
+        ]);
 
         // Check if email is verified
-        // if (!$user->hasVerifiedEmail()) {
-        //     return response()->json([
-        //         'success' => false,
-        //         'message' => 'Please verify your email address before logging in.',
-        //         'email_verified' => false,
-        //         'user_id' => $user->id
-        //     ], 403);
-        // }
+        if (!$user->hasVerifiedEmail()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please verify your email address before logging in.',
+                'email_verified' => false,
+                'user_id' => $user->id
+            ], 403);
+        }
 
         $token = $user->createToken('auth_token')->plainTextToken;
 

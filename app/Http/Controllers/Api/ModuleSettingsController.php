@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CompanyModule;
 use App\Models\ModuleDefinition;
+use App\Services\SettingsAuditService;
 use Illuminate\Http\Request;
 
 class ModuleSettingsController extends Controller
@@ -59,8 +60,14 @@ class ModuleSettingsController extends Controller
             ['is_enabled' => true]
         );
 
-        // Optionally initialize permissions here via service
-        // app(\App\Services\ModuleService::class)->initializeUserModulePermissions($company, $module);
+        // Log module enable
+        app(SettingsAuditService::class)->logModuleToggle(
+            $module->id,
+            $module->display_name,
+            true,
+            $user->id,
+            $request->ip()
+        );
 
         return response()->json(['success' => true, 'message' => 'Module enabled']);
     }
@@ -83,6 +90,15 @@ class ModuleSettingsController extends Controller
         CompanyModule::updateOrCreate(
             ['company_id' => $company->id, 'module_id' => $module->id],
             ['is_enabled' => false]
+        );
+
+        // Log module disable
+        app(SettingsAuditService::class)->logModuleToggle(
+            $module->id,
+            $module->display_name,
+            false,
+            $user->id,
+            $request->ip()
         );
 
         return response()->json(['success' => true, 'message' => 'Module disabled']);

@@ -23,7 +23,13 @@ class ChangePasswordRequest extends FormRequest
     {
         return [
             'current_password' => 'required|string',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed',
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/', // At least 1 uppercase, 1 lowercase, 1 number
+            ],
         ];
     }
 
@@ -37,6 +43,7 @@ class ChangePasswordRequest extends FormRequest
             'password.required' => 'New password is required',
             'password.min' => 'New password must be at least 8 characters long',
             'password.confirmed' => 'Password confirmation does not match',
+            'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
         ];
     }
 }

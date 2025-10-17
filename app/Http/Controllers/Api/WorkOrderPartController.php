@@ -77,7 +77,7 @@ class WorkOrderPartController extends Controller
     private function authorizeCompany(Request $request, WorkOrder $workOrder): void
     {
         if ($workOrder->company_id !== $request->user()->company_id) {
-            abort(response()->json(['success' => false, 'message' => 'Work order not found'], 404));
+            abort(404, 'Work order not found');
         }
     }
 }

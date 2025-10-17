@@ -54,4 +54,35 @@ class UpdateWorkOrderRequest extends FormRequest
             'notes.max' => 'Notes cannot exceed 1000 characters.',
         ];
     }
+
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            $companyId = $this->user()->company_id;
+
+            // Validate asset belongs to the same company
+            if ($this->filled('asset_id')) {
+                $asset = \App\Models\Asset::find($this->asset_id);
+                if ($asset && $asset->company_id !== $companyId) {
+                    $validator->errors()->add('asset_id', 'The selected asset does not belong to your company.');
+                }
+            }
+
+            // Validate location belongs to the same company
+            if ($this->filled('location_id')) {
+                $location = \App\Models\Location::find($this->location_id);
+                if ($location && $location->company_id !== $companyId) {
+                    $validator->errors()->add('location_id', 'The selected location does not belong to your company.');
+                }
+            }
+
+            // Validate assigned user belongs to the same company
+            if ($this->filled('assigned_to')) {
+                $user = \App\Models\User::find($this->assigned_to);
+                if ($user && $user->company_id !== $companyId) {
+                    $validator->errors()->add('assigned_to', 'The selected user does not belong to your company.');
+                }
+            }
+        });
+    }
 }

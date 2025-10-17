@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\SettingsAuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -37,8 +38,17 @@ class CompanySettingsController extends Controller
             ], 422);
         }
 
+        $oldCurrency = $company->currency;
         $company->currency = strtoupper($request->currency);
         $company->save();
+
+        // Log currency change
+        app(SettingsAuditService::class)->logCurrencyChange(
+            $oldCurrency,
+            $company->currency,
+            $user->id,
+            $request->ip()
+        );
 
         return response()->json([
             'success' => true,
@@ -90,6 +100,9 @@ class CompanySettingsController extends Controller
         // Reuse 'logo' column for URL/path
         $company->logo = $publicUrl;
         $company->save();
+
+        // Log logo upload
+        app(SettingsAuditService::class)->logLogoUpload($publicUrl, $user->id, $request->ip());
 
         return response()->json([
             'success' => true,

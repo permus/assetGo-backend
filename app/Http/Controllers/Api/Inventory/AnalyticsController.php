@@ -4,11 +4,18 @@ namespace App\Http\Controllers\Api\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Models\{InventoryStock, InventoryPart, InventoryTransaction};
+use App\Services\InventoryCacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class AnalyticsController extends Controller
 {
+    protected $cacheService;
+
+    public function __construct(InventoryCacheService $cacheService)
+    {
+        $this->cacheService = $cacheService;
+    }
     /**
      * GET /api/inventory/analytics/kpis
      * Returns key KPIs: inventory turnover, avg days on hand, monthly carrying cost, dead stock value.
@@ -24,7 +31,8 @@ class AnalyticsController extends Controller
         $annualCarryingRate = (float) $request->query('carrying_rate', 0.0);
         $deadDays = (int) $request->query('dead_days', 90);
 
-        $months = match ($period) {
+        return $this->cacheService->getKPIs($companyId, $period, function () use ($companyId, $period, $annualCarryingRate, $deadDays) {
+            $months = match ($period) {
             '1m' => 1,
             '3m' => 3,
             '6m' => 6,
@@ -104,20 +112,21 @@ class AnalyticsController extends Controller
             }
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'period' => $period,
-                'turnover' => $turnover,
-                'days_on_hand' => $daysOnHand,
-                'avg_inventory_value' => round($avgInventoryValue, 2),
-                'carrying_cost_monthly' => $monthlyCarryingCost,
-                'carrying_rate_annual' => round($annualCarryingRate, 4),
-                'dead_stock_value' => round($deadValue, 2),
-                'dead_stock_items' => $deadItems,
-                'dead_days_threshold' => $deadDays,
-            ]
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'period' => $period,
+                    'turnover' => $turnover,
+                    'days_on_hand' => $daysOnHand,
+                    'avg_inventory_value' => round($avgInventoryValue, 2),
+                    'carrying_cost_monthly' => $monthlyCarryingCost,
+                    'carrying_rate_annual' => round($annualCarryingRate, 4),
+                    'dead_stock_value' => round($deadValue, 2),
+                    'dead_stock_items' => $deadItems,
+                    'dead_days_threshold' => $deadDays,
+                ]
+            ]);
+        });
     }
     public function dashboard(Request $request)
     {

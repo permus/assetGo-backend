@@ -11,6 +11,8 @@ use App\Models\WorkOrder;
 use App\Models\WorkOrderTimeLog;
 use App\Models\Location;
 use App\Mail\TeamInvitationMail;
+use App\Services\TeamCacheService;
+use App\Services\TeamAuditService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +23,15 @@ use Illuminate\Support\Str;
 
 class TeamController extends Controller
 {
+    protected TeamCacheService $cacheService;
+    protected TeamAuditService $auditService;
+
+    public function __construct(TeamCacheService $cacheService, TeamAuditService $auditService)
+    {
+        $this->cacheService = $cacheService;
+        $this->auditService = $auditService;
+    }
+
     /**
      * Get all team members for the authenticated user's company
      */
@@ -216,6 +227,12 @@ class TeamController extends Controller
 
         $teamMember->load(['roles.permissions', 'locations:id,name,parent_id']);
 
+        // Audit logging
+        $this->auditService->logCreated($teamMember, $user, $request->ip());
+
+        // Clear cache
+        $this->cacheService->clearCompanyCache($user->company_id);
+
         return response()->json([
             'success' => true,
             'message' => 'Team member invited successfully',
@@ -270,6 +287,9 @@ class TeamController extends Controller
             ], 404);
         }
 
+        // Capture original state for audit
+        $originalData = $teamMember->toArray();
+
         // Update basic info
         $teamMember->update($request->only(['first_name', 'last_name', 'email', 'hourly_rate']));
 
@@ -302,6 +322,21 @@ class TeamController extends Controller
         }
 
         $teamMember->load(['roles.permissions', 'locations:id,name,parent_id']);
+
+        // Track changes for audit
+        $changes = [];
+        $updatedData = $teamMember->toArray();
+        foreach (['first_name', 'last_name', 'email', 'hourly_rate'] as $field) {
+            if (isset($originalData[$field], $updatedData[$field]) && $originalData[$field] != $updatedData[$field]) {
+                $changes[$field] = [$originalData[$field], $updatedData[$field]];
+            }
+        }
+
+        // Audit logging
+        $this->auditService->logUpdated($teamMember, $changes, $user, $request->ip());
+
+        // Clear cache
+        $this->cacheService->clearCompanyCache($user->company_id);
 
         return response()->json([
             'success' => true,
@@ -366,7 +401,13 @@ class TeamController extends Controller
             ], 404);
         }
 
+        // Audit logging before deletion
+        $this->auditService->logDeleted($teamMember, $user, $request->ip());
+
         $teamMember->delete();
+
+        // Clear cache
+        $this->cacheService->clearCompanyCache($user->company_id);
 
         return response()->json([
             'success' => true,
@@ -399,6 +440,9 @@ class TeamController extends Controller
         // Send invitation email
         $this->sendInvitationEmail($teamMember, $password, false);
 
+        // Audit logging
+        $this->auditService->logInvitationResent($teamMember, $user, $request->ip());
+
         return response()->json([
             'success' => true,
             'message' => 'Invitation email sent successfully'
@@ -411,36 +455,13 @@ class TeamController extends Controller
     public function statistics(Request $request): JsonResponse
     {
         $user = $request->user();
-        $company = $user->company;
-
-        $totalTeamMembers = $company->users()->where('user_type', 'team')->count();
-        $activeTeamMembers = $company->users()->where('user_type', 'team')->whereNotNull('email_verified_at')->count();
-        $pendingTeamMembers = $company->users()->where('user_type', 'team')->whereNull('email_verified_at')->count();
-
-        // Aggregate work order assignment counts for this company
-        $assignmentAggregates = \App\Models\WorkOrderAssignment::join('work_orders', 'work_order_assignments.work_order_id', '=', 'work_orders.id')
-            ->where('work_orders.company_id', $user->company_id)
-            ->selectRaw('COUNT(*) as total_count')
-            ->selectRaw("SUM(CASE WHEN work_order_assignments.status IN ('assigned','accepted') THEN 1 ELSE 0 END) as active_count")
-            ->selectRaw("SUM(CASE WHEN work_order_assignments.status = 'completed' THEN 1 ELSE 0 END) as completed_count")
-            ->first();
-
-        $totalAssignments = (int) ($assignmentAggregates->total_count ?? 0);
-        $activeAssignments = (int) ($assignmentAggregates->active_count ?? 0);
-        $completedAssignments = (int) ($assignmentAggregates->completed_count ?? 0);
-        $completionRate = $totalAssignments > 0 ? round(($completedAssignments / $totalAssignments) * 100, 2) : 0;
+        
+        // Use cached statistics
+        $statistics = $this->cacheService->getStatistics($user->company_id);
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'total_team_members' => $totalTeamMembers,
-                'active_team_members' => $activeTeamMembers,
-                'pending_team_members' => $pendingTeamMembers,
-                'assigned_work_orders_total_count' => $totalAssignments,
-                'assigned_work_orders_active_count' => $activeAssignments,
-                'assigned_work_orders_completed_count' => $completedAssignments,
-                'completion_rate' => $completionRate,
-            ]
+            'data' => $statistics
         ]);
     }
 
@@ -453,77 +474,13 @@ class TeamController extends Controller
     {
         $companyId = $request->user()->company_id;
         $days = (int) $request->get('date_range', 30);
-        $end = now();
-        $start = (clone $end)->subDays(max(1, $days));
 
-        // Productivity: completed assignments / total assignments in range
-        $totalAssigned = WorkOrderAssignment::join('work_orders', 'work_order_assignments.work_order_id', '=', 'work_orders.id')
-            ->where('work_orders.company_id', $companyId)
-            ->whereBetween('work_order_assignments.created_at', [$start, $end])
-            ->count();
-
-        $completedAssigned = WorkOrderAssignment::join('work_orders', 'work_order_assignments.work_order_id', '=', 'work_orders.id')
-            ->where('work_orders.company_id', $companyId)
-            ->where('work_order_assignments.status', 'completed')
-            ->whereBetween('work_order_assignments.updated_at', [$start, $end])
-            ->count();
-
-        $productivity = $totalAssigned > 0 ? round(($completedAssigned / $totalAssigned) * 100, 2) : 0.0;
-
-        // Avg completion time (days) for work orders completed in range
-        $avgCompletionDays = (float) (WorkOrder::where('company_id', $companyId)
-            ->whereNotNull('completed_at')
-            ->whereBetween('completed_at', [$start, $end])
-            ->selectRaw('AVG(TIMESTAMPDIFF(DAY, created_at, completed_at)) as avg_days')
-            ->value('avg_days') ?? 0);
-        $avgCompletionDays = round($avgCompletionDays, 1);
-
-        // On-time rate: completed by due_date among completed in range
-        $completedInRange = WorkOrder::where('company_id', $companyId)
-            ->whereNotNull('completed_at')
-            ->whereBetween('completed_at', [$start, $end]);
-        $completedCount = (int) $completedInRange->count();
-        $onTimeCount = (int) WorkOrder::where('company_id', $companyId)
-            ->whereNotNull('completed_at')
-            ->whereNotNull('due_date')
-            ->whereBetween('completed_at', [$start, $end])
-            ->whereColumn('completed_at', '<=', 'due_date')
-            ->count();
-        $onTimeRate = $completedCount > 0 ? round(($onTimeCount / $completedCount) * 100, 2) : 0.0;
-
-        // Labor cost from time logs in range
-        $laborCost = (float) WorkOrderTimeLog::where('company_id', $companyId)
-            ->whereBetween('start_time', [$start, $end])
-            ->selectRaw('COALESCE(SUM(COALESCE(total_cost, (duration_minutes/60)*hourly_rate)), 0) as total')
-            ->value('total');
-
-        // Top performers by completed assignments
-        $topPerformers = WorkOrderAssignment::join('work_orders', 'work_order_assignments.work_order_id', '=', 'work_orders.id')
-            ->join('users', 'users.id', '=', 'work_order_assignments.user_id')
-            ->where('work_orders.company_id', $companyId)
-            ->where('work_order_assignments.status', 'completed')
-            ->whereBetween('work_order_assignments.updated_at', [$start, $end])
-            ->groupBy('work_order_assignments.user_id', 'users.first_name', 'users.last_name')
-            ->select([
-                'work_order_assignments.user_id as user_id',
-                DB::raw('users.first_name as first_name'),
-                DB::raw('users.last_name as last_name'),
-                DB::raw('COUNT(*) as completed_count'),
-            ])
-            ->orderByDesc('completed_count')
-            ->limit(5)
-            ->get();
+        // Use cached analytics
+        $analytics = $this->cacheService->getAnalytics($companyId, $days);
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'date_range_days' => $days,
-                'productivity_rate_percent' => $productivity,
-                'on_time_rate_percent' => $onTimeRate,
-                'avg_completion_days' => $avgCompletionDays,
-                'labor_cost_total' => round($laborCost, 2),
-                'top_performers' => $topPerformers,
-            ],
+            'data' => $analytics,
         ]);
     }
 

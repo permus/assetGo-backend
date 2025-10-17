@@ -1561,59 +1561,62 @@ class AssetController extends Controller
     public function statistics(Request $request)
     {
         $companyId = $request->user()->company_id;
+        $cacheService = app(\App\Services\AssetCacheService::class);
 
-        // Basic asset counts
-        $totalAssets = Asset::where('company_id', $companyId)->count();
-        $activeAssets = Asset::where('company_id', $companyId)->where('status', 'active')->count();
-        $inactiveAssets = Asset::where('company_id', $companyId)->where('status', '!=', 'active')->count();
+        return $cacheService->getStatistics($companyId, function() use ($companyId) {
+            // Basic asset counts
+            $totalAssets = Asset::where('company_id', $companyId)->count();
+            $activeAssets = Asset::where('company_id', $companyId)->where('status', 'active')->count();
+            $inactiveAssets = Asset::where('company_id', $companyId)->where('status', '!=', 'active')->count();
 
-        $maintenanceStatus = AssetStatus::where('name', 'Maintenance')->first();
-        $maintenanceAssets = 0;
-        if ($maintenanceStatus) {
-            $maintenanceAssets = Asset::where('company_id', $companyId)
-                ->where('status', $maintenanceStatus->id) // Maintenance status
-                ->count();
-        }
-
-
-        // Financial statistics
-        $totalValue = Asset::where('company_id', $companyId)->sum('purchase_price');
-        $totalHealth = Asset::where('company_id', $companyId)->sum('health_score');
-        $averageHealth = $totalAssets > 0 ? round($totalHealth / $totalAssets, 2) : 0;
+            $maintenanceStatus = AssetStatus::where('name', 'Maintenance')->first();
+            $maintenanceAssets = 0;
+            if ($maintenanceStatus) {
+                $maintenanceAssets = Asset::where('company_id', $companyId)
+                    ->where('status', $maintenanceStatus->id) // Maintenance status
+                    ->count();
+            }
 
 
+            // Financial statistics
+            $totalValue = Asset::where('company_id', $companyId)->sum('purchase_price');
+            $totalHealth = Asset::where('company_id', $companyId)->sum('health_score');
+            $averageHealth = $totalAssets > 0 ? round($totalHealth / $totalAssets, 2) : 0;
 
-        // Category breakdown
-        $categoryBreakdown = Asset::where('company_id', $companyId)
-            ->join('asset_categories', 'assets.category_id', '=', 'asset_categories.id')
-            ->selectRaw('asset_categories.name, COUNT(*) as count')
-            ->groupBy('asset_categories.id', 'asset_categories.name')
-            ->pluck('count', 'name')
-            ->toArray();
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                // Basic counts
-                'total_assets' => $totalAssets,
-                'active_assets' => $activeAssets,
-                'inactive_assets' => $inactiveAssets,
 
-                // Maintenance statistics
-                'maintenance' => $maintenanceAssets,
+            // Category breakdown
+            $categoryBreakdown = Asset::where('company_id', $companyId)
+                ->join('asset_categories', 'assets.category_id', '=', 'asset_categories.id')
+                ->selectRaw('asset_categories.name, COUNT(*) as count')
+                ->groupBy('asset_categories.id', 'asset_categories.name')
+                ->pluck('count', 'name')
+                ->toArray();
 
-                // Financial statistics
-                'total_asset_value' => $totalValue,
-                'total_asset_health' => $totalHealth,
-                'average_health_score' => $averageHealth,
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    // Basic counts
+                    'total_assets' => $totalAssets,
+                    'active_assets' => $activeAssets,
+                    'inactive_assets' => $inactiveAssets,
 
-                // Breakdowns
-                'category_breakdown' => $categoryBreakdown,
+                    // Maintenance statistics
+                    'maintenance' => $maintenanceAssets,
 
-                // Legacy field for backward compatibility
-                'maintenance_count' => $maintenanceAssets, // Now correctly shows assets under maintenance
-            ]
-        ]);
+                    // Financial statistics
+                    'total_asset_value' => $totalValue,
+                    'total_asset_health' => $totalHealth,
+                    'average_health_score' => $averageHealth,
+
+                    // Breakdowns
+                    'category_breakdown' => $categoryBreakdown,
+
+                    // Legacy field for backward compatibility
+                    'maintenance_count' => $maintenanceAssets, // Now correctly shows assets under maintenance
+                ]
+            ]);
+        });
     }
 
     /**
@@ -1704,6 +1707,9 @@ class AssetController extends Controller
     public function analytics(Request $request)
     {
         $companyId = $request->user()->company_id;
+        $cacheService = app(\App\Services\AssetCacheService::class);
+
+        return $cacheService->getAnalytics($companyId, function() use ($companyId, $request) {
         $totalAssets = \App\Models\Asset::withTrashed()->where('company_id', $companyId)->count();
         // Count active assets based on the new is_active flag when present; fall back to non-archived
         $activeAssets = \App\Models\Asset::where('company_id', $companyId)
@@ -1729,6 +1735,7 @@ class AssetController extends Controller
                 'archived_by_month' => $archivedByMonth,
             ]
         ]);
+        });
     }
 
     /**

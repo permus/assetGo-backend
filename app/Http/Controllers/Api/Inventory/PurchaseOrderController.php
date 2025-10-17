@@ -4,47 +4,58 @@ namespace App\Http\Controllers\Api\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Models\{PurchaseOrder, PurchaseOrderItem, InventoryPart, Supplier};
-use App\Services\InventoryService;
+use App\Services\{InventoryService, InventoryAuditService, InventoryCacheService};
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
 class PurchaseOrderController extends Controller
 {
+    protected $auditService;
+    protected $cacheService;
+
+    public function __construct(InventoryAuditService $auditService, InventoryCacheService $cacheService)
+    {
+        $this->auditService = $auditService;
+        $this->cacheService = $cacheService;
+    }
+
     public function overview(Request $request)
     {
         $companyId = $request->user()->company_id;
 
-        $statusCounts = DB::table('purchase_orders')
-            ->select('status', DB::raw('COUNT(*) as count'))
-            ->where('company_id', $companyId)
-            ->groupBy('status')
-            ->pluck('count', 'status');
+        return $this->cacheService->getPurchaseOrderOverview($companyId, function () use ($companyId) {
+            $statusCounts = DB::table('purchase_orders')
+                ->select('status', DB::raw('COUNT(*) as count'))
+                ->where('company_id', $companyId)
+                ->groupBy('status')
+                ->pluck('count', 'status');
 
-        $totalPOs = DB::table('purchase_orders')
-            ->where('company_id', $companyId)
-            ->count();
+            $totalPOs = DB::table('purchase_orders')
+                ->where('company_id', $companyId)
+                ->count();
 
-        $totalValue = DB::table('purchase_orders')
-            ->where('company_id', $companyId)
-            ->select(DB::raw('SUM(total) as v'))
-            ->value('v') ?? 0;
+            $totalValue = DB::table('purchase_orders')
+                ->where('company_id', $companyId)
+                ->select(DB::raw('SUM(total) as v'))
+                ->value('v') ?? 0;
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'total_pos' => $totalPOs,
-                'draft' => (int)($statusCounts['draft'] ?? 0),
-                'pending' => (int)($statusCounts['pending'] ?? 0),
-                'approved' => (int)($statusCounts['approved'] ?? 0),
-                'ordered' => (int)($statusCounts['ordered'] ?? 0),
-                'received' => (int)($statusCounts['received'] ?? 0),
-                'closed' => (int)($statusCounts['closed'] ?? 0),
-                'rejected' => (int)($statusCounts['rejected'] ?? 0),
-                'cancelled' => (int)($statusCounts['cancelled'] ?? 0),
-                'total_value' => round((float)$totalValue, 2),
-            ]
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total_pos' => $totalPOs,
+                    'draft' => (int)($statusCounts['draft'] ?? 0),
+                    'pending' => (int)($statusCounts['pending'] ?? 0),
+                    'approved' => (int)($statusCounts['approved'] ?? 0),
+                    'ordered' => (int)($statusCounts['ordered'] ?? 0),
+                    'received' => (int)($statusCounts['received'] ?? 0),
+                    'closed' => (int)($statusCounts['closed'] ?? 0),
+                    'rejected' => (int)($statusCounts['rejected'] ?? 0),
+                    'cancelled' => (int)($statusCounts['cancelled'] ?? 0),
+                    'total_value' => round((float)$totalValue, 2),
+                ]
+            ]);
+        });
     }
     public function index(Request $request)
     {
@@ -135,6 +146,21 @@ class PurchaseOrderController extends Controller
             ]);
         }
 
+        // Log the creation
+        $this->auditService->logPurchaseOrderCreated(
+            $po->id,
+            $po->po_number,
+            $data['vendor_name'],
+            $total,
+            $request->user()->id,
+            $request->user()->email,
+            $companyId,
+            $request->ip()
+        );
+
+        // Clear cache
+        $this->cacheService->clearPurchaseOrderCache($companyId);
+
         return response()->json(['success' => true, 'data' => $po->load('items','supplier')], 201);
     }
 
@@ -151,7 +177,32 @@ class PurchaseOrderController extends Controller
             'terms' => 'sometimes|nullable|string',
             'notes' => 'sometimes|nullable|string',
         ]);
+        
+        $changes = [];
+        foreach ($data as $key => $value) {
+            if ($purchaseOrder->$key != $value) {
+                $changes[$key] = ['old' => $purchaseOrder->$key, 'new' => $value];
+            }
+        }
+        
         $purchaseOrder->update($data);
+
+        // Log the update
+        if (!empty($changes)) {
+            $this->auditService->logPurchaseOrderUpdated(
+                $purchaseOrder->id,
+                $purchaseOrder->po_number,
+                $changes,
+                $request->user()->id,
+                $request->user()->email,
+                $request->user()->company_id,
+                $request->ip()
+            );
+        }
+
+        // Clear cache
+        $this->cacheService->clearPurchaseOrderCache($request->user()->company_id);
+
         return response()->json(['success' => true, 'data' => $purchaseOrder->fresh(['supplier','items'])]);
     }
 
@@ -220,6 +271,21 @@ class PurchaseOrderController extends Controller
             $purchaseOrder->update(['status' => 'ordered']);
         }
 
+        // Log the receiving
+        $this->auditService->logPurchaseOrderReceived(
+            $purchaseOrder->id,
+            $purchaseOrder->po_number,
+            $data['items'],
+            $request->user()->id,
+            $request->user()->email,
+            $request->user()->company_id,
+            $request->ip()
+        );
+
+        // Clear caches (both PO and stock)
+        $this->cacheService->clearPurchaseOrderCache($request->user()->company_id);
+        $this->cacheService->clearStockCache($request->user()->company_id);
+
         return response()->json(['success' => true, 'data' => $purchaseOrder->fresh('items')]);
     }
 
@@ -234,11 +300,32 @@ class PurchaseOrderController extends Controller
         if ($po->company_id !== $request->user()->company_id) {
             return response()->json(['success' => false, 'message' => 'Not found'], 404);
         }
+        
+        $oldStatus = $po->status;
+        
         if ($data['approve']) {
             $po->update(['status' => 'approved', 'approved_by' => $request->user()->id, 'approved_at' => now()]);
+            $newStatus = 'approved';
         } else {
             $po->update(['status' => 'rejected', 'reject_comment' => $data['comment'] ?? null]);
+            $newStatus = 'rejected';
         }
+
+        // Log the approval/rejection
+        $this->auditService->logPurchaseOrderApproved(
+            $po->id,
+            $po->po_number,
+            $oldStatus,
+            $newStatus,
+            $request->user()->id,
+            $request->user()->email,
+            $request->user()->company_id,
+            $request->ip()
+        );
+
+        // Clear cache
+        $this->cacheService->clearPurchaseOrderCache($request->user()->company_id);
+
         return response()->json(['success' => true, 'data' => $po]);
     }
 }
