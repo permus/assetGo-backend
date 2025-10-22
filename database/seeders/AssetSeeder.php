@@ -37,11 +37,16 @@ class AssetSeeder extends Seeder
             ['name' => 'iPhone 13 Pro', 'manufacturer' => 'Apple', 'model' => 'iPhone 13 Pro'],
             ['name' => 'Samsung Monitor 27"', 'manufacturer' => 'Samsung', 'model' => 'S27R750'],
             ['name' => 'Herman Miller Chair', 'manufacturer' => 'Herman Miller', 'model' => 'Aeron'],
+            ['name' => 'Lenovo ThinkPad', 'manufacturer' => 'Lenovo', 'model' => 'ThinkPad X1'],
+            ['name' => 'MacBook Pro', 'manufacturer' => 'Apple', 'model' => 'MacBook Pro 16"'],
+            ['name' => 'HP Printer LaserJet', 'manufacturer' => 'HP', 'model' => 'LaserJet Pro'],
+            ['name' => 'Cisco Switch', 'manufacturer' => 'Cisco', 'model' => 'Catalyst 2960'],
+            ['name' => 'Ergonomic Desk', 'manufacturer' => 'Steelcase', 'model' => 'Series 7'],
         ];
 
         $counter = 1;
         foreach ($assetTemplates as $template) {
-            for ($i = 1; $i <= 2; $i++) {
+            for ($i = 1; $i <= 3; $i++) {
                 Asset::create([
                     'asset_id' => 'AST-' . str_pad($counter, 6, '0', STR_PAD_LEFT),
                     'name' => $template['name'] . ' #' . $i,

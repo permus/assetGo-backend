@@ -25,7 +25,6 @@ class DatabaseSeeder extends Seeder
         $this->call(WorkOrderStatusSeeder::class);
         $this->call(WorkOrderPrioritySeeder::class);
         $this->call(WorkOrderCategorySeeder::class);
-        $this->call(InventoryCategorySeeder::class);
         
         // Phase 2: Core Data
         $this->command->info('Phase 2: Core tables...');
@@ -41,6 +40,7 @@ class DatabaseSeeder extends Seeder
         $this->call(LocationSeeder::class);
         $this->call(LocationTemplateSeeder::class);
         $this->call(SupplierSeeder::class);
+        $this->call(InventoryCategorySeeder::class);
         $this->call(InventoryLocationSeeder::class);
         
         // Phase 4: Assets & Inventory
@@ -78,7 +78,23 @@ class DatabaseSeeder extends Seeder
         $this->command->info('Phase 7: Reports & Scopes...');
         $this->call(ReportTemplateSeeder::class);
         $this->call(ReportScheduleSeeder::class);
+        $this->call(ReportRunSeeder::class);
         $this->call(UserLocationScopeSeeder::class);
+        
+        // Phase 8: Import Data
+        $this->command->info('Phase 8: Import Data...');
+        $this->call(ImportSessionSeeder::class);
+        $this->call(ImportFileSeeder::class);
+        $this->call(ImportMappingSeeder::class);
+        
+        // Phase 9: AI & Analytics
+        $this->command->info('Phase 9: AI & Analytics...');
+        $this->call(AIRecognitionHistorySeeder::class);
+        $this->call(AITrainingDataSeeder::class);
+        $this->call(AIAnalyticsHistorySeeder::class);
+        $this->call(PredictiveMaintenanceSeeder::class);
+        $this->call(AIRecommendationSeeder::class);
+        $this->call(AIAnalyticsRunSeeder::class);
         
         $this->command->info('========================================');
         $this->command->info('Database seeding completed!');

@@ -111,10 +111,10 @@ class SupplierSeeder extends Seeder
         }
 
         // Create additional random suppliers using factory
-        Supplier::factory(7)->create([
+        Supplier::factory(17)->create([
             'company_id' => $company->id
         ]);
 
-        $this->command->info('Suppliers seeded successfully!');
+        $this->command->info('Created ' . Supplier::where('company_id', $company->id)->count() . ' suppliers successfully!');
     }
 }

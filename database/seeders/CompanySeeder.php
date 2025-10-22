@@ -28,6 +28,7 @@ class CompanySeeder extends Seeder
             ]
         );
 
+        // Create main demo company
         $company = Company::create([
             'name' => 'AssetGo Demo Company',
             'slug' => 'assetgo-demo',
@@ -48,5 +49,42 @@ class CompanySeeder extends Seeder
 
         $owner->update(['company_id' => $company->id]);
         $this->command->info("Created company: {$company->name}");
+
+        // Create additional companies for testing
+        $industries = ['Manufacturing', 'Healthcare', 'Education', 'Retail', 'Construction', 'Transportation', 'Finance', 'Hospitality'];
+        $businessTypes = ['Enterprise', 'SMB', 'Startup', 'Non-Profit'];
+        
+        foreach (range(1, 19) as $index) {
+            $companyOwner = User::create([
+                'first_name' => fake()->firstName(),
+                'last_name' => fake()->lastName(),
+                'email' => 'owner' . $index . '@company' . $index . '.com',
+                'user_type' => 'admin',
+                'password' => bcrypt('password'),
+                'email_verified_at' => now(),
+            ]);
+
+            $newCompany = Company::create([
+                'name' => fake()->company(),
+                'slug' => fake()->unique()->slug(),
+                'owner_id' => $companyOwner->id,
+                'subscription_status' => fake()->randomElement(['active', 'trial', 'suspended']),
+                'subscription_expires_at' => now()->addMonths(fake()->numberBetween(1, 12)),
+                'business_type' => fake()->randomElement($businessTypes),
+                'industry' => fake()->randomElement($industries),
+                'phone' => fake()->phoneNumber(),
+                'email' => fake()->companyEmail(),
+                'address' => fake()->address(),
+                'currency' => fake()->randomElement(['USD', 'EUR', 'GBP']),
+                'settings' => [
+                    'timezone' => fake()->timezone(),
+                    'date_format' => 'Y-m-d',
+                ],
+            ]);
+
+            $companyOwner->update(['company_id' => $newCompany->id]);
+        }
+
+        $this->command->info('Created 20 companies in total.');
     }
 }

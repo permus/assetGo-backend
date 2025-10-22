@@ -14,33 +14,46 @@ class InventoryPartSeeder extends Seeder
     public function run(): void
     {
         $company = Company::first();
-        if (!$company || InventoryPart::count() > 0) return;
+        if (!$company) {
+            $this->command->warn('No company found. Run CompanySeeder first.');
+            return;
+        }
+
+        if (InventoryPart::where('company_id', $company->id)->count() >= 20) {
+            $this->command->info('Inventory parts already exist. Skipping.');
+            return;
+        }
+
+        $this->command->info('Seeding inventory parts...');
 
         $faker = Faker::create();
-        $category = InventoryCategory::where('company_id', $company->id)->first();
+        $categories = InventoryCategory::where('company_id', $company->id)->get();
         $user = User::where('company_id', $company->id)->first();
 
-        $parts = [
-            ['name' => 'Laptop Battery', 'unit_cost' => 89.99],
-            ['name' => 'Network Cable CAT6', 'unit_cost' => 2.50],
-            ['name' => 'RAM Module 16GB', 'unit_cost' => 75.00],
-        ];
-
-        foreach ($parts as $part) {
+        // Use factory to create 25 inventory parts
+        for ($i = 1; $i <= 25; $i++) {
             InventoryPart::create([
                 'company_id' => $company->id,
                 'user_id' => $user?->id,
-                'part_number' => 'PART-' . $faker->numerify('####'),
-                'name' => $part['name'],
+                'part_number' => 'PART-' . strtoupper($faker->bothify('####-???')),
+                'name' => $faker->words(3, true),
                 'description' => $faker->sentence(),
-                'uom' => 'each',
-                'unit_cost' => $part['unit_cost'],
-                'category_id' => $category?->id,
-                'reorder_point' => 10,
-                'reorder_qty' => 20,
+                'manufacturer' => $faker->company(),
+                'maintenance_category' => $faker->randomElement(['Electrical', 'Mechanical', 'Hydraulic', 'Pneumatic', 'Electronics']),
+                'uom' => $faker->randomElement(['PCS', 'KG', 'M', 'L', 'BOX', 'SET']),
+                'unit_cost' => $faker->randomFloat(2, 5, 500),
+                'category_id' => $categories->isNotEmpty() ? $categories->random()->id : null,
+                'reorder_point' => $faker->numberBetween(5, 20),
+                'reorder_qty' => $faker->numberBetween(20, 100),
+                'minimum_stock' => $faker->numberBetween(5, 15),
+                'maximum_stock' => $faker->numberBetween(100, 500),
+                'is_consumable' => $faker->boolean(),
+                'usage_tracking' => $faker->boolean(70),
                 'status' => 'active',
+                'abc_class' => $faker->randomElement(['A', 'B', 'C']),
             ]);
         }
-        $this->command->info('Created inventory parts.');
+
+        $this->command->info('Created ' . InventoryPart::where('company_id', $company->id)->count() . ' inventory parts.');
     }
 }

@@ -13,8 +13,12 @@ class DepartmentSeeder extends Seeder
      */
     public function run(): void
     {
-        // Truncate the table to avoid duplicates
-        Department::truncate();
+        if (Department::count() >= 20) {
+            $this->command->info('Departments already exist. Skipping.');
+            return;
+        }
+
+        $this->command->info('Seeding departments...');
 
         $departments = [
             [
@@ -87,10 +91,82 @@ class DepartmentSeeder extends Seeder
                 'is_active' => true,
                 'sort_order' => 10,
             ],
+            [
+                'name' => 'Customer Support',
+                'description' => 'Customer service and support',
+                'code' => 'CS',
+                'is_active' => true,
+                'sort_order' => 11,
+            ],
+            [
+                'name' => 'Legal',
+                'description' => 'Legal affairs and compliance',
+                'code' => 'LEGAL',
+                'is_active' => true,
+                'sort_order' => 12,
+            ],
+            [
+                'name' => 'Procurement',
+                'description' => 'Purchasing and vendor management',
+                'code' => 'PROC',
+                'is_active' => true,
+                'sort_order' => 13,
+            ],
+            [
+                'name' => 'Logistics',
+                'description' => 'Supply chain and logistics',
+                'code' => 'LOG',
+                'is_active' => true,
+                'sort_order' => 14,
+            ],
+            [
+                'name' => 'Warehouse',
+                'description' => 'Warehouse operations',
+                'code' => 'WH',
+                'is_active' => true,
+                'sort_order' => 15,
+            ],
+            [
+                'name' => 'Security',
+                'description' => 'Physical and IT security',
+                'code' => 'SEC',
+                'is_active' => true,
+                'sort_order' => 16,
+            ],
+            [
+                'name' => 'Facilities',
+                'description' => 'Facilities management',
+                'code' => 'FAC',
+                'is_active' => true,
+                'sort_order' => 17,
+            ],
+            [
+                'name' => 'Training',
+                'description' => 'Employee training and development',
+                'code' => 'TRN',
+                'is_active' => true,
+                'sort_order' => 18,
+            ],
+            [
+                'name' => 'Environmental',
+                'description' => 'Environmental health and safety',
+                'code' => 'EHS',
+                'is_active' => true,
+                'sort_order' => 19,
+            ],
+            [
+                'name' => 'Business Development',
+                'description' => 'Business development and partnerships',
+                'code' => 'BD',
+                'is_active' => true,
+                'sort_order' => 20,
+            ],
         ];
 
         foreach ($departments as $department) {
             Department::create($department);
         }
+
+        $this->command->info('Created 20 departments.');
     }
 }
