@@ -11,6 +11,7 @@ use App\Models\Company;
 use App\Models\Asset;
 use App\Models\AssetCategory;
 use App\Models\AssetTag;
+use App\Models\AssetImage;
 use App\Models\Location;
 use App\Models\Department;
 
@@ -37,24 +38,59 @@ class AssetApiTest extends TestCase
         $data = [
             'name' => 'Test Asset',
             'serial_number' => 'SN123456',
-            'company_id' => $this->company->id,
             'category_id' => $category->id,
-            'tags' => [$tag->id],
+            'tags' => [$tag->name],
             'location_id' => $location->id,
-            'images' => [UploadedFile::fake()->image('asset.jpg')],
+            'images' => [$this->tinyPngBase64()],
         ];
         $response = $this->actingAs($this->user)->postJson('/api/assets', $data);
         $response->assertStatus(201)->assertJson(['success' => true]);
         $this->assertDatabaseHas('assets', ['name' => 'Test Asset', 'serial_number' => 'SN123456']);
+
+        $createdAssetId = $response->json('data.id');
+        $this->assertNotNull($createdAssetId);
+        $this->assertDatabaseHas('asset_images', ['asset_id' => $createdAssetId]);
+
+        $imagePath = $response->json('data.images.0.image_path');
+        if ($imagePath) {
+            Storage::disk('public')->assertExists($imagePath);
+        }
+        $allFiles = Storage::disk('public')->allFiles('assets/images');
+        $this->assertCount(1, $allFiles);
     }
 
     public function test_can_update_asset()
     {
         $asset = Asset::factory()->create(['company_id' => $this->company->id]);
-        $data = ['name' => 'Updated Asset'];
+
+        // Seed an existing image on disk and DB
+        $oldFilePath = 'assets/images/' . uniqid('asset_') . '.png';
+        Storage::disk('public')->put($oldFilePath, 'old-image');
+        $existingImage = AssetImage::create([
+            'asset_id' => $asset->id,
+            'image_path' => $oldFilePath,
+        ]);
+
+        $data = [
+            'name' => 'Updated Asset',
+            'remove_image_ids' => [$existingImage->id],
+            'images' => [$this->tinyPngBase64()],
+        ];
         $response = $this->actingAs($this->user)->putJson('/api/assets/' . $asset->id, $data);
         $response->assertStatus(200)->assertJson(['success' => true]);
         $this->assertDatabaseHas('assets', ['id' => $asset->id, 'name' => 'Updated Asset']);
+
+        // Old image should be deleted from storage and DB
+        Storage::disk('public')->assertMissing($oldFilePath);
+        $this->assertDatabaseMissing('asset_images', ['id' => $existingImage->id]);
+
+        // New image exists
+        $newImagePath = $response->json('data.images.0.image_path');
+        if ($newImagePath) {
+            Storage::disk('public')->assertExists($newImagePath);
+        }
+        $allFiles = Storage::disk('public')->allFiles('assets/images');
+        $this->assertCount(1, $allFiles);
     }
 
     public function test_can_delete_asset()
@@ -63,6 +99,11 @@ class AssetApiTest extends TestCase
         $response = $this->actingAs($this->user)->deleteJson('/api/assets/' . $asset->id);
         $response->assertStatus(200)->assertJson(['success' => true]);
         $this->assertSoftDeleted('assets', ['id' => $asset->id]);
+    }
+
+    private function tinyPngBase64(): string
+    {
+        return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
     }
 
     public function test_can_show_asset()

@@ -1569,13 +1569,10 @@ class AssetController extends Controller
             $activeAssets = Asset::where('company_id', $companyId)->where('status', 'active')->count();
             $inactiveAssets = Asset::where('company_id', $companyId)->where('status', '!=', 'active')->count();
 
-            $maintenanceStatus = AssetStatus::where('name', 'Maintenance')->first();
-            $maintenanceAssets = 0;
-            if ($maintenanceStatus) {
-                $maintenanceAssets = Asset::where('company_id', $companyId)
-                    ->where('status', $maintenanceStatus->id) // Maintenance status
-                    ->count();
-            }
+            // Maintenance count (status is stored as string, not ID)
+            $maintenanceAssets = Asset::where('company_id', $companyId)
+                ->where('status', 'Maintenance')
+                ->count();
 
 
             // Financial statistics
