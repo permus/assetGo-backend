@@ -50,13 +50,14 @@ class StoreLocationRequest extends FormRequest
                 }
             }
 
-            // Validate type compatibility with parent
+            // Validate type compatibility with parent (based on actual location level, not type level)
             if ($this->parent_id && $this->location_type_id) {
                 $parent = Location::find($this->parent_id);
                 $type = LocationType::find($this->location_type_id);
                 
-                if ($parent && $type && !$type->canBeChildOf($parent->type)) {
-                    $validator->errors()->add('location_type_id', 'This location type cannot be a child of the selected parent type.');
+                // Check if child type's hierarchy level matches parent location's level + 1
+                if ($parent && $type && $type->hierarchy_level !== ($parent->hierarchy_level + 1)) {
+                    $validator->errors()->add('location_type_id', 'This location type (Level ' . $type->hierarchy_level . ') cannot be created under a Level ' . $parent->hierarchy_level . ' location. Expected Level ' . ($parent->hierarchy_level + 1) . ' type.');
                 }
             }
 

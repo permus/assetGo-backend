@@ -104,7 +104,7 @@
                 <div class="page-break"></div>
             @endif
             <div class="qr-card">
-                <img src="{{ $qrData['qr_url'] }}" alt="QR Code for {{ $qrData['location']->name }}" class="qr-image">
+                <img src="{{ $qrData['qr_base64'] }}" alt="QR Code for {{ $qrData['location']->name }}" class="qr-image">
                 <div class="location-name">{{ $qrData['location']->name }}</div>
                 <div class="location-type">{{ $qrData['location']->type->name ?? 'Unknown Type' }}</div>
                 @if($qrData['location']->address)

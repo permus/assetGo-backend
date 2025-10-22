@@ -31,7 +31,8 @@ class LocationController extends Controller
         $user = $request->user();
         $perPage = min($request->get('per_page', 15), 50);
 
-        $query = Location::with(['type', 'parent', 'creator', 'assetSummary'])
+        $query = Location::with(['type', 'parent', 'creator', 'assetSummary', 'children'])
+            ->withCount('assets')
             ->forCompany($user->company_id)
             ->search($request->get('search'))
             ->byType($request->get('type_id'))
@@ -468,9 +469,11 @@ class LocationController extends Controller
                 ], 404);
             }
 
-            // Get all locations for the company
+            // Get locations for hierarchy levels 0 and 1 (matching default list view)
             $locations = Location::where('company_id', $company->id)
+                ->whereIn('hierarchy_level', [0, 1])
                 ->with(['type'])
+                ->orderBy('hierarchy_level')
                 ->orderBy('name')
                 ->get();
 
@@ -481,24 +484,37 @@ class LocationController extends Controller
                 ], 404);
             }
 
-            // Generate QR codes for all locations
+            // Generate QR codes for all locations using QuickChart
             $qrCodes = [];
             foreach ($locations as $location) {
-                // Generate QR code if it doesn't exist
-                if (!$location->qr_code_path) {
-                    $qrPath = $this->qrCodeService->generateLocationQRCode($location);
-                    if ($qrPath) {
-                        $location->update(['qr_code_path' => $qrPath]);
+                // Use QuickChart.io to generate QR code
+                $qrUrl = $location->quick_chart_qr_url;
+                
+                try {
+                    // Fetch QR code image from QuickChart
+                    $qrImageContent = file_get_contents($qrUrl);
+                    
+                    if ($qrImageContent !== false) {
+                        // Convert to base64 for PDF embedding
+                        $base64Image = 'data:image/png;base64,' . base64_encode($qrImageContent);
+                        
+                        $qrCodes[] = [
+                            'location' => $location,
+                            'qr_url' => $qrUrl,
+                            'qr_base64' => $base64Image
+                        ];
                     }
+                } catch (\Exception $e) {
+                    \Log::warning("Failed to fetch QR code for location {$location->id}: " . $e->getMessage());
+                    // Continue with other locations
                 }
+            }
 
-                if ($location->qr_code_path) {
-                    $qrCodes[] = [
-                        'location' => $location,
-                        'qr_path' => $location->qr_code_path,
-                        'qr_url' => \Storage::disk('public')->url($location->qr_code_path)
-                    ];
-                }
+            if (empty($qrCodes)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to generate QR codes for locations'
+                ], 500);
             }
 
             // Generate PDF with all QR codes
@@ -657,6 +673,196 @@ class LocationController extends Controller
                 'allowed_parent_types' => $allowedParentTypes
             ]
         ]);
+    }
+
+    /**
+     * Get assets currently assigned to a location
+     */
+    public function getLocationAssets(Request $request, Location $location)
+    {
+        // Check if location belongs to user's company
+        if ($location->company_id !== $request->user()->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Location not found or unauthorized'
+            ], 404);
+        }
+
+        $perPage = min($request->get('per_page', 20), 100);
+        
+        $query = \App\Models\Asset::with(['category', 'images', 'assetStatus'])
+            ->where('company_id', $request->user()->company_id)
+            ->where('location_id', $location->id);
+
+        // Search filter
+        if ($search = $request->get('search')) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('serial_number', 'like', "%{$search}%")
+                  ->orWhere('asset_id', 'like', "%{$search}%");
+            });
+        }
+
+        // Pagination
+        $assets = $query->orderBy('name')->paginate($perPage);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'assets' => $assets->items(),
+                'pagination' => [
+                    'current_page' => $assets->currentPage(),
+                    'last_page' => $assets->lastPage(),
+                    'per_page' => $assets->perPage(),
+                    'total' => $assets->total(),
+                    'from' => $assets->firstItem(),
+                    'to' => $assets->lastItem(),
+                ]
+            ]
+        ]);
+    }
+
+    /**
+     * Get assignable assets for a location
+     */
+    public function getAssignableAssets(Request $request, Location $location)
+    {
+        // Check if location belongs to user's company
+        if ($location->company_id !== $request->user()->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Location not found or unauthorized'
+            ], 404);
+        }
+
+        $perPage = min($request->get('per_page', 20), 100);
+        
+        $query = \App\Models\Asset::with(['location', 'category', 'images'])
+            ->where('company_id', $request->user()->company_id)
+            ->where(function($q) use ($location) {
+                // Include assets from other locations or unassigned
+                $q->where('location_id', '!=', $location->id)
+                  ->orWhereNull('location_id');
+            });
+
+        // Search filter
+        if ($search = $request->get('search')) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('serial_number', 'like', "%{$search}%")
+                  ->orWhere('asset_id', 'like', "%{$search}%");
+            });
+        }
+
+        // Category filter
+        if ($categoryId = $request->get('category_id')) {
+            $query->where('category_id', $categoryId);
+        }
+
+        // Status filter
+        if ($status = $request->get('status')) {
+            $query->where('status', $status);
+        }
+
+        // Pagination
+        $assets = $query->orderBy('name')->paginate($perPage);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'assets' => $assets->items(),
+                'pagination' => [
+                    'current_page' => $assets->currentPage(),
+                    'last_page' => $assets->lastPage(),
+                    'per_page' => $assets->perPage(),
+                    'total' => $assets->total(),
+                    'from' => $assets->firstItem(),
+                    'to' => $assets->lastItem(),
+                ]
+            ]
+        ]);
+    }
+
+    /**
+     * Assign assets to a location
+     */
+    public function assignAssets(Request $request, Location $location)
+    {
+        // Check if location belongs to user's company
+        if ($location->company_id !== $request->user()->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Location not found or unauthorized'
+            ], 404);
+        }
+
+        // Validate request
+        $validated = $request->validate([
+            'asset_ids' => 'required|array|min:1',
+            'asset_ids.*' => 'required|integer|exists:assets,id',
+            'department_id' => 'nullable|integer|exists:departments,id'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $assetIds = $validated['asset_ids'];
+            $departmentId = $validated['department_id'] ?? null;
+            
+            // Fetch assets and verify they belong to the same company
+            $assets = \App\Models\Asset::whereIn('id', $assetIds)
+                ->where('company_id', $request->user()->company_id)
+                ->get();
+
+            if ($assets->count() !== count($assetIds)) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Some assets not found or unauthorized'
+                ], 404);
+            }
+
+            $assignedCount = 0;
+            foreach ($assets as $asset) {
+                $before = $asset->toArray();
+                
+                // Update asset location
+                $asset->location_id = $location->id;
+                if ($departmentId) {
+                    $asset->department_id = $departmentId;
+                }
+                $asset->save();
+
+                // Log activity
+                $asset->activities()->create([
+                    'user_id' => $request->user()->id,
+                    'action' => 'location_assigned',
+                    'before' => $before,
+                    'after' => $asset->fresh()->toArray(),
+                    'comment' => "Asset assigned to location: {$location->name}",
+                ]);
+
+                $assignedCount++;
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$assignedCount} asset(s) assigned successfully",
+                'data' => [
+                    'assigned_count' => $assignedCount,
+                    'location' => $location->load(['assetSummary'])
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to assign assets',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

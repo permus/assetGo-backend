@@ -148,6 +148,12 @@ Route::prefix('ai/natural-language')->group(function () {
     Route::post('locations/move', [LocationController::class, 'move'])
         ->middleware('throttle:30,1'); // 30 moves per minute
     Route::get('locations/{location}/qr', [LocationController::class, 'qrCode']);
+    Route::get('locations/{location}/assets', [LocationController::class, 'getLocationAssets'])
+        ->middleware('throttle:60,1'); // 60 requests per minute
+    Route::get('locations/{location}/assignable-assets', [LocationController::class, 'getAssignableAssets'])
+        ->middleware('throttle:60,1'); // 60 requests per minute
+    Route::post('locations/{location}/assign-assets', [LocationController::class, 'assignAssets'])
+        ->middleware('throttle:30,1'); // 30 requests per minute
     Route::apiResource('locations', LocationController::class);
     Route::get('locations-hierarchy', [LocationController::class, 'hierarchy'])
         ->middleware('throttle:60,1'); // 60 hierarchy requests per minute

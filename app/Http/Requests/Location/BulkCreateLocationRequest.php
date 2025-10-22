@@ -56,13 +56,14 @@ class BulkCreateLocationRequest extends FormRequest
                     }
                 }
 
-                // Validate type compatibility with parent
+                // Validate type compatibility with parent (based on actual location level, not type level)
                 if ($parentId && $typeId) {
                     $parent = Location::find($parentId);
                     $type = LocationType::find($typeId);
                     
-                    if ($parent && $type && !$type->canBeChildOf($parent->type)) {
-                        $validator->errors()->add("locations.{$index}.location_type_id", 'This location type cannot be a child of the selected parent type.');
+                    // Check if child type's hierarchy level matches parent location's level + 1
+                    if ($parent && $type && $type->hierarchy_level !== ($parent->hierarchy_level + 1)) {
+                        $validator->errors()->add("locations.{$index}.location_type_id", 'This location type (Level ' . $type->hierarchy_level . ') cannot be created under a Level ' . $parent->hierarchy_level . ' location. Expected Level ' . ($parent->hierarchy_level + 1) . ' type.');
                     }
                 }
 

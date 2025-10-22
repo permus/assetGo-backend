@@ -194,6 +194,14 @@ class Location extends Model
     }
 
     /**
+     * Get all assets at this location
+     */
+    public function assets()
+    {
+        return $this->hasMany(Asset::class, 'location_id');
+    }
+
+    /**
      * Get asset summary
      */
     public function assetSummary()
