@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
         $this->call(RoleSeeder::class);
         $this->call(PermissionSeeder::class);
         $this->call(UserSeeder::class);
+        $this->call(TeamSeeder::class);
         
         // Phase 3: Company-specific Data
         $this->command->info('Phase 3: Company data...');
