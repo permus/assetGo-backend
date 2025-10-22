@@ -404,5 +404,77 @@ class InventoryAuditService
             'timestamp' => now()->toDateTimeString(),
         ]);
     }
+
+    /**
+     * Log inventory part archival
+     *
+     * @param int $partId
+     * @param string $partNumber
+     * @param string $name
+     * @param array $affectedPurchaseOrders
+     * @param bool $forced
+     * @param int $userId
+     * @param string $userEmail
+     * @param int $companyId
+     * @param string|null $ipAddress
+     * @return void
+     */
+    public function logPartArchived(
+        int $partId,
+        string $partNumber,
+        string $name,
+        array $affectedPurchaseOrders,
+        bool $forced,
+        int $userId,
+        string $userEmail,
+        int $companyId,
+        ?string $ipAddress = null
+    ): void {
+        Log::info('Inventory part archived', [
+            'part_id' => $partId,
+            'part_number' => $partNumber,
+            'name' => $name,
+            'affected_purchase_orders' => $affectedPurchaseOrders,
+            'forced' => $forced,
+            'user_id' => $userId,
+            'user_email' => $userEmail,
+            'company_id' => $companyId,
+            'ip_address' => $ipAddress,
+            'timestamp' => now()->toDateTimeString(),
+        ]);
+    }
+
+    /**
+     * Log inventory part restoration
+     *
+     * @param int $partId
+     * @param string $partNumber
+     * @param string $name
+     * @param int $userId
+     * @param string $userEmail
+     * @param int $companyId
+     * @param string|null $ipAddress
+     * @return void
+     */
+    public function logPartRestored(
+        int $partId,
+        string $partNumber,
+        string $name,
+        int $userId,
+        string $userEmail,
+        int $companyId,
+        ?string $ipAddress = null
+    ): void {
+        Log::info('Inventory part restored', [
+            'part_id' => $partId,
+            'part_number' => $partNumber,
+            'name' => $name,
+            'user_id' => $userId,
+            'user_email' => $userEmail,
+            'company_id' => $companyId,
+            'ip_address' => $ipAddress,
+            'timestamp' => now()->toDateTimeString(),
+        ]);
+    }
 }
 

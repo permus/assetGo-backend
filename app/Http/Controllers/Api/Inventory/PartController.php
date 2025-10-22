@@ -4,12 +4,17 @@ namespace App\Http\Controllers\Api\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Models\InventoryPart;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
+use App\Traits\HasPermissions;
 use App\Services\{InventoryAuditService, InventoryCacheService};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PartController extends Controller
 {
+    use HasPermissions;
+
     protected $auditService;
     protected $cacheService;
 
@@ -71,6 +76,12 @@ class PartController extends Controller
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
+        }
+
+        // Filter archived parts by default unless explicitly requested
+        $includeArchived = $request->boolean('include_archived', false);
+        if (!$includeArchived) {
+            $query->where('status', '!=', 'archived');
         }
 
         $perPage = min($request->get('per_page', 15), 100);
@@ -183,6 +194,145 @@ class PartController extends Controller
         $this->cacheService->clearPartCache($request->user()->company_id);
 
         return response()->json(['success' => true]);
+    }
+
+    public function archive(Request $request, InventoryPart $part)
+    {
+        // Check company ownership
+        if ($part->company_id !== $request->user()->company_id) {
+            return response()->json(['success' => false, 'message' => 'Not found'], 404);
+        }
+
+        // Check permission
+        if ($denied = $this->requirePermission('inventory', 'parts_archive')) {
+            return $denied;
+        }
+
+        // Check if already archived
+        if ($part->status === 'archived') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Part is already archived'
+            ], 422);
+        }
+
+        // Validate request
+        $data = $request->validate([
+            'force' => 'sometimes|boolean',
+        ]);
+
+        $force = $data['force'] ?? false;
+
+        // Check for open purchase orders with this part
+        $openPOStatuses = ['draft', 'pending', 'ordered', 'approved'];
+        $affectedPOs = PurchaseOrderItem::where('part_id', $part->id)
+            ->whereHas('purchaseOrder', function ($query) use ($openPOStatuses, $request) {
+                $query->whereIn('status', $openPOStatuses)
+                      ->where('company_id', $request->user()->company_id);
+            })
+            ->with('purchaseOrder:id,po_number,status')
+            ->get();
+
+        // If there are open POs and force is not true, return warning
+        if ($affectedPOs->isNotEmpty() && !$force) {
+            $poDetails = $affectedPOs->map(function ($item) {
+                return [
+                    'po_id' => $item->purchase_order_id,
+                    'po_number' => $item->purchaseOrder->po_number ?? 'N/A',
+                    'status' => $item->purchaseOrder->status ?? 'N/A',
+                    'ordered_qty' => $item->ordered_qty,
+                    'received_qty' => $item->received_qty,
+                ];
+            })->toArray();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'This part is linked to open purchase orders. Set force=true to archive anyway.',
+                'affected_purchase_orders' => $poDetails,
+                'requires_force' => true,
+            ], 422);
+        }
+
+        // Archive the part
+        $part->status = 'archived';
+        $part->save();
+
+        // Prepare affected PO data for logging
+        $affectedPOsLog = $affectedPOs->map(function ($item) {
+            return [
+                'po_id' => $item->purchase_order_id,
+                'po_number' => $item->purchaseOrder->po_number ?? 'N/A',
+                'status' => $item->purchaseOrder->status ?? 'N/A',
+            ];
+        })->toArray();
+
+        // Log the archive action
+        $this->auditService->logPartArchived(
+            $part->id,
+            $part->part_number,
+            $part->name,
+            $affectedPOsLog,
+            $force,
+            $request->user()->id,
+            $request->user()->email,
+            $request->user()->company_id,
+            $request->ip()
+        );
+
+        // Clear cache
+        $this->cacheService->clearPartCache($request->user()->company_id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Part archived successfully',
+            'data' => $part,
+            'affected_purchase_orders' => $affectedPOsLog,
+        ]);
+    }
+
+    public function restore(Request $request, InventoryPart $part)
+    {
+        // Check company ownership
+        if ($part->company_id !== $request->user()->company_id) {
+            return response()->json(['success' => false, 'message' => 'Not found'], 404);
+        }
+
+        // Check permission
+        if ($denied = $this->requirePermission('inventory', 'parts_restore')) {
+            return $denied;
+        }
+
+        // Check if part is archived
+        if ($part->status !== 'archived') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Part is not archived'
+            ], 422);
+        }
+
+        // Restore the part
+        $part->status = 'active';
+        $part->save();
+
+        // Log the restore action
+        $this->auditService->logPartRestored(
+            $part->id,
+            $part->part_number,
+            $part->name,
+            $request->user()->id,
+            $request->user()->email,
+            $request->user()->company_id,
+            $request->ip()
+        );
+
+        // Clear cache
+        $this->cacheService->clearPartCache($request->user()->company_id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Part restored successfully',
+            'data' => $part,
+        ]);
     }
 }
 

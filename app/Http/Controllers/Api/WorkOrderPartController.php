@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\InventoryPart;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderPart;
 use Illuminate\Http\Request;
@@ -31,6 +32,24 @@ class WorkOrderPartController extends Controller
             'items.*.unit_cost' => 'nullable|numeric|min:0',
             'items.*.location_id' => 'nullable|integer',
         ]);
+
+        // Validate that parts are not archived
+        $partIds = collect($validated['items'])->pluck('part_id')->unique();
+        $archivedParts = InventoryPart::whereIn('id', $partIds)
+            ->where('status', 'archived')
+            ->where('company_id', $request->user()->company_id)
+            ->get(['id', 'part_number', 'name']);
+
+        if ($archivedParts->isNotEmpty()) {
+            $archivedList = $archivedParts->map(function ($part) {
+                return $part->part_number . ' - ' . $part->name;
+            })->implode(', ');
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot add archived parts to work order: ' . $archivedList
+            ], 422);
+        }
 
         $created = [];
         DB::transaction(function () use ($validated, $workOrder, &$created) {

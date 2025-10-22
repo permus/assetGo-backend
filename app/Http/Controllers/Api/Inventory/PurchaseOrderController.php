@@ -97,6 +97,26 @@ class PurchaseOrderController extends Controller
 
         $companyId = $request->user()->company_id;
 
+        // Validate that parts are not archived
+        $partIds = collect($data['items'])->pluck('part_id')->filter()->unique();
+        if ($partIds->isNotEmpty()) {
+            $archivedParts = InventoryPart::whereIn('id', $partIds)
+                ->where('status', 'archived')
+                ->where('company_id', $companyId)
+                ->get(['id', 'part_number', 'name']);
+
+            if ($archivedParts->isNotEmpty()) {
+                $archivedList = $archivedParts->map(function ($part) {
+                    return $part->part_number . ' - ' . $part->name;
+                })->implode(', ');
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot create purchase order with archived parts: ' . $archivedList
+                ], 422);
+            }
+        }
+
         // Calculate totals
         $subtotal = 0;
         foreach ($data['items'] as $item) {
