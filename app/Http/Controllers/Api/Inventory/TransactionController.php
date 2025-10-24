@@ -29,6 +29,31 @@ class TransactionController extends Controller
             $query->where('created_at', '<=', $request->end_date.' 23:59:59');
         }
 
+        if ($search = $request->get('keyword')) {
+            // URL decode the search term in case it's encoded
+            $search = urldecode($search);
+            
+            // Debug: Log the search term
+            \Log::info('Transaction search keyword: ' . $search);
+            
+            $query->where(function($q) use ($search) {
+                // Search in part name, part number, and description
+                $q->whereHas('part', function($partQuery) use ($search) {
+                    $partQuery->where('name', 'like', "%$search%")
+                             ->orWhere('part_number', 'like', "%$search%")
+                             ->orWhere('description', 'like', "%$search%");
+                })
+                // Search in location name
+                ->orWhereHas('location', function($locationQuery) use ($search) {
+                    $locationQuery->where('name', 'like', "%$search%");
+                })
+                // Search in transaction fields
+                ->orWhere('notes', 'like', "%$search%")
+                ->orWhere('reason', 'like', "%$search%")
+                ->orWhere('reference', 'like', "%$search%");
+            });
+        }
+
         $perPage = min($request->get('per_page', 15), 100);
         return response()->json(['success' => true, 'data' => $query->orderByDesc('id')->paginate($perPage)]);
     }

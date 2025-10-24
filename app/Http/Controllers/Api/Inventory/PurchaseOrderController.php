@@ -73,11 +73,11 @@ class PurchaseOrderController extends Controller
             'supplier_id' => 'nullable|integer|exists:suppliers,id',
             'vendor_name' => 'required|string|max:255',
             'vendor_contact' => 'required|string|max:255',
-            
+
             // Order Details
             'order_date' => 'required|date',
             'expected_date' => 'required|date',
-            
+
             // Line Items
             'items' => 'required|array|min:1',
             'items.*.part_id' => 'nullable|integer|exists:inventory_parts,id',
@@ -85,11 +85,11 @@ class PurchaseOrderController extends Controller
             'items.*.description' => 'required|string',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.unit_cost' => 'required|numeric|min:0',
-            
+
             // Order Summary
             'tax_rate' => 'nullable|numeric|min:0|max:100',
             'tax_amount' => 'nullable|numeric|min:0',
-            
+
             // Additional Information
             'terms' => 'nullable|string',
             'notes' => 'nullable|string'
@@ -197,14 +197,14 @@ class PurchaseOrderController extends Controller
             'terms' => 'sometimes|nullable|string',
             'notes' => 'sometimes|nullable|string',
         ]);
-        
+
         $changes = [];
         foreach ($data as $key => $value) {
             if ($purchaseOrder->$key != $value) {
                 $changes[$key] = ['old' => $purchaseOrder->$key, 'new' => $value];
             }
         }
-        
+
         $purchaseOrder->update($data);
 
         // Log the update
@@ -320,9 +320,9 @@ class PurchaseOrderController extends Controller
         if ($po->company_id !== $request->user()->company_id) {
             return response()->json(['success' => false, 'message' => 'Not found'], 404);
         }
-        
+
         $oldStatus = $po->status;
-        
+
         if ($data['approve']) {
             $po->update(['status' => 'approved', 'approved_by' => $request->user()->id, 'approved_at' => now()]);
             $newStatus = 'approved';
