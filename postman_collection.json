@@ -1,0 +1,2664 @@
+{
+	"info": {
+		"_postman_id": "assetgo-api-collection",
+		"name": "AssetGo API Collection",
+		"description": "Complete API collection for AssetGo Enterprise Asset Management System",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{auth_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000/api",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Register",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"john@example.com\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\",\n    \"company_name\": \"Example Company\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/register",
+							"host": ["{{base_url}}"],
+							"path": ["register"]
+						}
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('auth_token', jsonData.data.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"password\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/login",
+							"host": ["{{base_url}}"],
+							"path": ["login"]
+						}
+					}
+				},
+				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"user@example.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/forgot-password",
+							"host": ["{{base_url}}"],
+							"path": ["forgot-password"]
+						}
+					}
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"reset_token\",\n    \"email\": \"user@example.com\",\n    \"password\": \"newpassword123\",\n    \"password_confirmation\": \"newpassword123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/reset-password",
+							"host": ["{{base_url}}"],
+							"path": ["reset-password"]
+						}
+					}
+				},
+				{
+					"name": "Resend Verification Email",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"user@example.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/email/resend",
+							"host": ["{{base_url}}"],
+							"path": ["email", "resend"]
+						}
+					}
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/logout",
+							"host": ["{{base_url}}"],
+							"path": ["logout"]
+						}
+					}
+				},
+				{
+					"name": "Logout All Devices",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/logout-all",
+							"host": ["{{base_url}}"],
+							"path": ["logout-all"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Profile",
+			"item": [
+				{
+					"name": "Get Profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/profile",
+							"host": ["{{base_url}}"],
+							"path": ["profile"]
+						}
+					}
+				},
+				{
+					"name": "Update Profile",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"John Updated\",\n    \"email\": \"john.updated@example.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/profile",
+							"host": ["{{base_url}}"],
+							"path": ["profile"]
+						}
+					}
+				},
+				{
+					"name": "Upload Avatar",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "avatar",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/profile/avatar",
+							"host": ["{{base_url}}"],
+							"path": ["profile", "avatar"]
+						}
+					}
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"current_password\": \"oldpassword\",\n    \"password\": \"newpassword123\",\n    \"password_confirmation\": \"newpassword123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/change-password",
+							"host": ["{{base_url}}"],
+							"path": ["change-password"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Dashboard",
+			"item": [
+				{
+					"name": "Get Dashboard",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/dashboard",
+							"host": ["{{base_url}}"],
+							"path": ["dashboard"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Company",
+			"item": [
+				{
+					"name": "Get Company",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/company",
+							"host": ["{{base_url}}"],
+							"path": ["company"]
+						}
+					}
+				},
+				{
+					"name": "Update Company",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Company Name\",\n    \"address\": \"123 Main St\",\n    \"phone\": \"+1234567890\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/company",
+							"host": ["{{base_url}}"],
+							"path": ["company"]
+						}
+					}
+				},
+				{
+					"name": "Get Company Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/company/users",
+							"host": ["{{base_url}}"],
+							"path": ["company", "users"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Settings",
+			"item": [
+				{
+					"name": "Update Currency",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"currency\": \"USD\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/currency",
+							"host": ["{{base_url}}"],
+							"path": ["settings", "currency"]
+						}
+					}
+				},
+				{
+					"name": "Upload Company Logo",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "logo",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/company/logo",
+							"host": ["{{base_url}}"],
+							"path": ["settings", "company", "logo"]
+						}
+					}
+				},
+				{
+					"name": "Get Modules",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/settings/modules",
+							"host": ["{{base_url}}"],
+							"path": ["settings", "modules"]
+						}
+					}
+				},
+				{
+					"name": "Enable Module",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/settings/modules/:module/enable",
+							"host": ["{{base_url}}"],
+							"path": ["settings", "modules", ":module", "enable"],
+							"variable": [
+								{
+									"key": "module",
+									"value": "inventory"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Disable Module",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/settings/modules/:module/disable",
+							"host": ["{{base_url}}"],
+							"path": ["settings", "modules", ":module", "disable"],
+							"variable": [
+								{
+									"key": "module",
+									"value": "inventory"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Preferences",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/settings/preferences",
+							"host": ["{{base_url}}"],
+							"path": ["settings", "preferences"]
+						}
+					}
+				},
+				{
+					"name": "Update Preferences",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"theme\": \"dark\",\n    \"language\": \"en\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/settings/preferences",
+							"host": ["{{base_url}}"],
+							"path": ["settings", "preferences"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Assets",
+			"item": [
+				{
+					"name": "List Assets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets?page=1&per_page=20",
+							"host": ["{{base_url}}"],
+							"path": ["assets"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "per_page",
+									"value": "20"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "status",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "category_id",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "location_id",
+									"value": "",
+									"disabled": true
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Asset",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Laptop Dell XPS 15\",\n    \"description\": \"High-performance laptop\",\n    \"serial_number\": \"SN123456\",\n    \"model\": \"XPS 15\",\n    \"manufacturer\": \"Dell\",\n    \"category_id\": 1,\n    \"type\": 1,\n    \"status\": 1,\n    \"location_id\": 1,\n    \"purchase_date\": \"2024-01-15\",\n    \"purchase_price\": 2000.00,\n    \"health_score\": 95\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/assets",
+							"host": ["{{base_url}}"],
+							"path": ["assets"]
+						}
+					}
+				},
+				{
+					"name": "Get Asset",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/:id",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Asset",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Asset Name\",\n    \"health_score\": 90\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/assets/:id",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Asset",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/:id",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Asset Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/statistics",
+							"host": ["{{base_url}}"],
+							"path": ["assets", "statistics"]
+						}
+					}
+				},
+				{
+					"name": "Get Asset Analytics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/analytics",
+							"host": ["{{base_url}}"],
+							"path": ["assets", "analytics"]
+						}
+					}
+				},
+				{
+					"name": "Archive Asset",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/:asset/archive",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":asset", "archive"],
+							"variable": [
+								{
+									"key": "asset",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Restore Asset",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/:asset/restore",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":asset", "restore"],
+							"variable": [
+								{
+									"key": "asset",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Duplicate Asset",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/:asset/duplicate",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":asset", "duplicate"],
+							"variable": [
+								{
+									"key": "asset",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Transfer Asset",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"location_id\": 2,\n    \"notes\": \"Transfer to warehouse\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/assets/:asset/transfer",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":asset", "transfer"],
+							"variable": [
+								{
+									"key": "asset",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Asset QR Code",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/:asset/qr-code",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":asset", "qr-code"],
+							"variable": [
+								{
+									"key": "asset",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Asset Barcode",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/:asset/barcode?type=code128",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":asset", "barcode"],
+							"query": [
+								{
+									"key": "type",
+									"value": "code128"
+								}
+							],
+							"variable": [
+								{
+									"key": "asset",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Related Assets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/:asset/related",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":asset", "related"],
+							"variable": [
+								{
+									"key": "asset",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Asset Chart Data",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/:asset/chart-data",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":asset", "chart-data"],
+							"variable": [
+								{
+									"key": "asset",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Asset Activity History",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/:asset/activity-history",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":asset", "activity-history"],
+							"variable": [
+								{
+									"key": "asset",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Export Assets to Excel",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/export-excel",
+							"host": ["{{base_url}}"],
+							"path": ["assets", "export-excel"]
+						}
+					}
+				},
+				{
+					"name": "Download Import Template",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/import/template",
+							"host": ["{{base_url}}"],
+							"path": ["assets", "import", "template"]
+						}
+					}
+				},
+				{
+					"name": "Bulk Import Assets",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/assets/import-bulk-excel",
+							"host": ["{{base_url}}"],
+							"path": ["assets", "import-bulk-excel"]
+						}
+					}
+				},
+				{
+					"name": "Bulk Delete Assets",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"ids\": [1, 2, 3]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/assets/bulk-delete",
+							"host": ["{{base_url}}"],
+							"path": ["assets", "bulk-delete"]
+						}
+					}
+				},
+				{
+					"name": "Bulk Archive Assets",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"ids\": [1, 2, 3]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/assets/bulk-archive",
+							"host": ["{{base_url}}"],
+							"path": ["assets", "bulk-archive"]
+						}
+					}
+				},
+				{
+					"name": "Bulk Restore Assets",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"ids\": [1, 2, 3]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/assets/bulk-restore",
+							"host": ["{{base_url}}"],
+							"path": ["assets", "bulk-restore"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Asset Categories",
+			"item": [
+				{
+					"name": "List Asset Categories",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/asset-categories",
+							"host": ["{{base_url}}"],
+							"path": ["asset-categories"]
+						}
+					}
+				},
+				{
+					"name": "Create Asset Category",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"IT Equipment\",\n    \"description\": \"Computer and IT related equipment\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/asset-categories",
+							"host": ["{{base_url}}"],
+							"path": ["asset-categories"]
+						}
+					}
+				},
+				{
+					"name": "Update Asset Category",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Category Name\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/asset-categories/:id",
+							"host": ["{{base_url}}"],
+							"path": ["asset-categories", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Asset Category",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/asset-categories/:id",
+							"host": ["{{base_url}}"],
+							"path": ["asset-categories", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Asset Types",
+			"item": [
+				{
+					"name": "List Asset Types",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/asset-types",
+							"host": ["{{base_url}}"],
+							"path": ["asset-types"]
+						}
+					}
+				},
+				{
+					"name": "Create Asset Type",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Laptop\",\n    \"category_id\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/asset-types",
+							"host": ["{{base_url}}"],
+							"path": ["asset-types"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Locations",
+			"item": [
+				{
+					"name": "List Locations",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/locations",
+							"host": ["{{base_url}}"],
+							"path": ["locations"]
+						}
+					}
+				},
+				{
+					"name": "Create Location",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Warehouse A\",\n    \"type\": \"warehouse\",\n    \"address\": \"123 Storage St\",\n    \"parent_id\": null\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/locations",
+							"host": ["{{base_url}}"],
+							"path": ["locations"]
+						}
+					}
+				},
+				{
+					"name": "Get Location",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/locations/:id",
+							"host": ["{{base_url}}"],
+							"path": ["locations", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Location",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Location Name\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/locations/:id",
+							"host": ["{{base_url}}"],
+							"path": ["locations", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Location",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/locations/:id",
+							"host": ["{{base_url}}"],
+							"path": ["locations", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Location Hierarchy",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/locations-hierarchy",
+							"host": ["{{base_url}}"],
+							"path": ["locations-hierarchy"]
+						}
+					}
+				},
+				{
+					"name": "Get Location Assets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/locations/:location/assets",
+							"host": ["{{base_url}}"],
+							"path": ["locations", ":location", "assets"],
+							"variable": [
+								{
+									"key": "location",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Location QR Code",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/locations/:location/qr",
+							"host": ["{{base_url}}"],
+							"path": ["locations", ":location", "qr"],
+							"variable": [
+								{
+									"key": "location",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Move Location",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"location_id\": 1,\n    \"parent_id\": 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/locations/move",
+							"host": ["{{base_url}}"],
+							"path": ["locations", "move"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Departments",
+			"item": [
+				{
+					"name": "List Departments",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/departments",
+							"host": ["{{base_url}}"],
+							"path": ["departments"]
+						}
+					}
+				},
+				{
+					"name": "Create Department",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"IT Department\",\n    \"description\": \"Information Technology\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/departments",
+							"host": ["{{base_url}}"],
+							"path": ["departments"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Teams",
+			"item": [
+				{
+					"name": "List Teams",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/teams",
+							"host": ["{{base_url}}"],
+							"path": ["teams"]
+						}
+					}
+				},
+				{
+					"name": "Create Team Member",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"john@company.com\",\n    \"role_id\": 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/teams",
+							"host": ["{{base_url}}"],
+							"path": ["teams"]
+						}
+					}
+				},
+				{
+					"name": "Get Team Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/teams/statistics",
+							"host": ["{{base_url}}"],
+							"path": ["teams", "statistics"]
+						}
+					}
+				},
+				{
+					"name": "Resend Invitation",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/teams/:id/resend-invitation",
+							"host": ["{{base_url}}"],
+							"path": ["teams", ":id", "resend-invitation"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Roles",
+			"item": [
+				{
+					"name": "List Roles",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/roles",
+							"host": ["{{base_url}}"],
+							"path": ["roles"]
+						}
+					}
+				},
+				{
+					"name": "Get Available Permissions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/roles/available-permissions",
+							"host": ["{{base_url}}"],
+							"path": ["roles", "available-permissions"]
+						}
+					}
+				},
+				{
+					"name": "Assign Role to User",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"user_id\": 1,\n    \"role_id\": 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/roles/assign-to-user",
+							"host": ["{{base_url}}"],
+							"path": ["roles", "assign-to-user"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Work Orders",
+			"item": [
+				{
+					"name": "List Work Orders",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/work-orders?page=1&per_page=20",
+							"host": ["{{base_url}}"],
+							"path": ["work-orders"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "per_page",
+									"value": "20"
+								},
+								{
+									"key": "status",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "priority",
+									"value": "",
+									"disabled": true
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Work Order",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Repair Laptop\",\n    \"description\": \"Screen replacement needed\",\n    \"asset_id\": 1,\n    \"priority_id\": 1,\n    \"status_id\": 1,\n    \"category_id\": 1,\n    \"due_date\": \"2024-12-31\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/work-orders",
+							"host": ["{{base_url}}"],
+							"path": ["work-orders"]
+						}
+					}
+				},
+				{
+					"name": "Get Work Order",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/work-orders/:id",
+							"host": ["{{base_url}}"],
+							"path": ["work-orders", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Work Order",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Updated Work Order Title\",\n    \"priority_id\": 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/work-orders/:id",
+							"host": ["{{base_url}}"],
+							"path": ["work-orders", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Work Order",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/work-orders/:id",
+							"host": ["{{base_url}}"],
+							"path": ["work-orders", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Work Order Status",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status_id\": 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/work-orders/:workOrder/status",
+							"host": ["{{base_url}}"],
+							"path": ["work-orders", ":workOrder", "status"],
+							"variable": [
+								{
+									"key": "workOrder",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Work Order Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/work-orders/statistics",
+							"host": ["{{base_url}}"],
+							"path": ["work-orders", "statistics"]
+						}
+					}
+				},
+				{
+					"name": "Get Work Order Analytics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/work-orders/analytics",
+							"host": ["{{base_url}}"],
+							"path": ["work-orders", "analytics"]
+						}
+					}
+				},
+				{
+					"name": "Get Work Order History",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/work-orders/:workOrder/history",
+							"host": ["{{base_url}}"],
+							"path": ["work-orders", ":workOrder", "history"],
+							"variable": [
+								{
+									"key": "workOrder",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Assign Work Order",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"user_id\": 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/work-orders/:workOrder/assign",
+							"host": ["{{base_url}}"],
+							"path": ["work-orders", ":workOrder", "assign"],
+							"variable": [
+								{
+									"key": "workOrder",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Work Order Comments",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/work-orders/:workOrder/comments",
+							"host": ["{{base_url}}"],
+							"path": ["work-orders", ":workOrder", "comments"],
+							"variable": [
+								{
+									"key": "workOrder",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Add Work Order Comment",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"comment\": \"Work in progress, 50% complete\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/work-orders/:workOrder/comments",
+							"host": ["{{base_url}}"],
+							"path": ["work-orders", ":workOrder", "comments"],
+							"variable": [
+								{
+									"key": "workOrder",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Start Time Log",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/work-orders/:workOrder/time-logs/start",
+							"host": ["{{base_url}}"],
+							"path": ["work-orders", ":workOrder", "time-logs", "start"],
+							"variable": [
+								{
+									"key": "workOrder",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Stop Time Log",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/work-orders/:workOrder/time-logs/stop",
+							"host": ["{{base_url}}"],
+							"path": ["work-orders", ":workOrder", "time-logs", "stop"],
+							"variable": [
+								{
+									"key": "workOrder",
+									"value": "1"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Inventory",
+			"item": [
+				{
+					"name": "Parts",
+					"item": [
+						{
+							"name": "List Parts",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/inventory/parts?page=1&per_page=20",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "parts"],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "per_page",
+											"value": "20"
+										},
+										{
+											"key": "include_archived",
+											"value": "false",
+											"disabled": true
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Create Part",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"sku\": \"PART-001\",\n    \"name\": \"Laptop Battery\",\n    \"description\": \"Li-ion battery for laptops\",\n    \"category_id\": 1,\n    \"unit_price\": 50.00,\n    \"min_stock_level\": 10,\n    \"reorder_point\": 5\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/inventory/parts",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "parts"]
+								}
+							}
+						},
+						{
+							"name": "Get Part",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/inventory/parts/:id",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "parts", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Part",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Updated Part Name\",\n    \"unit_price\": 55.00\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/inventory/parts/:id",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "parts", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Part",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/inventory/parts/:id",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "parts", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Parts Overview",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/inventory/parts/overview",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "parts", "overview"]
+								}
+							}
+						},
+						{
+							"name": "Archive Part",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"force\": false\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/inventory/parts/:part/archive",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "parts", ":part", "archive"],
+									"variable": [
+										{
+											"key": "part",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Restore Part",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/inventory/parts/:part/restore",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "parts", ":part", "restore"],
+									"variable": [
+										{
+											"key": "part",
+											"value": "1"
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Stock",
+					"item": [
+						{
+							"name": "List Stock Levels",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/inventory/stocks",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "stocks"]
+								}
+							}
+						},
+						{
+							"name": "Adjust Stock",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"part_id\": 1,\n    \"location_id\": 1,\n    \"quantity\": 10,\n    \"type\": \"in\",\n    \"reason\": \"Restocking\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/inventory/stocks/adjust",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "stocks", "adjust"]
+								}
+							}
+						},
+						{
+							"name": "Transfer Stock",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"part_id\": 1,\n    \"from_location_id\": 1,\n    \"to_location_id\": 2,\n    \"quantity\": 5\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/inventory/stocks/transfer",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "stocks", "transfer"]
+								}
+							}
+						},
+						{
+							"name": "Reserve Stock",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"part_id\": 1,\n    \"location_id\": 1,\n    \"quantity\": 3,\n    \"work_order_id\": 1\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/inventory/stocks/reserve",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "stocks", "reserve"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Transactions",
+					"item": [
+						{
+							"name": "List Transactions",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/inventory/transactions",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "transactions"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Suppliers",
+					"item": [
+						{
+							"name": "List Suppliers",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/inventory/suppliers",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "suppliers"]
+								}
+							}
+						},
+						{
+							"name": "Create Supplier",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Tech Supplies Inc\",\n    \"contact_person\": \"John Smith\",\n    \"email\": \"john@techsupplies.com\",\n    \"phone\": \"+1234567890\",\n    \"address\": \"123 Supply St\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/inventory/suppliers",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "suppliers"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Purchase Orders",
+					"item": [
+						{
+							"name": "List Purchase Orders",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/inventory/purchase-orders",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "purchase-orders"]
+								}
+							}
+						},
+						{
+							"name": "Create Purchase Order",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"supplier_id\": 1,\n    \"expected_delivery_date\": \"2024-12-31\",\n    \"items\": [\n        {\n            \"part_id\": 1,\n            \"quantity\": 50,\n            \"unit_price\": 50.00\n        }\n    ]\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/inventory/purchase-orders",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "purchase-orders"]
+								}
+							}
+						},
+						{
+							"name": "Update Purchase Order",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"expected_delivery_date\": \"2025-01-15\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/inventory/purchase-orders/:id",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "purchase-orders", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Receive Purchase Order",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"items\": [\n        {\n            \"part_id\": 1,\n            \"quantity_received\": 50,\n            \"location_id\": 1\n        }\n    ]\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/inventory/purchase-orders/:purchaseOrder/receive",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "purchase-orders", ":purchaseOrder", "receive"],
+									"variable": [
+										{
+											"key": "purchaseOrder",
+											"value": "1"
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Analytics",
+					"item": [
+						{
+							"name": "Get Dashboard Overview",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/inventory/dashboard/overview",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "dashboard", "overview"]
+								}
+							}
+						},
+						{
+							"name": "Get ABC Analysis",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/inventory/analytics/abc-analysis",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "analytics", "abc-analysis"]
+								}
+							}
+						},
+						{
+							"name": "Get KPIs",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/inventory/analytics/kpis",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "analytics", "kpis"]
+								}
+							}
+						},
+						{
+							"name": "Get Stock Aging",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/inventory/analytics/stock-aging",
+									"host": ["{{base_url}}"],
+									"path": ["inventory", "analytics", "stock-aging"]
+								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Maintenance",
+			"item": [
+				{
+					"name": "Plans",
+					"item": [
+						{
+							"name": "List Maintenance Plans",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans"]
+								}
+							}
+						},
+						{
+							"name": "Create Maintenance Plan",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Monthly HVAC Check\",\n    \"description\": \"Regular HVAC maintenance\",\n    \"frequency\": \"monthly\",\n    \"is_active\": true\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans"]
+								}
+							}
+						},
+						{
+							"name": "Toggle Plan Active Status",
+							"request": {
+								"method": "PATCH",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans/:maintenancePlan/toggle-active",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans", ":maintenancePlan", "toggle-active"],
+									"variable": [
+										{
+											"key": "maintenancePlan",
+											"value": "1"
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Schedules",
+					"item": [
+						{
+							"name": "List Maintenance Schedules",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/schedules",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "schedules"]
+								}
+							}
+						},
+						{
+							"name": "Create Maintenance Schedule",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"maintenance_plan_id\": 1,\n    \"asset_id\": 1,\n    \"scheduled_date\": \"2024-12-31\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance/schedules",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "schedules"]
+								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "AI Features",
+			"item": [
+				{
+					"name": "Image Recognition",
+					"item": [
+						{
+							"name": "Analyze Image",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"images\": [\n        \"base64_encoded_image_string_here\"\n    ]\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/ai/image-recognition/analyze",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "image-recognition", "analyze"]
+								}
+							}
+						},
+						{
+							"name": "Submit Feedback",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"analysis_id\": 1,\n    \"is_accurate\": true,\n    \"corrections\": []\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/ai/image-recognition/feedback",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "image-recognition", "feedback"]
+								}
+							}
+						},
+						{
+							"name": "Get Recognition History",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/image-recognition/history",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "image-recognition", "history"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Asset Analytics",
+					"item": [
+						{
+							"name": "Analyze Assets",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"assetContext\": [\n        {\n            \"id\": 1,\n            \"name\": \"Laptop\",\n            \"health_score\": 85\n        }\n    ],\n    \"assetImages\": []\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/ai/asset-analytics/analyze",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "asset-analytics", "analyze"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Predictive Maintenance",
+					"item": [
+						{
+							"name": "Get Predictions",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/predictive-maintenance/",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "predictive-maintenance", ""]
+								}
+							}
+						},
+						{
+							"name": "Generate Predictions",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"asset_ids\": [1, 2, 3]\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/ai/predictive-maintenance/generate",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "predictive-maintenance", "generate"]
+								}
+							}
+						},
+						{
+							"name": "Get Summary",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/predictive-maintenance/summary",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "predictive-maintenance", "summary"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Natural Language",
+					"item": [
+						{
+							"name": "Get Context",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/natural-language/context",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "natural-language", "context"]
+								}
+							}
+						},
+						{
+							"name": "Chat",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"message\": \"Show me all assets in warehouse A\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/ai/natural-language/chat",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "natural-language", "chat"]
+								}
+							}
+						},
+						{
+							"name": "Check API Key",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/natural-language/check-api-key",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "natural-language", "check-api-key"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Recommendations",
+					"item": [
+						{
+							"name": "Get Recommendations",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/recommendations/",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "recommendations", ""]
+								}
+							}
+						},
+						{
+							"name": "Generate Recommendations",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/recommendations/generate",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "recommendations", "generate"]
+								}
+							}
+						},
+						{
+							"name": "Toggle Implementation",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/recommendations/:id/toggle",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "recommendations", ":id", "toggle"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1"
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "AI Analytics",
+					"item": [
+						{
+							"name": "Get Analytics",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/analytics/",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "analytics", ""]
+								}
+							}
+						},
+						{
+							"name": "Generate Analytics",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/analytics/generate",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "analytics", "generate"]
+								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Reports",
+			"item": [
+				{
+					"name": "Asset Reports",
+					"item": [
+						{
+							"name": "Get Asset Summary Report",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/reports/assets/summary?start_date=2024-01-01&end_date=2024-12-31",
+									"host": ["{{base_url}}"],
+									"path": ["reports", "assets", "summary"],
+									"query": [
+										{
+											"key": "start_date",
+											"value": "2024-01-01"
+										},
+										{
+											"key": "end_date",
+											"value": "2024-12-31"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Asset Utilization Report",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/reports/assets/utilization",
+									"host": ["{{base_url}}"],
+									"path": ["reports", "assets", "utilization"]
+								}
+							}
+						},
+						{
+							"name": "Get Asset Depreciation Report",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/reports/assets/depreciation",
+									"host": ["{{base_url}}"],
+									"path": ["reports", "assets", "depreciation"]
+								}
+							}
+						},
+						{
+							"name": "Get Asset Warranty Report",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/reports/assets/warranty",
+									"host": ["{{base_url}}"],
+									"path": ["reports", "assets", "warranty"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Maintenance Reports",
+					"item": [
+						{
+							"name": "Get Maintenance Summary Report",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/reports/maintenance/summary",
+									"host": ["{{base_url}}"],
+									"path": ["reports", "maintenance", "summary"]
+								}
+							}
+						},
+						{
+							"name": "Get Maintenance Costs Report",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/reports/maintenance/costs",
+									"host": ["{{base_url}}"],
+									"path": ["reports", "maintenance", "costs"]
+								}
+							}
+						},
+						{
+							"name": "Get Downtime Report",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/reports/maintenance/downtime",
+									"host": ["{{base_url}}"],
+									"path": ["reports", "maintenance", "downtime"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Export Report",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"report_type\": \"asset_summary\",\n    \"format\": \"pdf\",\n    \"filters\": {\n        \"start_date\": \"2024-01-01\",\n        \"end_date\": \"2024-12-31\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/reports/export",
+							"host": ["{{base_url}}"],
+							"path": ["reports", "export"]
+						}
+					}
+				},
+				{
+					"name": "Get Report History",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/reports/history",
+							"host": ["{{base_url}}"],
+							"path": ["reports", "history"]
+						}
+					}
+				},
+				{
+					"name": "Download Report",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/reports/runs/:id/download",
+							"host": ["{{base_url}}"],
+							"path": ["reports", "runs", ":id", "download"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Feature Flags",
+			"item": [
+				{
+					"name": "Get My Features",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/me/features",
+							"host": ["{{base_url}}"],
+							"path": ["me", "features"]
+						}
+					}
+				}
+			]
+		}
+	]
+}
+

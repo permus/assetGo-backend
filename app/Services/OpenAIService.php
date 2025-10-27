@@ -95,10 +95,14 @@ class OpenAIService {
                 }
                 
                 // Handle rate limiting
-                if ($e->getCode() === 429 && $attempt < $maxRetries) {
-                    $delay = $baseDelay * pow(2, $attempt) + rand(0, 1000) / 1000;
-                    sleep($delay);
-                    continue;
+                if ($e->getCode() === 429) {
+                    if ($attempt < $maxRetries) {
+                        $delay = $baseDelay * pow(2, $attempt) + rand(0, 1000) / 1000;
+                        sleep($delay);
+                        continue;
+                    }
+                    // If we've exhausted retries, return a user-friendly message
+                    abort(429, 'OpenAI rate limit exceeded. Please wait a moment and try again. To increase your rate limit, add a payment method at https://platform.openai.com/settings/organization/billing');
                 }
                 
                 // Handle other client errors
