@@ -60,7 +60,7 @@ class PurchaseOrderController extends Controller
     public function index(Request $request)
     {
         $companyId = $request->user()->company_id;
-        $query = PurchaseOrder::with(['supplier','items'])->forCompany($companyId);
+        $query = PurchaseOrder::with(['supplier','items.part','createdBy','approvedBy'])->forCompany($companyId);
         if ($request->filled('status')) $query->where('status', $request->status);
         $per = min($request->get('per_page', 15), 100);
         return response()->json(['success' => true, 'data' => $query->orderByDesc('id')->paginate($per)]);
@@ -142,11 +142,12 @@ class PurchaseOrderController extends Controller
             'vendor_contact' => $data['vendor_contact'],
             'order_date' => $data['order_date'],
             'expected_date' => $data['expected_date'],
-            'status' => 'draft',
+            'status' => 'pending',
             'subtotal' => $subtotal,
             'tax' => $taxAmount,
             'total' => $total,
             'terms' => $data['terms'] ?? null,
+            'notes' => $data['notes'] ?? null,
             'created_by' => $request->user()->id,
         ]);
 
@@ -162,7 +163,6 @@ class PurchaseOrderController extends Controller
                 'ordered_qty' => $item['qty'],
                 'unit_cost' => $item['unit_cost'],
                 'line_total' => $lineTotal,
-                'notes' => $data['notes'] ?? null,
             ]);
         }
 
@@ -181,7 +181,7 @@ class PurchaseOrderController extends Controller
         // Clear cache
         $this->cacheService->clearPurchaseOrderCache($companyId);
 
-        return response()->json(['success' => true, 'data' => $po->load('items','supplier')], 201);
+        return response()->json(['success' => true, 'data' => $po->load('items.part','supplier','createdBy')], 201);
     }
 
     public function update(Request $request, PurchaseOrder $purchaseOrder)
@@ -223,7 +223,7 @@ class PurchaseOrderController extends Controller
         // Clear cache
         $this->cacheService->clearPurchaseOrderCache($request->user()->company_id);
 
-        return response()->json(['success' => true, 'data' => $purchaseOrder->fresh(['supplier','items'])]);
+        return response()->json(['success' => true, 'data' => $purchaseOrder->fresh(['supplier','items.part','createdBy','approvedBy'])]);
     }
 
     public function receive(Request $request, PurchaseOrder $purchaseOrder, InventoryService $service)
@@ -273,6 +273,7 @@ class PurchaseOrderController extends Controller
                     'unit_cost' => $item->unit_cost,
                     'reason' => 'PO Receipt',
                     'reference' => $purchaseOrder->po_number,
+                    'reference_type' => 'PO Receipt',
                     'notes' => $data['notes'] ?? null,
                     'user_id' => $request->user()->id,
                     'related_id' => $purchaseOrder->id,
@@ -306,7 +307,7 @@ class PurchaseOrderController extends Controller
         $this->cacheService->clearPurchaseOrderCache($request->user()->company_id);
         $this->cacheService->clearStockCache($request->user()->company_id);
 
-        return response()->json(['success' => true, 'data' => $purchaseOrder->fresh('items')]);
+        return response()->json(['success' => true, 'data' => $purchaseOrder->fresh(['items.part','createdBy','approvedBy'])]);
     }
 
     public function approve(Request $request)
@@ -346,7 +347,7 @@ class PurchaseOrderController extends Controller
         // Clear cache
         $this->cacheService->clearPurchaseOrderCache($request->user()->company_id);
 
-        return response()->json(['success' => true, 'data' => $po]);
+        return response()->json(['success' => true, 'data' => $po->load('createdBy','approvedBy')]);
     }
 }
 

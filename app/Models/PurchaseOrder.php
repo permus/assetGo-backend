@@ -11,7 +11,7 @@ class PurchaseOrder extends Model
 
     protected $fillable = [
         'company_id','po_number','supplier_id','order_date','expected_date','status','subtotal','tax','shipping','total','created_by','approved_by','approved_at','reject_comment',
-        'vendor_name','vendor_contact','actual_delivery_date','terms','approval_threshold','requires_approval','approval_level','approval_history','email_status','last_email_sent_at','template_id'
+        'vendor_name','vendor_contact','actual_delivery_date','terms','notes','approval_threshold','requires_approval','approval_level','approval_history','email_status','last_email_sent_at','template_id'
     ];
 
     protected $casts = [
@@ -41,6 +41,16 @@ class PurchaseOrder extends Model
     public function scopeForCompany($query, int $companyId)
     {
         return $query->where('company_id', $companyId);
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 }
 

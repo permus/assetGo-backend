@@ -23,16 +23,19 @@ use App\Models\Department;
 use App\Models\Location;
 use App\Models\LocationType;
 use App\Services\QRCodeService;
+use App\Services\AssetCacheService;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
 class AssetController extends Controller
 {
     protected $qrCodeService;
+    protected $cacheService;
 
-    public function __construct(QRCodeService $qrCodeService)
+    public function __construct(QRCodeService $qrCodeService, AssetCacheService $cacheService)
     {
         $this->qrCodeService = $qrCodeService;
+        $this->cacheService = $cacheService;
     }
 
     // List assets (grid/list view)
@@ -222,6 +225,9 @@ class AssetController extends Controller
                 'comment' => 'Asset created',
             ]);
 
+            // Clear cache after asset creation
+            $this->cacheService->clearCompanyCache($request->user()->company_id);
+
             \DB::commit();
             return response()->json([
                 'success' => true,
@@ -301,6 +307,9 @@ class AssetController extends Controller
                 'comment' => 'Asset updated',
             ]);
 
+            // Clear cache after asset update
+            $this->cacheService->clearCompanyCache($request->user()->company_id);
+
             \DB::commit();
             return response()->json([
                 'success' => true,
@@ -320,6 +329,7 @@ class AssetController extends Controller
     // Delete/archive asset
     public function destroy(Request $request, Asset $asset)
     {
+        $companyId = $request->user()->company_id;
         \DB::beginTransaction();
         try {
             // Check for active transfers or maintenance
@@ -354,6 +364,10 @@ class AssetController extends Controller
                     'after' => null,
                     'comment' => 'Asset permanently deleted',
                 ]);
+                
+                // Clear cache after asset deletion
+                $this->cacheService->clearCompanyCache($companyId);
+                
                 \DB::commit();
                 return response()->json([
                     'success' => true,
@@ -377,6 +391,8 @@ class AssetController extends Controller
                 'comment' => 'Asset deleted (archived)',
             ]);
 
+            // Note: No cache clearing needed for archiving since archived assets are still counted in statistics
+
             \DB::commit();
             return response()->json([
                 'success' => true,
@@ -397,6 +413,7 @@ class AssetController extends Controller
      */
     public function archive(Request $request, Asset $asset)
     {
+        $companyId = $request->user()->company_id;
         \DB::beginTransaction();
         try {
             // Check for active transfers or maintenance
@@ -430,6 +447,8 @@ class AssetController extends Controller
                 'after' => null,
                 'comment' => 'Asset archived',
             ]);
+
+            // Note: No cache clearing needed for archiving since archived assets are still counted in statistics
 
             \DB::commit();
             return response()->json([
@@ -477,6 +496,10 @@ class AssetController extends Controller
                 'after' => $newAsset->toArray(),
                 'comment' => 'Asset duplicated',
             ]);
+            
+            // Clear cache after asset duplication
+            $this->cacheService->clearCompanyCache($request->user()->company_id);
+            
             \DB::commit();
             return response()->json([
                 'success' => true,
@@ -530,6 +553,12 @@ class AssetController extends Controller
                     $errors[] = ['row' => $i + 2, 'error' => $e->getMessage()];
                 }
             }
+            
+            // Clear cache after bulk import
+            if (!empty($imported)) {
+                $this->cacheService->clearCompanyCache($request->user()->company_id);
+            }
+            
             \DB::commit();
             return response()->json([
                 'success' => true,
@@ -694,6 +723,12 @@ class AssetController extends Controller
                 $errors[] = ['row' => $i + 1, 'error' => $e->getMessage()];
             }
         }
+        
+        // Clear cache after bulk import
+        if ($imported > 0) {
+            $this->cacheService->clearCompanyCache($companyId);
+        }
+        
         return response()->json([
             'imported' => $imported,
             'errors' => $errors
@@ -1880,6 +1915,7 @@ class AssetController extends Controller
         ]);
 
         $userId = $request->user()->id;
+        $companyId = $request->user()->company_id;
         $assetIds = $request->asset_ids;
         $archiveReason = $request->archive_reason;
         $success = [];
@@ -1933,6 +1969,8 @@ class AssetController extends Controller
             }
         }
 
+        // Note: No cache clearing needed for bulk archiving since archived assets are still counted in statistics
+
         return response()->json([
             'success' => true,
             'archived' => $success,
@@ -1951,6 +1989,7 @@ class AssetController extends Controller
         ]);
 
         $userId = $request->user()->id;
+        $companyId = $request->user()->company_id;
         $assetIds = $request->asset_ids;
         $success = [];
         $failed = [];
@@ -1998,6 +2037,11 @@ class AssetController extends Controller
             }
         }
 
+        // Clear cache after bulk deletion
+        if (!empty($success)) {
+            $this->cacheService->clearCompanyCache($companyId);
+        }
+
         return response()->json([
             'success' => true,
             'deleted' => $success,
@@ -2018,6 +2062,7 @@ class AssetController extends Controller
                 'message' => 'Asset is not archived.'
             ], 400);
         }
+        $companyId = $request->user()->company_id;
         \DB::beginTransaction();
         try {
             $before = $asset->toArray();
@@ -2034,6 +2079,9 @@ class AssetController extends Controller
                 'after' => $asset->toArray(),
                 'comment' => 'Asset restored from archive',
             ]);
+            
+            // Note: No cache clearing needed for restoration since archived assets are already counted in statistics
+            
             \DB::commit();
             return response()->json([
                 'success' => true,
@@ -2062,6 +2110,7 @@ class AssetController extends Controller
             'asset_ids.*' => 'exists:assets,id',
         ]);
         $userId = $request->user()->id;
+        $companyId = $request->user()->company_id;
         $assetIds = $request->asset_ids;
         $restored = [];
         $failed = [];
@@ -2095,6 +2144,9 @@ class AssetController extends Controller
                 ];
             }
         }
+        
+        // Note: No cache clearing needed for bulk restoration since archived assets are already counted in statistics
+        
         return response()->json([
             'success' => true,
             'restored' => $restored,

@@ -18,6 +18,8 @@ class PurchaseOrderItem extends Model
         'line_total' => 'decimal:2',
     ];
 
+    protected $appends = ['location_info'];
+
     public function purchaseOrder()
     {
         return $this->belongsTo(PurchaseOrder::class);
@@ -26,6 +28,18 @@ class PurchaseOrderItem extends Model
     public function part()
     {
         return $this->belongsTo(InventoryPart::class, 'part_id');
+    }
+
+    public function getLocationInfoAttribute()
+    {
+        // Get the first transaction for this item with location info
+        $transaction = InventoryTransaction::where('related_id', $this->purchase_order_id)
+            ->where('reference_type', 'PO Receipt')
+            ->where('part_id', $this->part_id)
+            ->with('location')
+            ->first();
+            
+        return $transaction ? $transaction->location : null;
     }
 }
 

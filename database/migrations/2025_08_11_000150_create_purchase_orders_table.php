@@ -22,6 +22,7 @@ return new class extends Migration {
             $table->decimal('tax', 12, 2)->default(0);
             $table->decimal('shipping', 12, 2)->default(0);
             $table->text('terms')->nullable();
+            $table->text('notes')->nullable();
             $table->decimal('total', 12, 2)->default(0);
             $table->decimal('approval_threshold', 12, 2)->nullable();
             $table->boolean('requires_approval')->default(false);
