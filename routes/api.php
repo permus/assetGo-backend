@@ -112,29 +112,31 @@ Route::middleware(['auth:sanctum'])->group(function () {
             ->middleware('throttle:5,1'); // 5 requests per minute (more complex analysis)
     });
 
-// AI Predictive Maintenance routes
-Route::prefix('ai/predictive-maintenance')->group(function () {
-    Route::get('/', [PredictiveMaintenanceController::class, 'index'])
-        ->middleware('throttle:60,1'); // 60 requests per minute
-    Route::post('generate', [PredictiveMaintenanceController::class, 'generate'])
-        ->middleware('throttle:2,1'); // 2 requests per minute (AI intensive)
-    Route::get('export', [PredictiveMaintenanceController::class, 'export'])
-        ->middleware('throttle:10,1'); // 10 requests per minute
-    Route::get('summary', [PredictiveMaintenanceController::class, 'summary'])
-        ->middleware('throttle:60,1'); // 60 requests per minute
-    Route::delete('clear', [PredictiveMaintenanceController::class, 'clear'])
-        ->middleware('throttle:5,1'); // 5 requests per minute
-});
+    // AI Predictive Maintenance routes
+    Route::prefix('ai/predictive-maintenance')->group(function () {
+        Route::get('/', [PredictiveMaintenanceController::class, 'index'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
+        Route::post('generate', [PredictiveMaintenanceController::class, 'generate'])
+            ->middleware('throttle:2,1'); // 2 requests per minute (AI intensive)
+        Route::get('job-status/{jobId}', [PredictiveMaintenanceController::class, 'jobStatus'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
+        Route::get('export', [PredictiveMaintenanceController::class, 'export'])
+            ->middleware('throttle:10,1'); // 10 requests per minute
+        Route::get('summary', [PredictiveMaintenanceController::class, 'summary'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
+        Route::delete('clear', [PredictiveMaintenanceController::class, 'clear'])
+            ->middleware('throttle:5,1'); // 5 requests per minute
+    });
 
-// AI Natural Language routes
-Route::prefix('ai/natural-language')->group(function () {
-    Route::get('context', [NaturalLanguageController::class, 'getContext'])
-        ->middleware('throttle:60,1'); // 60 requests per minute
-    Route::post('chat', [NaturalLanguageController::class, 'chat'])
-        ->middleware('throttle:10,1'); // 10 requests per minute (AI intensive)
-    Route::get('check-api-key', [NaturalLanguageController::class, 'checkApiKey'])
-        ->middleware('throttle:30,1'); // 30 requests per minute
-});
+    // AI Natural Language routes
+    Route::prefix('ai/natural-language')->group(function () {
+        Route::get('context', [NaturalLanguageController::class, 'getContext'])
+            ->middleware('throttle:60,1'); // 60 requests per minute
+        Route::post('chat', [NaturalLanguageController::class, 'chat'])
+            ->middleware('throttle:10,1'); // 10 requests per minute (AI intensive)
+        Route::get('check-api-key', [NaturalLanguageController::class, 'checkApiKey'])
+            ->middleware('throttle:30,1'); // 30 requests per minute
+    });
 
 
 

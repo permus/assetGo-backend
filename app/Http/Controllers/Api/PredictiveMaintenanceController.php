@@ -4,10 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\PredictiveMaintenanceService;
+use App\Jobs\GeneratePredictiveMaintenancePredictions;
+use App\Models\PredictiveMaintenanceJob;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
 
 class PredictiveMaintenanceController extends Controller
 {
@@ -43,7 +47,7 @@ class PredictiveMaintenanceController extends Controller
     }
 
     /**
-     * Generate new predictions using AI.
+     * Generate new predictions using AI (async job dispatch).
      */
     public function generate(Request $request): JsonResponse
     {
@@ -54,25 +58,45 @@ class PredictiveMaintenanceController extends Controller
         ]);
 
         try {
+            $companyId = $request->user()->company_id;
             $assetIds = $request->input('asset_ids', []);
             $forceRefresh = $request->boolean('force_refresh', false);
+            $jobId = Str::uuid()->toString();
 
-            $result = $this->service->generatePredictions($assetIds, $forceRefresh);
+            // Create job record
+            PredictiveMaintenanceJob::create([
+                'job_id' => $jobId,
+                'company_id' => $companyId,
+                'status' => 'queued',
+                'progress' => 0,
+            ]);
 
-            Log::info('Predictive maintenance predictions generated', [
+            // Dispatch the job
+            dispatch(new GeneratePredictiveMaintenancePredictions(
+                $companyId,
+                $assetIds,
+                $forceRefresh,
+                $jobId
+            ));
+
+            Log::info('Predictive maintenance job queued', [
                 'user_id' => $request->user()->id,
-                'company_id' => $request->user()->company_id,
-                'prediction_count' => count($result['predictions']),
+                'company_id' => $companyId,
+                'job_id' => $jobId,
                 'force_refresh' => $forceRefresh
             ]);
 
             return response()->json([
                 'success' => true,
-                'data' => $result
+                'data' => [
+                    'job_id' => $jobId,
+                    'status' => 'queued',
+                    'message' => 'AI analysis started. This may take a few minutes.'
+                ]
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to generate predictive maintenance predictions', [
+            Log::error('Failed to queue predictive maintenance job', [
                 'user_id' => $request->user()->id,
                 'company_id' => $request->user()->company_id,
                 'error' => $e->getMessage()
@@ -80,7 +104,49 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to generate predictions: ' . $e->getMessage()
+                'message' => 'Failed to start predictions generation: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get job status.
+     */
+    public function jobStatus(string $jobId): JsonResponse
+    {
+        try {
+            $job = PredictiveMaintenanceJob::where('job_id', $jobId)
+                ->where('company_id', Auth::user()->company_id)
+                ->first();
+                
+            if (!$job) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'Job not found'
+                ], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'job_id' => $job->job_id,
+                    'status' => $job->status,
+                    'progress' => $job->progress,
+                    'total_assets' => $job->total_assets,
+                    'predictions_generated' => $job->predictions_generated,
+                    'error' => $job->error_message,
+                    'completed_at' => $job->completed_at?->toISOString()
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch job status', [
+                'job_id' => $jobId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch job status: ' . $e->getMessage()
             ], 500);
         }
     }

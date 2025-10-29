@@ -148,7 +148,7 @@ You MUST respond with ONLY a valid JSON object. Do not include any text before o
 Return ONLY a single JSON object with EXACT keys:
 {
   "assetType": string,
-  "confidence": number,
+  "confidence": number (0-100 integer),
   "manufacturer": string | null,
   "model": string | null,
   "serialNumber": string | null,
@@ -162,7 +162,23 @@ Return ONLY a single JSON object with EXACT keys:
   }
 }
 
-Use all images jointly; prefer nameplates/labels. If unsure, put null and lower confidence. Provide 3–6 practical recommendations. 
+CONFIDENCE SCORING GUIDELINES (0-100):
+- 90-100: Crystal clear images, all key fields visible (manufacturer, model, serial), clear branding/nameplates, no ambiguity
+- 75-89: Good image quality, most key fields identified, clear asset type, minor details may be unclear
+- 60-74: Decent visibility, asset type and some fields identified, some guesswork required
+- 40-59: Poor image quality or distance, asset type recognizable but many details unclear
+- 20-39: Very unclear images, significant uncertainty, making educated guesses
+- 0-19: Cannot identify with any confidence, complete guesswork
+
+Confidence should reflect:
+1. Image quality (clarity, lighting, focus, resolution)
+2. How many key fields you can identify with certainty
+3. Visibility of brand markings, labels, or nameplates
+4. Overall certainty in your identification
+
+Use all images jointly; prefer nameplates/labels. If unsure about a field, put null and adjust confidence accordingly. 
+Provide 3–6 practical recommendations based on the visible condition.
+
 CRITICAL: Return ONLY the JSON object, no markdown formatting, no code blocks, no additional text.
 TXT;
     }
