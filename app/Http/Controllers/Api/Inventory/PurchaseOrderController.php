@@ -60,7 +60,20 @@ class PurchaseOrderController extends Controller
     public function index(Request $request)
     {
         $companyId = $request->user()->company_id;
-        $query = PurchaseOrder::with(['supplier','items.part','createdBy','approvedBy'])->forCompany($companyId);
+        
+        // Filter out items with archived parts
+        $query = PurchaseOrder::with([
+            'supplier',
+            'items' => function ($query) {
+                $query->whereHas('part', function ($q) {
+                    $q->where('is_archived', false);
+                })->orWhereNull('part_id');
+            },
+            'items.part',
+            'createdBy',
+            'approvedBy'
+        ])->forCompany($companyId);
+        
         if ($request->filled('status')) $query->where('status', $request->status);
         $per = min($request->get('per_page', 15), 100);
         return response()->json(['success' => true, 'data' => $query->orderByDesc('id')->paginate($per)]);
@@ -101,7 +114,7 @@ class PurchaseOrderController extends Controller
         $partIds = collect($data['items'])->pluck('part_id')->filter()->unique();
         if ($partIds->isNotEmpty()) {
             $archivedParts = InventoryPart::whereIn('id', $partIds)
-                ->where('status', 'archived')
+                ->where('is_archived', true)
                 ->where('company_id', $companyId)
                 ->get(['id', 'part_number', 'name']);
 

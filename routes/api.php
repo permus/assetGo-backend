@@ -301,6 +301,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Important: put specific routes BEFORE resource to avoid capturing 'overview' as {part}
         Route::get('inventory/parts/overview', [InventoryPartController::class, 'overview'])
             ->middleware('throttle:60,1'); // 60 requests per minute
+        Route::post('inventory/parts/import', [InventoryPartController::class, 'bulkImport'])
+            ->middleware('throttle:20,1'); // 20 requests per minute (lower for bulk operations)
         Route::post('inventory/parts/{part}/archive', [InventoryPartController::class, 'archive'])
             ->middleware('throttle:60,1');
         Route::post('inventory/parts/{part}/restore', [InventoryPartController::class, 'restore'])

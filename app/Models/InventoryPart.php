@@ -16,7 +16,7 @@ class InventoryPart extends Model
         'company_id', 'user_id', 'part_number', 'name', 'description', 'manufacturer', 'maintenance_category',
         'uom', 'unit_cost', 'specifications', 'compatible_assets', 'category_id', 'reorder_point', 'reorder_qty',
         'minimum_stock', 'maximum_stock', 'is_consumable', 'usage_tracking', 'preferred_supplier_id',
-        'barcode', 'image_path', 'status', 'abc_class', 'extra'
+        'barcode', 'image_path', 'status', 'is_archived', 'abc_class', 'extra'
     ];
 
     protected $casts = [
@@ -25,6 +25,7 @@ class InventoryPart extends Model
         'compatible_assets' => 'array',
         'is_consumable' => 'boolean',
         'usage_tracking' => 'boolean',
+        'is_archived' => 'boolean',
         'extra' => 'array',
     ];
 
@@ -46,6 +47,16 @@ class InventoryPart extends Model
     public function scopeForCompany($query, int $companyId)
     {
         return $query->where('company_id', $companyId);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_archived', false);
+    }
+
+    public function scopeArchived($query)
+    {
+        return $query->where('is_archived', true);
     }
 }
 

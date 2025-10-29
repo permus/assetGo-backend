@@ -103,6 +103,12 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function hasPermission($module, $action)
     {
+        // Check if user has admin-like user_type (grants all permissions)
+        $adminUserTypes = ['admin', 'super_admin', 'company_admin', 'owner'];
+        if (in_array($this->user_type, $adminUserTypes)) {
+            return true;
+        }
+        
         return $this->roles()->whereHas('permissions', function ($query) use ($module, $action) {
             $query->whereRaw("JSON_EXTRACT(permissions, '$.{$module}.{$action}') = true");
         })->exists();

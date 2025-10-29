@@ -41,6 +41,16 @@ class PurchaseOrderItem extends Model
             
         return $transaction ? $transaction->location : null;
     }
+
+    /**
+     * Scope to exclude items with archived parts
+     */
+    public function scopeExcludeArchivedParts($query)
+    {
+        return $query->whereHas('part', function ($q) {
+            $q->where('is_archived', false);
+        })->orWhereNull('part_id');
+    }
 }
 
 

@@ -31,6 +31,7 @@ return new class extends Migration {
             $table->string('barcode')->nullable();
             $table->string('image_path')->nullable();
             $table->string('status')->default('active'); // active|archived
+            $table->boolean('is_archived')->default(false);
             $table->char('abc_class', 1)->nullable(); // A|B|C
             $table->json('extra')->nullable();
             $table->timestamps();

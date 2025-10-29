@@ -476,5 +476,36 @@ class InventoryAuditService
             'timestamp' => now()->toDateTimeString(),
         ]);
     }
+
+    /**
+     * Log bulk parts import
+     *
+     * @param int $userId
+     * @param string $userEmail
+     * @param int $companyId
+     * @param int $importedCount
+     * @param int $failedCount
+     * @param string|null $ipAddress
+     * @return void
+     */
+    public function logPartsBulkImport(
+        int $userId,
+        string $userEmail,
+        int $companyId,
+        int $importedCount,
+        int $failedCount,
+        ?string $ipAddress = null
+    ): void {
+        Log::info('Parts bulk import', [
+            'event' => 'parts_bulk_import',
+            'user_id' => $userId,
+            'user_email' => $userEmail,
+            'company_id' => $companyId,
+            'imported_count' => $importedCount,
+            'failed_count' => $failedCount,
+            'ip_address' => $ipAddress,
+            'timestamp' => now()->toDateTimeString(),
+        ]);
+    }
 }
 

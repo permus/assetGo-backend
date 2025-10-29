@@ -24,9 +24,23 @@ class PermissionSeeder extends Seeder
         $this->command->info('Seeding permissions...');
 
         $permissionSets = [
-            'Admin' => ['assets' => ['view', 'create', 'edit', 'delete'], 'users' => ['view', 'create', 'edit', 'delete'], 'work_orders' => ['view', 'create', 'edit', 'delete'], 'inventory' => ['view', 'create', 'edit', 'delete']],
-            'Manager' => ['assets' => ['view', 'create', 'edit'], 'users' => ['view'], 'work_orders' => ['view', 'create', 'edit'], 'inventory' => ['view', 'create', 'edit']],
-            'User' => ['assets' => ['view'], 'work_orders' => ['view', 'create'], 'inventory' => ['view']],
+            'Admin' => [
+                'assets' => ['view', 'create', 'edit', 'delete'], 
+                'users' => ['view', 'create', 'edit', 'delete'], 
+                'work_orders' => ['view', 'create', 'edit', 'delete'], 
+                'inventory' => ['view', 'create', 'edit', 'delete', 'parts_archive', 'parts_restore']
+            ],
+            'Manager' => [
+                'assets' => ['view', 'create', 'edit'], 
+                'users' => ['view'], 
+                'work_orders' => ['view', 'create', 'edit'], 
+                'inventory' => ['view', 'create', 'edit', 'parts_archive', 'parts_restore']
+            ],
+            'User' => [
+                'assets' => ['view'], 
+                'work_orders' => ['view', 'create'], 
+                'inventory' => ['view']
+            ],
         ];
 
         foreach ($roles as $role) {

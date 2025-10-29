@@ -10,6 +10,10 @@ use App\Traits\HasPermissions;
 use App\Services\{InventoryAuditService, InventoryCacheService};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PartController extends Controller
 {
@@ -78,10 +82,16 @@ class PartController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Filter archived parts by default unless explicitly requested
-        $includeArchived = $request->boolean('include_archived', false);
-        if (!$includeArchived) {
-            $query->where('status', '!=', 'archived');
+        // Handle archived parts filtering
+        if ($request->has('is_archived')) {
+            $isArchived = $request->boolean('is_archived');
+            $query->where('is_archived', $isArchived);
+        } else {
+            // Filter archived parts by default unless explicitly requested
+            $includeArchived = $request->boolean('include_archived', false);
+            if (!$includeArchived) {
+                $query->where('is_archived', false);
+            }
         }
 
         $perPage = min($request->get('per_page', 15), 100);
@@ -209,7 +219,7 @@ class PartController extends Controller
         }
 
         // Check if already archived
-        if ($part->status === 'archived') {
+        if ($part->is_archived) {
             return response()->json([
                 'success' => false,
                 'message' => 'Part is already archived'
@@ -254,7 +264,7 @@ class PartController extends Controller
         }
 
         // Archive the part
-        $part->status = 'archived';
+        $part->is_archived = true;
         $part->save();
 
         // Prepare affected PO data for logging
@@ -303,7 +313,7 @@ class PartController extends Controller
         }
 
         // Check if part is archived
-        if ($part->status !== 'archived') {
+        if (!$part->is_archived) {
             return response()->json([
                 'success' => false,
                 'message' => 'Part is not archived'
@@ -311,7 +321,7 @@ class PartController extends Controller
         }
 
         // Restore the part
-        $part->status = 'active';
+        $part->is_archived = false;
         $part->save();
 
         // Log the restore action
@@ -333,6 +343,437 @@ class PartController extends Controller
             'message' => 'Part restored successfully',
             'data' => $part,
         ]);
+    }
+
+    /**
+     * Bulk import parts from CSV/XLSX file
+     * 
+     * POST /api/inventory/parts/import
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function bulkImport(Request $request)
+    {
+        // Check permission - Only Manager and Admin can import
+        if ($denied = $this->requirePermission('inventory', 'create')) {
+            return $denied;
+        }
+
+        // Validate file upload
+        $request->validate([
+            'file' => [
+                'required',
+                'file',
+                function ($attribute, $value, $fail) {
+                    $extension = strtolower($value->getClientOriginalExtension());
+                    if (!in_array($extension, ['csv', 'xlsx', 'xls'])) {
+                        $fail('The file must be a CSV, XLSX, or XLS file.');
+                    }
+                },
+                'max:10240'
+            ],
+        ]);
+
+        $user = $request->user();
+        $companyId = $user->company_id;
+        $file = $request->file('file');
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        // Set memory limit for large files
+        ini_set('memory_limit', '512M');
+        set_time_limit(600); // 10 minutes
+
+        try {
+            // Parse file based on extension
+            $rows = $this->parseFile($file, $extension);
+            
+            if (empty($rows)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File is empty or could not be parsed'
+                ], 400);
+            }
+
+            // Track duplicate part_numbers within the file
+            $filePartNumbers = [];
+            $duplicateInFile = [];
+
+            // Validate and process each row
+            $validRows = [];
+            $invalidRows = [];
+            $rowNumber = 1; // Start from 1 (header is row 0)
+
+            foreach ($rows as $row) {
+                $rowNumber++;
+                $errors = [];
+
+                // Normalize header keys (trim, lowercase, replace spaces with underscores)
+                $normalizedRow = [];
+                foreach ($row as $key => $value) {
+                    $normalizedKey = strtolower(trim(str_replace([' ', '-'], '_', $key)));
+                    $normalizedRow[$normalizedKey] = $value;
+                }
+
+                // Extract required fields
+                $partNumber = trim($normalizedRow['part_number'] ?? $normalizedRow['partnumber'] ?? '');
+                $name = trim($normalizedRow['name'] ?? $normalizedRow['part_name'] ?? '');
+
+                // Validate required fields
+                if (empty($partNumber)) {
+                    $errors[] = 'Missing part_number';
+                }
+                if (empty($name)) {
+                    $errors[] = 'Missing name';
+                }
+
+                // Check for duplicates within the file
+                if (!empty($partNumber)) {
+                    if (isset($filePartNumbers[$partNumber])) {
+                        $errors[] = 'Duplicate part_number in file';
+                        $duplicateInFile[$partNumber] = true;
+                    } else {
+                        $filePartNumbers[$partNumber] = $rowNumber;
+                    }
+                }
+
+                // Validate numeric fields
+                if (isset($normalizedRow['unit_cost']) && !empty($normalizedRow['unit_cost'])) {
+                    if (!is_numeric($normalizedRow['unit_cost']) || $normalizedRow['unit_cost'] < 0) {
+                        $errors[] = 'Invalid unit_cost (must be numeric and >= 0)';
+                    }
+                }
+
+                if (isset($normalizedRow['reorder_point']) && !empty($normalizedRow['reorder_point'])) {
+                    if (!is_numeric($normalizedRow['reorder_point']) || $normalizedRow['reorder_point'] < 0) {
+                        $errors[] = 'Invalid reorder_point (must be numeric and >= 0)';
+                    }
+                }
+
+                if (isset($normalizedRow['reorder_qty']) && !empty($normalizedRow['reorder_qty'])) {
+                    if (!is_numeric($normalizedRow['reorder_qty']) || $normalizedRow['reorder_qty'] < 0) {
+                        $errors[] = 'Invalid reorder_qty (must be numeric and >= 0)';
+                    }
+                }
+
+                if (isset($normalizedRow['reorder_quantity']) && !empty($normalizedRow['reorder_quantity'])) {
+                    if (!is_numeric($normalizedRow['reorder_quantity']) || $normalizedRow['reorder_quantity'] < 0) {
+                        $errors[] = 'Invalid reorder_quantity (must be numeric and >= 0)';
+                    }
+                }
+
+                if (isset($normalizedRow['minimum_stock']) && !empty($normalizedRow['minimum_stock'])) {
+                    if (!is_numeric($normalizedRow['minimum_stock']) || $normalizedRow['minimum_stock'] < 0) {
+                        $errors[] = 'Invalid minimum_stock (must be numeric and >= 0)';
+                    }
+                }
+
+                if (isset($normalizedRow['maximum_stock']) && !empty($normalizedRow['maximum_stock'])) {
+                    if (!is_numeric($normalizedRow['maximum_stock']) || $normalizedRow['maximum_stock'] < 0) {
+                        $errors[] = 'Invalid maximum_stock (must be numeric and >= 0)';
+                    }
+                }
+
+                // Validate boolean fields
+                if (isset($normalizedRow['is_consumable']) && !empty($normalizedRow['is_consumable'])) {
+                    $isConsumable = strtolower(trim($normalizedRow['is_consumable']));
+                    if (!in_array($isConsumable, ['yes', 'no', 'true', 'false', '1', '0', 'y', 'n'])) {
+                        $errors[] = 'Invalid is_consumable (must be yes/no or true/false)';
+                    }
+                }
+
+                if (isset($normalizedRow['usage_tracking']) && !empty($normalizedRow['usage_tracking'])) {
+                    $usageTracking = strtolower(trim($normalizedRow['usage_tracking']));
+                    if (!in_array($usageTracking, ['yes', 'no', 'true', 'false', '1', '0', 'y', 'n'])) {
+                        $errors[] = 'Invalid usage_tracking (must be yes/no or true/false)';
+                    }
+                }
+
+                // If there are errors, add to invalid rows
+                if (!empty($errors)) {
+                    $invalidRows[] = [
+                        'row_number' => $rowNumber,
+                        'errors' => $errors,
+                        'data' => $normalizedRow
+                    ];
+                } else {
+                    // Prepare valid row data
+                    $validRows[] = [
+                        'row_number' => $rowNumber,
+                        'data' => $normalizedRow
+                    ];
+                }
+            }
+
+            // Process valid rows - batch insert/update
+            $importedCount = 0;
+            $updatedCount = 0;
+            $createdCount = 0;
+
+            // Process in batches of 100 for performance
+            $batchSize = 100;
+            $batches = array_chunk($validRows, $batchSize);
+
+            DB::beginTransaction();
+
+            try {
+                foreach ($batches as $batch) {
+                    foreach ($batch as $rowData) {
+                        $normalizedRow = $rowData['data'];
+                        $partNumber = trim($normalizedRow['part_number'] ?? $normalizedRow['partnumber'] ?? '');
+
+                        try {
+                            // Find existing part by part_number within company
+                            $existingPart = InventoryPart::forCompany($companyId)
+                                ->where('part_number', $partNumber)
+                                ->first();
+
+                            // Prepare data for insert/update
+                            $partData = [
+                                'company_id' => $companyId,
+                                'user_id' => $user->id,
+                                'part_number' => $partNumber,
+                                'name' => trim($normalizedRow['name'] ?? $normalizedRow['part_name'] ?? ''),
+                                'description' => trim($normalizedRow['description'] ?? $normalizedRow['desc'] ?? null),
+                                'manufacturer' => trim($normalizedRow['manufacturer'] ?? null),
+                                'maintenance_category' => trim($normalizedRow['maintenance_category'] ?? $normalizedRow['category'] ?? null),
+                                'uom' => trim($normalizedRow['uom'] ?? $normalizedRow['unit_of_measure'] ?? 'each'),
+                                'unit_cost' => isset($normalizedRow['unit_cost']) && is_numeric($normalizedRow['unit_cost']) 
+                                    ? (float) $normalizedRow['unit_cost'] : 0,
+                                'category_id' => !empty($normalizedRow['category_id']) && is_numeric($normalizedRow['category_id']) 
+                                    ? (int) $normalizedRow['category_id'] : null,
+                                'reorder_point' => isset($normalizedRow['reorder_point']) && is_numeric($normalizedRow['reorder_point']) 
+                                    ? (int) $normalizedRow['reorder_point'] : 0,
+                                'reorder_qty' => isset($normalizedRow['reorder_qty']) && is_numeric($normalizedRow['reorder_qty']) 
+                                    ? (int) $normalizedRow['reorder_qty'] 
+                                    : (isset($normalizedRow['reorder_quantity']) && is_numeric($normalizedRow['reorder_quantity']) 
+                                        ? (int) $normalizedRow['reorder_quantity'] : 0),
+                                'minimum_stock' => isset($normalizedRow['minimum_stock']) && is_numeric($normalizedRow['minimum_stock']) 
+                                    ? (int) $normalizedRow['minimum_stock'] : null,
+                                'maximum_stock' => isset($normalizedRow['maximum_stock']) && is_numeric($normalizedRow['maximum_stock']) 
+                                    ? (int) $normalizedRow['maximum_stock'] : null,
+                                'barcode' => trim($normalizedRow['barcode'] ?? null),
+                                'is_consumable' => $this->parseBoolean($normalizedRow['is_consumable'] ?? null),
+                                'usage_tracking' => $this->parseBoolean($normalizedRow['usage_tracking'] ?? null),
+                                'status' => trim($normalizedRow['status'] ?? 'active'),
+                                'is_archived' => false,
+                                'abc_class' => !empty($normalizedRow['abc_class']) ? strtoupper(trim($normalizedRow['abc_class'])) : null,
+                            ];
+
+                            if ($existingPart) {
+                                // Update existing part
+                                $existingPart->update($partData);
+                                $updatedCount++;
+                                $importedCount++;
+                            } else {
+                                // Check if part_number exists globally (might belong to different company)
+                                $globalPart = InventoryPart::where('part_number', $partNumber)->first();
+                                if ($globalPart && $globalPart->company_id !== $companyId) {
+                                    // Part exists in different company - add to invalid rows
+                                    $invalidRows[] = [
+                                        'row_number' => $rowData['row_number'],
+                                        'errors' => ['Part number already exists in another company'],
+                                        'data' => $normalizedRow
+                                    ];
+                                    continue; // Skip this row
+                                }
+
+                                // Create new part
+                                InventoryPart::create($partData);
+                                $createdCount++;
+                                $importedCount++;
+                            }
+                        } catch (\Exception $e) {
+                            // Handle database errors for this specific row
+                            $invalidRows[] = [
+                                'row_number' => $rowData['row_number'],
+                                'errors' => ['Database error: ' . $e->getMessage()],
+                                'data' => $normalizedRow
+                            ];
+                            continue; // Skip this row and continue with next
+                        }
+                    }
+                }
+
+                DB::commit();
+
+                // Clear cache
+                $this->cacheService->clearPartCache($companyId);
+
+                // Log the bulk import
+                $this->auditService->logPartsBulkImport(
+                    $user->id,
+                    $user->email,
+                    $companyId,
+                    $importedCount,
+                    count($invalidRows),
+                    $request->ip()
+                );
+
+                // Generate error report if there are invalid rows
+                $errorReportUrl = null;
+                if (!empty($invalidRows)) {
+                    $errorReportUrl = $this->generateErrorReport($invalidRows, $user->id);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Import completed',
+                    'data' => [
+                        'imported_count' => $importedCount,
+                        'created_count' => $createdCount,
+                        'updated_count' => $updatedCount,
+                        'failed_count' => count($invalidRows),
+                        'invalid_rows' => $invalidRows,
+                        'error_report_url' => $errorReportUrl,
+                    ]
+                ], 200);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Bulk import error: ' . $e->getMessage(), [
+                    'user_id' => $user->id,
+                    'company_id' => $companyId,
+                    'trace' => $e->getTraceAsString()
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Import failed: ' . $e->getMessage()
+                ], 500);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('File parsing error: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'company_id' => $companyId,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to parse file: ' . $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Parse CSV or XLSX file
+     * 
+     * @param \Illuminate\Http\UploadedFile $file
+     * @param string $extension
+     * @return array
+     */
+    private function parseFile($file, $extension)
+    {
+        if (in_array($extension, ['csv'])) {
+            // Parse CSV
+            $handle = fopen($file->getRealPath(), 'r');
+            if (!$handle) {
+                throw new \Exception('Could not open CSV file');
+            }
+
+            $rows = [];
+            $header = null;
+
+            while (($row = fgetcsv($handle)) !== false) {
+                if ($header === null) {
+                    $header = array_map('trim', $row);
+                    continue;
+                }
+
+                if (count($row) !== count($header)) {
+                    // Skip malformed rows
+                    continue;
+                }
+
+                $rows[] = array_combine($header, $row);
+            }
+
+            fclose($handle);
+            return $rows;
+
+        } elseif (in_array($extension, ['xlsx', 'xls'])) {
+            // Parse Excel using Laravel Excel
+            if (!class_exists('Maatwebsite\\Excel\\Facades\\Excel')) {
+                throw new \Exception('Excel import not supported. Install maatwebsite/excel.');
+            }
+
+            $data = Excel::toArray(null, $file);
+            if (empty($data) || empty($data[0])) {
+                throw new \Exception('Excel file is empty');
+            }
+
+            $rows = $data[0];
+            $header = array_map('trim', array_shift($rows));
+
+            return array_map(function($row) use ($header) {
+                if (count($row) !== count($header)) {
+                    // Pad or trim row to match header length
+                    $row = array_slice($row, 0, count($header));
+                    $row = array_pad($row, count($header), '');
+                }
+                return array_combine($header, $row);
+            }, $rows);
+
+        } else {
+            throw new \Exception('Unsupported file format. Only CSV and XLSX are supported.');
+        }
+    }
+
+    /**
+     * Parse boolean value from string
+     * 
+     * @param mixed $value
+     * @return bool|null
+     */
+    private function parseBoolean($value)
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $value = strtolower(trim((string) $value));
+        return in_array($value, ['yes', 'true', '1', 'y']) ? true : 
+               (in_array($value, ['no', 'false', '0', 'n']) ? false : null);
+    }
+
+    /**
+     * Generate error report CSV file
+     * 
+     * @param array $invalidRows
+     * @param int $userId
+     * @return string|null URL to download the error report
+     */
+    private function generateErrorReport(array $invalidRows, int $userId)
+    {
+        try {
+            $fileName = 'error_report_' . date('YmdHis') . '_' . $userId . '.csv';
+            $filePath = 'imports/error_reports/' . $fileName;
+
+            $handle = fopen(storage_path('app/' . $filePath), 'w');
+            
+            // Write header
+            fputcsv($handle, ['Row Number', 'Errors', 'Data (JSON)']);
+
+            // Write error rows
+            foreach ($invalidRows as $row) {
+                fputcsv($handle, [
+                    $row['row_number'],
+                    implode('; ', $row['errors']),
+                    json_encode($row['data'])
+                ]);
+            }
+
+            fclose($handle);
+
+            // Return URL for download
+            return '/api/download/import-error-report/' . basename($filePath);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to generate error report: ' . $e->getMessage());
+            return null;
+        }
     }
 }
 

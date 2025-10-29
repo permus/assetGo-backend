@@ -36,7 +36,7 @@ class WorkOrderPartController extends Controller
         // Validate that parts are not archived
         $partIds = collect($validated['items'])->pluck('part_id')->unique();
         $archivedParts = InventoryPart::whereIn('id', $partIds)
-            ->where('status', 'archived')
+            ->where('is_archived', true)
             ->where('company_id', $request->user()->company_id)
             ->get(['id', 'part_number', 'name']);
 
