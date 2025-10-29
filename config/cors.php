@@ -28,6 +28,7 @@ return [
         'http://127.0.0.1',
         'https://portal.assetgo.thethemeai.com',
         'https://assetgo.equidesk.io',
+        'https://portal.assetgo.equidesk.io',
         'http://assetgo-backend.test',
         'https://assetgo-backend.test',
         'http://localhost:5173', // Vite dev server
