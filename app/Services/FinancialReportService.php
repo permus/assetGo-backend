@@ -40,7 +40,7 @@ class FinancialReportService extends ReportService
                 ->where('company_id', $companyId)
                 ->when($start, fn($q) => $q->where('created_at', '>=', $start))
                 ->when($end, fn($q) => $q->where('created_at', '<=', $end))
-                ->selectRaw('COALESCE(SUM(purchase_cost), 0) as total')
+                ->selectRaw('COALESCE(SUM(purchase_price), 0) as total')
                 ->value('total');
 
             // Maintenance cost proxy: sum actual_hours * 50 across work orders in range

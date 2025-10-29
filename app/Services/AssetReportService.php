@@ -44,7 +44,7 @@ class AssetReportService extends ReportService
             $categoryDistribution = $this->getCategoryDistribution($filters);
 
             return $this->formatResponse([
-                'assets' => $assets->items(),
+                'assets' => collect($assets->items())->map(fn($asset) => $asset->toArray())->all(),
                 'totals' => $totals,
                 'status_distribution' => $statusDistribution,
                 'category_distribution' => $categoryDistribution,

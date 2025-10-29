@@ -192,7 +192,14 @@ class ReportExportService
             'maintenance.costs',
             'maintenance.downtime',
             'maintenance.failure_analysis',
-            'maintenance.technician_performance'
+            'maintenance.technician_performance',
+            'inventory.current.stock',
+            'inventory.abc.analysis',
+            'inventory.slow_moving',
+            'inventory.reorder_analysis',
+            'financial.total_cost_ownership',
+            'financial.maintenance_cost_breakdown',
+            'financial.budget.vs.actual'
         ];
 
         return in_array($reportKey, $validKeys);

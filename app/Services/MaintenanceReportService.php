@@ -49,7 +49,7 @@ class MaintenanceReportService extends ReportService
             $priorityDistribution = $this->getPriorityDistribution($filters);
 
             return $this->formatResponse([
-                'work_orders' => $workOrders->items(),
+                'work_orders' => collect($workOrders->items())->map(fn($workOrder) => $workOrder->toArray())->all(),
                 'kpis' => $kpis,
                 'status_distribution' => $statusDistribution,
                 'priority_distribution' => $priorityDistribution,
