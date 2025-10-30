@@ -135,15 +135,7 @@ class AuthController extends Controller
             'timestamp' => now()
         ]);
 
-        // Check if email is verified
-        if (!$user->hasVerifiedEmail()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Please verify your email address before logging in.',
-                'email_verified' => false,
-                'user_id' => $user->id
-            ], 403);
-        }
+        // Email verification check removed - users can login without email verification
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -261,7 +253,7 @@ class AuthController extends Controller
                 'user' => $user->load(['company', 'roles.permissions']),
                 'token' => $token,
                 'token_type' => 'Bearer',
-                'email_verified' => true,
+                'email_verified' => $user->hasVerifiedEmail(),
                 'permissions' => $permissions,
                 'module_access' => $moduleAccess
             ]
