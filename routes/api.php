@@ -235,6 +235,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ->middleware('throttle:30,1');
     Route::get('teams/available-roles', [TeamController::class, 'getAvailableRoles']);
     Route::post('teams/{id}/resend-invitation', [TeamController::class, 'resendInvitation']);
+    Route::post('teams/{id}/toggle-status', [TeamController::class, 'toggleStatus']);
+    Route::patch('teams/{id}/status', [TeamController::class, 'updateStatus']);
     Route::apiResource('teams', TeamController::class);
 
     // Feature flags for current user

@@ -77,6 +77,12 @@ class TeamController extends Controller
             }
         }
 
+        // Active status filter (for the new active column)
+        if ($request->has('active')) {
+            $active = $request->boolean('active');
+            $query->where('active', $active);
+        }
+
         // Type filter (maps 'technician' to 'team') - kept for forward compatibility
         if ($type = $request->get('type')) {
             $type = strtolower($type);
@@ -94,6 +100,9 @@ class TeamController extends Controller
                 break;
             case 'email':
                 $query->orderBy('email', $sortDir);
+                break;
+            case 'role_name':
+                $query->orderByRaw("(SELECT name FROM roles WHERE roles.id = (SELECT role_id FROM user_roles WHERE user_roles.user_id = users.id LIMIT 1)) {$sortDir}");
                 break;
             case 'created_at':
             default:
@@ -157,6 +166,7 @@ class TeamController extends Controller
                     'role_id' => $request->get('role_id'),
                     'role_name' => $request->get('role_name'),
                     'status' => $request->get('status'),
+                    'active' => $request->get('active'),
                     'type' => $request->get('type'),
                 ],
                 'sorting' => [
@@ -205,6 +215,7 @@ class TeamController extends Controller
             'company_id' => $user->company_id,
             'created_by' => $user->id,
             'hourly_rate' => $request->input('hourly_rate'),
+            'active' => true, // Default to active
         ]);
 
         // Assign the role to the team member
@@ -495,6 +506,90 @@ class TeamController extends Controller
         return response()->json([
             'success' => true,
             'data' => $roles
+        ]);
+    }
+
+    /**
+     * Toggle team member active/inactive status
+     */
+    public function toggleStatus(Request $request, $id): JsonResponse
+    {
+        $user = $request->user();
+        $teamMember = $user->company->users()
+            ->where('user_type', 'team')
+            ->where('id', $id)
+            ->first();
+
+        if (!$teamMember) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Team member not found'
+            ], 404);
+        }
+
+        // Toggle the active status
+        $teamMember->update(['active' => !$teamMember->active]);
+
+        // Audit logging
+        $this->auditService->logUpdated($teamMember, [
+            'active' => [$teamMember->active ? 'inactive' : 'active', $teamMember->active ? 'active' : 'inactive']
+        ], $user, $request->ip());
+
+        // Clear cache
+        $this->cacheService->clearCompanyCache($user->company_id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Team member status updated successfully',
+            'data' => [
+                'id' => $teamMember->id,
+                'active' => $teamMember->active,
+                'status' => $teamMember->active ? 'active' : 'inactive'
+            ]
+        ]);
+    }
+
+    /**
+     * Update team member active status (set specific status)
+     */
+    public function updateStatus(Request $request, $id): JsonResponse
+    {
+        $user = $request->user();
+        $teamMember = $user->company->users()
+            ->where('user_type', 'team')
+            ->where('id', $id)
+            ->first();
+
+        if (!$teamMember) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Team member not found'
+            ], 404);
+        }
+
+        $request->validate([
+            'active' => 'required|boolean'
+        ]);
+
+        $oldStatus = $teamMember->active;
+        $teamMember->update(['active' => $request->active]);
+
+        // Audit logging
+        $this->auditService->logUpdated($teamMember, [
+            'active' => [$oldStatus ? 'active' : 'inactive', $teamMember->active ? 'active' : 'inactive']
+        ], $user, $request->ip());
+
+        // Clear cache
+        $this->cacheService->clearCompanyCache($user->company_id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Team member status updated successfully',
+            'data' => [
+                'id' => $teamMember->id,
+                'active' => $teamMember->active,
+                'status' => $teamMember->active ? 'active' : 'inactive'
+            ]
         ]);
     }
 

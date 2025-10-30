@@ -23,6 +23,7 @@ return new class extends Migration
             $table->unsignedBigInteger('company_id')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->decimal('hourly_rate', 10, 2)->nullable();
+            $table->boolean('active')->default(true);
             $table->json('preferences')->nullable();
             $table->rememberToken();
             $table->timestamps();
