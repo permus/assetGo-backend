@@ -37,26 +37,17 @@ class ThrottleLoginAttempts
         // Get current failed attempts
         $attempts = Cache::get($key, 0);
         
-        // If attempts exceed 5, lock the account for 15 minutes
+        // If attempts exceed 5, lock the account for 1 minute
         if ($attempts >= 5) {
-            $lockoutTime = now()->addMinutes(15)->timestamp;
-            Cache::put($lockoutKey, $lockoutTime, 900); // 15 minutes in seconds
+            $lockoutTime = now()->addMinutes(1)->timestamp;
+            Cache::put($lockoutKey, $lockoutTime, 60); // 1 minute in seconds
             Cache::forget($key); // Reset attempts counter
-            
-            // Log lockout event
-            \Log::warning('Account locked due to failed login attempts', [
-                'email' => $email,
-                'ip' => $request->ip(),
-                'lockout_until' => date('Y-m-d H:i:s', $lockoutTime)
-            ]);
-            
-            // TODO: Send email notification to user about account lockout
             
             return response()->json([
                 'success' => false,
-                'message' => 'Too many failed login attempts. Account locked for 15 minutes.',
+                'message' => 'Too many failed login attempts. Account locked for 1 minute.',
                 'locked_until' => $lockoutTime,
-                'retry_after' => 900
+                'retry_after' => 60
             ], 429);
         }
         
@@ -70,7 +61,7 @@ class ThrottleLoginAttempts
     {
         $key = 'login_attempts:' . $email;
         $attempts = Cache::get($key, 0);
-        Cache::put($key, $attempts + 1, 900); // Store for 15 minutes
+        Cache::put($key, $attempts + 1, 60); // Store for 1 minute
     }
     
     /**

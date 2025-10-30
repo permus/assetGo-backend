@@ -35,9 +35,18 @@ class ScheduleMaintenanceController extends Controller
         if ($dueTo = $request->get('due_to')) {
             $query->whereDate('due_date', '<=', $dueTo);
         }
+        if ($planType = $request->get('plan_type')) {
+            // Validate plan_type parameter
+            $validPlanTypes = ['preventive', 'predictive', 'condition_based'];
+            if (in_array($planType, $validPlanTypes)) {
+                $query->whereHas('plan', function ($q) use ($planType) {
+                    $q->where('plan_type', $planType);
+                });
+            }
+        }
 
         $query->orderBy('due_date')->orderBy('id');
-        $items = $query->paginate($perPage);
+        $items = $query->with('plan.priority')->paginate($perPage);
 
         return response()->json([
             'success' => true,
