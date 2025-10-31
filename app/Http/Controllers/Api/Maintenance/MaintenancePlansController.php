@@ -9,11 +9,18 @@ use App\Http\Resources\MaintenancePlanResource;
 use App\Models\MaintenancePlan;
 use App\Models\MaintenancePlanChecklist;
 use App\Models\Asset;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class MaintenancePlansController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     public function index(Request $request)
     {
         $perPage = min((int)$request->get('per_page', 15), 100);
@@ -78,6 +85,36 @@ class MaintenancePlansController extends Controller
             $plan->checklists()->createMany($normalized);
             return $plan->load('checklists');
         });
+
+        // Send notifications to admins and company owners
+        $creator = auth()->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'maintenance',
+                    'action' => 'create_plan',
+                    'title' => 'Maintenance Plan Created',
+                    'message' => $this->notificationService->formatMaintenanceMessage('create_plan', $plan->name),
+                    'data' => [
+                        'planId' => $plan->id,
+                        'planName' => $plan->name,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send maintenance plan creation notifications', [
+                'plan_id' => $plan->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'success' => true,
@@ -169,6 +206,37 @@ class MaintenancePlansController extends Controller
         }
 
         $maintenancePlan->load('checklists');
+
+        // Send notifications to admins and company owners
+        $creator = auth()->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'maintenance',
+                    'action' => 'edit_plan',
+                    'title' => 'Maintenance Plan Updated',
+                    'message' => $this->notificationService->formatMaintenanceMessage('edit_plan', $maintenancePlan->name),
+                    'data' => [
+                        'planId' => $maintenancePlan->id,
+                        'planName' => $maintenancePlan->name,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send maintenance plan update notifications', [
+                'plan_id' => $maintenancePlan->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'data' => new MaintenancePlanResource($maintenancePlan),
@@ -182,7 +250,39 @@ class MaintenancePlansController extends Controller
             abort(403, 'Unauthorized access to maintenance plan.');
         }
         
+        $planName = $maintenancePlan->name;
+        $companyId = $maintenancePlan->company_id;
+        $creator = auth()->user();
         $maintenancePlan->delete();
+
+        // Send notifications to admins and company owners
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $companyId,
+                [
+                    'type' => 'maintenance',
+                    'action' => 'delete_plan',
+                    'title' => 'Maintenance Plan Deleted',
+                    'message' => $this->notificationService->formatMaintenanceMessage('delete_plan', $planName),
+                    'data' => [
+                        'planName' => $planName,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send maintenance plan deletion notifications', [
+                'plan_name' => $planName,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         return response()->json(['success' => true]);
     }
 

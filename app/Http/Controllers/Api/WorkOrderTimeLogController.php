@@ -5,11 +5,18 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderTimeLog;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class WorkOrderTimeLogController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     public function index(Request $request, WorkOrder $workOrder)
     {
         $this->authorizeCompany($request, $workOrder);
@@ -81,6 +88,38 @@ class WorkOrderTimeLogController extends Controller
             $log->total_cost = round(($log->duration_minutes / 60) * (float)$log->hourly_rate, 2);
         }
         $log->save();
+
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'work_order',
+                    'action' => 'time_logged',
+                    'title' => 'Time Logged for Work Order',
+                    'message' => $this->notificationService->formatWorkOrderMessage('time_logged', $workOrder->title),
+                    'data' => [
+                        'workOrderId' => $workOrder->id,
+                        'workOrderTitle' => $workOrder->title,
+                        'durationMinutes' => $log->duration_minutes,
+                        'totalCost' => $log->total_cost,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send work order time log notification', [
+                'work_order_id' => $workOrder->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json(['success' => true, 'data' => $log]);
     }

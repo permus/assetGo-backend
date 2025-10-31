@@ -24,6 +24,7 @@ use App\Models\Location;
 use App\Models\LocationType;
 use App\Services\QRCodeService;
 use App\Services\AssetCacheService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -31,11 +32,13 @@ class AssetController extends Controller
 {
     protected $qrCodeService;
     protected $cacheService;
+    protected $notificationService;
 
-    public function __construct(QRCodeService $qrCodeService, AssetCacheService $cacheService)
+    public function __construct(QRCodeService $qrCodeService, AssetCacheService $cacheService, NotificationService $notificationService)
     {
         $this->qrCodeService = $qrCodeService;
         $this->cacheService = $cacheService;
+        $this->notificationService = $notificationService;
     }
 
     // List assets (grid/list view)
@@ -225,6 +228,37 @@ class AssetController extends Controller
                 'comment' => 'Asset created',
             ]);
 
+            // Send notifications to admins and company owners (excluding the creator)
+            $creator = $request->user();
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $creator->company_id,
+                    [
+                        'type' => 'asset',
+                        'action' => 'created',
+                        'title' => 'New Asset Created',
+                        'message' => $this->notificationService->formatAssetMessage('created', $asset->name),
+                        'data' => [
+                            'assetId' => $asset->id,
+                            'assetName' => $asset->name,
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id // Exclude the creator from notifications
+                );
+            } catch (\Exception $e) {
+                // Log error but don't fail the asset creation
+                \Log::warning('Failed to send asset creation notifications', [
+                    'asset_id' => $asset->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
             // Clear cache after asset creation
             $this->cacheService->clearCompanyCache($request->user()->company_id);
 
@@ -307,6 +341,36 @@ class AssetController extends Controller
                 'comment' => 'Asset updated',
             ]);
 
+            // Send notifications to admins and company owners
+            $creator = $request->user();
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $creator->company_id,
+                    [
+                        'type' => 'asset',
+                        'action' => 'updated',
+                        'title' => 'Asset Updated',
+                        'message' => $this->notificationService->formatAssetMessage('updated', $asset->name),
+                        'data' => [
+                            'assetId' => $asset->id,
+                            'assetName' => $asset->name,
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send asset update notifications', [
+                    'asset_id' => $asset->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
             // Clear cache after asset update
             $this->cacheService->clearCompanyCache($request->user()->company_id);
 
@@ -356,6 +420,8 @@ class AssetController extends Controller
                 if ($asset->qr_code_path) {
                     $this->qrCodeService->deleteQRCode($asset->qr_code_path);
                 }
+                $assetName = $asset->name;
+                $creator = $request->user();
                 $asset->forceDelete();
                 $asset->activities()->create([
                     'user_id' => $request->user()->id,
@@ -364,6 +430,34 @@ class AssetController extends Controller
                     'after' => null,
                     'comment' => 'Asset permanently deleted',
                 ]);
+                
+                // Send notifications to admins and company owners
+                try {
+                    $this->notificationService->createForAdminsAndOwners(
+                        $companyId,
+                        [
+                            'type' => 'asset',
+                            'action' => 'deleted',
+                            'title' => 'Asset Deleted',
+                            'message' => $this->notificationService->formatAssetMessage('deleted', $assetName),
+                            'data' => [
+                                'assetName' => $assetName,
+                                'createdBy' => [
+                                    'id' => $creator->id,
+                                    'name' => $creator->first_name . ' ' . $creator->last_name,
+                                    'userType' => $creator->user_type,
+                                ],
+                            ],
+                            'created_by' => $creator->id,
+                        ],
+                        $creator->id
+                    );
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to send asset delete notifications', [
+                        'asset_name' => $assetName,
+                        'error' => $e->getMessage()
+                    ]);
+                }
                 
                 // Clear cache after asset deletion
                 $this->cacheService->clearCompanyCache($companyId);
@@ -390,6 +484,36 @@ class AssetController extends Controller
                 'after' => null,
                 'comment' => 'Asset deleted (archived)',
             ]);
+
+            // Send notifications to admins and company owners
+            $creator = $request->user();
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $companyId,
+                    [
+                        'type' => 'asset',
+                        'action' => 'deleted',
+                        'title' => 'Asset Deleted',
+                        'message' => $this->notificationService->formatAssetMessage('deleted', $asset->name),
+                        'data' => [
+                            'assetId' => $asset->id,
+                            'assetName' => $asset->name,
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send asset delete notifications', [
+                    'asset_id' => $asset->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
 
             // Note: No cache clearing needed for archiving since archived assets are still counted in statistics
 
@@ -448,6 +572,36 @@ class AssetController extends Controller
                 'comment' => 'Asset archived',
             ]);
 
+            // Send notifications to admins and company owners
+            $creator = $request->user();
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $companyId,
+                    [
+                        'type' => 'asset',
+                        'action' => 'archived',
+                        'title' => 'Asset Archived',
+                        'message' => $this->notificationService->formatAssetMessage('archived', $asset->name),
+                        'data' => [
+                            'assetId' => $asset->id,
+                            'assetName' => $asset->name,
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send asset archive notifications', [
+                    'asset_id' => $asset->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
             // Note: No cache clearing needed for archiving since archived assets are still counted in statistics
 
             \DB::commit();
@@ -496,6 +650,38 @@ class AssetController extends Controller
                 'after' => $newAsset->toArray(),
                 'comment' => 'Asset duplicated',
             ]);
+            
+            // Send notifications to admins and company owners
+            $creator = $request->user();
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $creator->company_id,
+                    [
+                        'type' => 'asset',
+                        'action' => 'duplicated',
+                        'title' => 'Asset Duplicated',
+                        'message' => $this->notificationService->formatAssetMessage('duplicated', $newAsset->name),
+                        'data' => [
+                            'assetId' => $newAsset->id,
+                            'assetName' => $newAsset->name,
+                            'originalAssetId' => $asset->id,
+                            'originalAssetName' => $asset->name,
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send asset duplicate notifications', [
+                    'asset_id' => $newAsset->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
             
             // Clear cache after asset duplication
             $this->cacheService->clearCompanyCache($request->user()->company_id);
@@ -1057,6 +1243,40 @@ class AssetController extends Controller
                 'comment' => 'Asset transferred: ' . $request->transfer_reason,
             ]);
 
+            // Send notifications to admins and company owners
+            $creator = $request->user();
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $creator->company_id,
+                    [
+                        'type' => 'asset',
+                        'action' => 'transferred',
+                        'title' => 'Asset Transferred',
+                        'message' => $this->notificationService->formatAssetMessage('transferred', $asset->name),
+                        'data' => [
+                            'assetId' => $asset->id,
+                            'assetName' => $asset->name,
+                            'transferId' => $transfer->id,
+                            'oldLocationId' => $before['location_id'],
+                            'newLocationId' => $request->new_location_id,
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send asset transfer notifications', [
+                    'asset_id' => $asset->id,
+                    'transfer_id' => $transfer->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
             \DB::commit();
 
             return response()->json([
@@ -1096,6 +1316,39 @@ class AssetController extends Controller
     public function addMaintenanceSchedule(MaintenanceScheduleRequest $request, Asset $asset)
     {
         $schedule = $asset->maintenanceSchedules()->create($request->validated());
+        
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'asset',
+                    'action' => 'maintenance_scheduled',
+                    'title' => 'Maintenance Schedule Added',
+                    'message' => $this->notificationService->formatAssetMessage('maintenance_scheduled', $asset->name),
+                    'data' => [
+                        'assetId' => $asset->id,
+                        'assetName' => $asset->name,
+                        'scheduleId' => $schedule->id,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send maintenance schedule notifications', [
+                'asset_id' => $asset->id,
+                'schedule_id' => $schedule->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+        
         return response()->json([
             'success' => true,
             'message' => 'Maintenance schedule added',
@@ -2079,6 +2332,36 @@ class AssetController extends Controller
                 'after' => $asset->toArray(),
                 'comment' => 'Asset restored from archive',
             ]);
+            
+            // Send notifications to admins and company owners
+            $creator = $request->user();
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $companyId,
+                    [
+                        'type' => 'asset',
+                        'action' => 'restored',
+                        'title' => 'Asset Restored',
+                        'message' => $this->notificationService->formatAssetMessage('restored', $asset->name),
+                        'data' => [
+                            'assetId' => $asset->id,
+                            'assetName' => $asset->name,
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send asset restore notifications', [
+                    'asset_id' => $asset->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
             
             // Note: No cache clearing needed for restoration since archived assets are already counted in statistics
             

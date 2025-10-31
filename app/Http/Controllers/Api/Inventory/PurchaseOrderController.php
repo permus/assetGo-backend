@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Models\{PurchaseOrder, PurchaseOrderItem, InventoryPart, Supplier};
-use App\Services\{InventoryService, InventoryAuditService, InventoryCacheService};
+use App\Services\{InventoryService, InventoryAuditService, InventoryCacheService, NotificationService};
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -13,11 +13,13 @@ class PurchaseOrderController extends Controller
 {
     protected $auditService;
     protected $cacheService;
+    protected $notificationService;
 
-    public function __construct(InventoryAuditService $auditService, InventoryCacheService $cacheService)
+    public function __construct(InventoryAuditService $auditService, InventoryCacheService $cacheService, NotificationService $notificationService)
     {
         $this->auditService = $auditService;
         $this->cacheService = $cacheService;
+        $this->notificationService = $notificationService;
     }
 
     public function overview(Request $request)
@@ -194,6 +196,38 @@ class PurchaseOrderController extends Controller
         // Clear cache
         $this->cacheService->clearPurchaseOrderCache($companyId);
 
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $companyId,
+                [
+                    'type' => 'inventory',
+                    'action' => 'create_order',
+                    'title' => 'Purchase Order Created',
+                    'message' => $this->notificationService->formatInventoryMessage('create_order', $po->po_number),
+                    'data' => [
+                        'orderId' => $po->id,
+                        'poNumber' => $po->po_number,
+                        'vendorName' => $data['vendor_name'],
+                        'total' => $total,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send purchase order creation notifications', [
+                'po_id' => $po->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         return response()->json(['success' => true, 'data' => $po->load('items.part','supplier','createdBy')], 201);
     }
 
@@ -235,6 +269,36 @@ class PurchaseOrderController extends Controller
 
         // Clear cache
         $this->cacheService->clearPurchaseOrderCache($request->user()->company_id);
+
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'inventory',
+                    'action' => 'edit_order',
+                    'title' => 'Purchase Order Updated',
+                    'message' => $this->notificationService->formatInventoryMessage('edit_order', $purchaseOrder->po_number),
+                    'data' => [
+                        'orderId' => $purchaseOrder->id,
+                        'poNumber' => $purchaseOrder->po_number,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send purchase order update notifications', [
+                'po_id' => $purchaseOrder->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json(['success' => true, 'data' => $purchaseOrder->fresh(['supplier','items.part','createdBy','approvedBy'])]);
     }
@@ -319,6 +383,37 @@ class PurchaseOrderController extends Controller
         // Clear caches (both PO and stock)
         $this->cacheService->clearPurchaseOrderCache($request->user()->company_id);
         $this->cacheService->clearStockCache($request->user()->company_id);
+
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'inventory',
+                    'action' => 'receive_items',
+                    'title' => 'Purchase Order Items Received',
+                    'message' => $this->notificationService->formatInventoryMessage('receive_items', $purchaseOrder->po_number),
+                    'data' => [
+                        'orderId' => $purchaseOrder->id,
+                        'poNumber' => $purchaseOrder->po_number,
+                        'itemsReceived' => count($data['items']),
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send purchase order receive notifications', [
+                'po_id' => $purchaseOrder->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json(['success' => true, 'data' => $purchaseOrder->fresh(['items.part','createdBy','approvedBy'])]);
     }

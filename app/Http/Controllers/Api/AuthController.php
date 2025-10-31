@@ -14,6 +14,7 @@ use App\Models\Company;
 use App\Models\Role;
 use App\Models\Permission;
 use App\Http\Middleware\ThrottleLoginAttempts;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -24,6 +25,12 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     /**
      * Register a new user and create associated company
      */
@@ -551,6 +558,35 @@ class AuthController extends Controller
         // Optionally revoke all tokens except current one for security
         $currentToken = $request->user()->currentAccessToken();
         $user->tokens()->where('id', '!=', $currentToken->id)->delete();
+
+        // Send notifications to admins and company owners
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $user->company_id,
+                [
+                    'type' => 'settings',
+                    'action' => 'change_password',
+                    'title' => 'Password Changed',
+                    'message' => $this->notificationService->formatSettingsMessage('change_password'),
+                    'data' => [
+                        'userId' => $user->id,
+                        'userName' => $user->first_name . ' ' . $user->last_name,
+                        'createdBy' => [
+                            'id' => $user->id,
+                            'name' => $user->first_name . ' ' . $user->last_name,
+                            'userType' => $user->user_type,
+                        ],
+                    ],
+                    'created_by' => $user->id,
+                ],
+                $user->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send password change notifications', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'success' => true,

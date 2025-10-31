@@ -9,13 +9,17 @@ use App\Http\Resources\ScheduleMaintenanceResource;
 use App\Models\MaintenancePlan;
 use App\Models\ScheduleMaintenance;
 use App\Services\Maintenance\DueDateService;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class ScheduleMaintenanceController extends Controller
 {
-    public function __construct(private DueDateService $dueDateService)
+    protected $notificationService;
+
+    public function __construct(private DueDateService $dueDateService, NotificationService $notificationService)
     {
+        $this->notificationService = $notificationService;
     }
 
     public function index(Request $request)
@@ -74,6 +78,37 @@ class ScheduleMaintenanceController extends Controller
             'due_date' => $dueDate?->toDateString(),
         ]));
 
+        // Send notifications to admins and company owners
+        $creator = auth()->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'maintenance',
+                    'action' => 'create_schedule',
+                    'title' => 'Maintenance Schedule Created',
+                    'message' => $this->notificationService->formatMaintenanceMessage('create_schedule', $plan->name),
+                    'data' => [
+                        'scheduleId' => $schedule->id,
+                        'planId' => $plan->id,
+                        'planName' => $plan->name,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send maintenance schedule creation notifications', [
+                'schedule_id' => $schedule->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'data' => new ScheduleMaintenanceResource($schedule),
@@ -103,12 +138,77 @@ class ScheduleMaintenanceController extends Controller
             'due_date' => $dueDate?->toDateString(),
         ]));
 
+        // Send notifications to admins and company owners
+        $creator = auth()->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'maintenance',
+                    'action' => 'edit_schedule',
+                    'title' => 'Maintenance Schedule Updated',
+                    'message' => $this->notificationService->formatMaintenanceMessage('edit_schedule', $plan->name),
+                    'data' => [
+                        'scheduleId' => $scheduleMaintenance->id,
+                        'planId' => $plan->id,
+                        'planName' => $plan->name,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send maintenance schedule update notifications', [
+                'schedule_id' => $scheduleMaintenance->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         return response()->json(['success' => true, 'data' => new ScheduleMaintenanceResource($scheduleMaintenance)]);
     }
 
     public function destroy(ScheduleMaintenance $scheduleMaintenance)
     {
+        $plan = $scheduleMaintenance->plan;
+        $planName = $plan ? $plan->name : 'Unknown Plan';
+        $companyId = $scheduleMaintenance->company_id ?? auth()->user()->company_id;
+        $creator = auth()->user();
+        
         $scheduleMaintenance->delete();
+
+        // Send notifications to admins and company owners
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $companyId,
+                [
+                    'type' => 'maintenance',
+                    'action' => 'delete_schedule',
+                    'title' => 'Maintenance Schedule Deleted',
+                    'message' => $this->notificationService->formatMaintenanceMessage('delete_schedule', $planName),
+                    'data' => [
+                        'planName' => $planName,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send maintenance schedule deletion notifications', [
+                'plan_name' => $planName,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         return response()->json(['success' => true]);
     }
 }

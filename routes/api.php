@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\AIAnalyticsController;
 use App\Http\Controllers\Api\AssetReportController;
 use App\Http\Controllers\Api\MaintenanceReportController;
 use App\Http\Controllers\Api\ReportExportController;
+use App\Http\Controllers\Api\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -486,6 +487,22 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('runs/{id}/cancel', [ReportExportController::class, 'cancel'])
             ->middleware('throttle:30,1'); // 30 requests per minute
     });
+});
+
+// Notifications
+Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
+    Route::get('/', [NotificationController::class, 'index'])
+        ->middleware('throttle:60,1');
+    Route::get('/unread-count', [NotificationController::class, 'unreadCount'])
+        ->middleware('throttle:60,1');
+    Route::patch('/{id}/read', [NotificationController::class, 'markAsRead'])
+        ->middleware('throttle:30,1');
+    Route::patch('/read-all', [NotificationController::class, 'markAllAsRead'])
+        ->middleware('throttle:10,1');
+    Route::delete('/{id}', [NotificationController::class, 'destroy'])
+        ->middleware('throttle:30,1');
+    Route::delete('/read', [NotificationController::class, 'deleteRead'])
+        ->middleware('throttle:10,1');
 });
 
 // Routes for verified users only (but don't require full verification middleware)

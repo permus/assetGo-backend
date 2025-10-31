@@ -6,11 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Models\InventoryPart;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderPart;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class WorkOrderPartController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     public function index(Request $request, WorkOrder $workOrder)
     {
         $this->authorizeCompany($request, $workOrder);
@@ -64,6 +71,37 @@ class WorkOrderPartController extends Controller
                 ]);
             }
         });
+
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'work_order',
+                    'action' => 'parts_added',
+                    'title' => 'Parts Added to Work Order',
+                    'message' => $this->notificationService->formatWorkOrderMessage('parts_added', $workOrder->title),
+                    'data' => [
+                        'workOrderId' => $workOrder->id,
+                        'workOrderTitle' => $workOrder->title,
+                        'partCount' => count($created),
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send work order parts notification', [
+                'work_order_id' => $workOrder->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json(['success' => true, 'data' => $created], 201);
     }

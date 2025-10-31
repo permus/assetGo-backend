@@ -10,6 +10,7 @@ use App\Http\Requests\Location\MoveLocationRequest;
 use App\Models\Location;
 use App\Models\LocationType;
 use App\Services\QRCodeService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -17,10 +18,12 @@ use Illuminate\Support\Str;
 class LocationController extends Controller
 {
     protected $qrCodeService;
+    protected $notificationService;
 
-    public function __construct(QRCodeService $qrCodeService)
+    public function __construct(QRCodeService $qrCodeService, NotificationService $notificationService)
     {
         $this->qrCodeService = $qrCodeService;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -117,6 +120,41 @@ class LocationController extends Controller
                 $location->update(['qr_code_path' => $qrPath]);
             }
 
+            // Send notifications to admins and company owners
+            $creator = $request->user();
+            $isSubLocation = $request->filled('parent_id');
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $creator->company_id,
+                    [
+                        'type' => 'location',
+                        'action' => $isSubLocation ? 'sub_location_added' : 'created',
+                        'title' => $isSubLocation ? 'Sub-Location Added' : 'Location Created',
+                        'message' => $this->notificationService->formatLocationMessage(
+                            $isSubLocation ? 'sub_location_added' : 'created',
+                            $location->name
+                        ),
+                        'data' => [
+                            'locationId' => $location->id,
+                            'locationName' => $location->name,
+                            'parentId' => $location->parent_id,
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send location creation notifications', [
+                    'location_id' => $location->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
             DB::commit();
 
             $locationArray = $location->load(['type', 'parent', 'creator', 'assetSummary'])->toArray();
@@ -199,6 +237,36 @@ class LocationController extends Controller
 
             DB::commit();
 
+            // Send notifications to admins and company owners
+            $creator = $request->user();
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $creator->company_id,
+                    [
+                        'type' => 'location',
+                        'action' => 'updated',
+                        'title' => 'Location Updated',
+                        'message' => $this->notificationService->formatLocationMessage('updated', $location->name),
+                        'data' => [
+                            'locationId' => $location->id,
+                            'locationName' => $location->name,
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send location update notifications', [
+                    'location_id' => $location->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
             $locationArray = $location->fresh()->load(['type', 'parent', 'creator', 'assetSummary'])->toArray();
             $locationArray['qr_code_url'] = $location->qr_code_path ? \Storage::disk('public')->url($location->qr_code_path) : null;
             $locationArray['quick_chart_qr_url'] = $location->quick_chart_qr_url;
@@ -251,11 +319,43 @@ class LocationController extends Controller
         try {
             DB::beginTransaction();
 
+            $locationName = $location->name;
+            $companyId = $location->company_id;
+            
             // Delete QR codes
             $this->qrCodeService->deleteAllQRCodes($location);
 
             // Delete location (asset summary will be deleted via cascade)
             $location->delete();
+
+            // Send notifications to admins and company owners
+            $creator = $request->user();
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $companyId,
+                    [
+                        'type' => 'location',
+                        'action' => 'deleted',
+                        'title' => 'Location Deleted',
+                        'message' => $this->notificationService->formatLocationMessage('deleted', $locationName),
+                        'data' => [
+                            'locationName' => $locationName,
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send location delete notifications', [
+                    'location_name' => $locationName,
+                    'error' => $e->getMessage()
+                ]);
+            }
 
             DB::commit();
 
@@ -519,6 +619,34 @@ class LocationController extends Controller
 
             // Generate PDF with all QR codes
             $pdf = $this->generateQRCodesPDF($qrCodes, $company->name);
+
+            // Send notifications to admins and company owners
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $company->id,
+                    [
+                        'type' => 'location',
+                        'action' => 'exported',
+                        'title' => 'Location QR Codes Exported',
+                        'message' => $this->notificationService->formatLocationMessage('exported', $company->name),
+                        'data' => [
+                            'locationCount' => $locations->count(),
+                            'createdBy' => [
+                                'id' => $user->id,
+                                'name' => $user->first_name . ' ' . $user->last_name,
+                                'userType' => $user->user_type,
+                            ],
+                        ],
+                        'created_by' => $user->id,
+                    ],
+                    $user->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send location export notifications', [
+                    'company_id' => $company->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
 
             $filename = 'locations-qr-codes-' . date('Y-m-d-H-i-s') . '.pdf';
 
@@ -842,6 +970,38 @@ class LocationController extends Controller
                 ]);
 
                 $assignedCount++;
+            }
+
+            // Send notifications to admins and company owners
+            $creator = $request->user();
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $creator->company_id,
+                    [
+                        'type' => 'location',
+                        'action' => 'asset_added',
+                        'title' => 'Assets Added to Location',
+                        'message' => $this->notificationService->formatLocationMessage('asset_added', $location->name),
+                        'data' => [
+                            'locationId' => $location->id,
+                            'locationName' => $location->name,
+                            'assetCount' => $assignedCount,
+                            'assetIds' => $assetIds,
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send asset assignment notifications', [
+                    'location_id' => $location->id,
+                    'error' => $e->getMessage()
+                ]);
             }
 
             DB::commit();

@@ -5,11 +5,18 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderAssignment;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class WorkOrderAssignmentController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     public function index(WorkOrder $workOrder)
     {
         if ($workOrder->company_id !== request()->user()->company_id) {
@@ -69,6 +76,39 @@ class WorkOrderAssignmentController extends Controller
             ->where('work_order_id', $workOrder->id)
             ->get();
 
+        // Send notifications to admins and company owners if assignments were added
+        if ($toAdd->isNotEmpty()) {
+            $creator = $request->user();
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $creator->company_id,
+                    [
+                        'type' => 'work_order',
+                        'action' => 'assigned',
+                        'title' => 'Work Order Assigned',
+                        'message' => $this->notificationService->formatWorkOrderMessage('assigned', $workOrder->title),
+                        'data' => [
+                            'workOrderId' => $workOrder->id,
+                            'workOrderTitle' => $workOrder->title,
+                            'userIds' => $toAdd->toArray(),
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send work order assignment notifications', [
+                    'work_order_id' => $workOrder->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
         return response()->json([
             'success' => true,
             'data' => $assignments,
@@ -120,6 +160,37 @@ class WorkOrderAssignmentController extends Controller
         ]);
 
         $assignment->load('user');
+
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'work_order',
+                    'action' => 'assigned',
+                    'title' => 'Work Order Assigned',
+                    'message' => $this->notificationService->formatWorkOrderMessage('assigned', $workOrder->title),
+                    'data' => [
+                        'workOrderId' => $workOrder->id,
+                        'workOrderTitle' => $workOrder->title,
+                        'assignedUserId' => $validated['user_id'],
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send work order assignment notifications', [
+                'work_order_id' => $workOrder->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'success' => true,
@@ -177,6 +248,37 @@ class WorkOrderAssignmentController extends Controller
         }
 
         $assignment->delete();
+
+        // Send notifications to admins and company owners
+        $creator = request()->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'work_order',
+                    'action' => 'unassigned',
+                    'title' => 'Work Order Assignment Removed',
+                    'message' => $this->notificationService->formatWorkOrderMessage('unassigned', $workOrder->title),
+                    'data' => [
+                        'workOrderId' => $workOrder->id,
+                        'workOrderTitle' => $workOrder->title,
+                        'removedUserId' => $assignment->user_id,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send work order unassignment notifications', [
+                'work_order_id' => $workOrder->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'success' => true,

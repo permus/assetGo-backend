@@ -4,12 +4,19 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\SettingsAuditService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class CompanySettingsController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     /**
      * Update company currency (admin-only: super_admin, company_admin, or owner)
      */
@@ -49,6 +56,35 @@ class CompanySettingsController extends Controller
             $user->id,
             $request->ip()
         );
+
+        // Send notifications to admins and company owners
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $company->id,
+                [
+                    'type' => 'settings',
+                    'action' => 'update_currency',
+                    'title' => 'Currency Updated',
+                    'message' => $this->notificationService->formatSettingsMessage('update_currency'),
+                    'data' => [
+                        'oldCurrency' => $oldCurrency,
+                        'newCurrency' => $company->currency,
+                        'createdBy' => [
+                            'id' => $user->id,
+                            'name' => $user->first_name . ' ' . $user->last_name,
+                            'userType' => $user->user_type,
+                        ],
+                    ],
+                    'created_by' => $user->id,
+                ],
+                $user->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send currency update notifications', [
+                'company_id' => $company->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'success' => true,

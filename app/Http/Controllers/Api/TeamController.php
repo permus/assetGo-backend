@@ -13,6 +13,7 @@ use App\Models\Location;
 use App\Mail\TeamInvitationMail;
 use App\Services\TeamCacheService;
 use App\Services\TeamAuditService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -25,11 +26,13 @@ class TeamController extends Controller
 {
     protected TeamCacheService $cacheService;
     protected TeamAuditService $auditService;
+    protected NotificationService $notificationService;
 
-    public function __construct(TeamCacheService $cacheService, TeamAuditService $auditService)
+    public function __construct(TeamCacheService $cacheService, TeamAuditService $auditService, NotificationService $notificationService)
     {
         $this->cacheService = $cacheService;
         $this->auditService = $auditService;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -241,6 +244,36 @@ class TeamController extends Controller
         // Audit logging
         $this->auditService->logCreated($teamMember, $user, $request->ip());
 
+        // Send notifications to admins and company owners
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $user->company_id,
+                [
+                    'type' => 'team',
+                    'action' => 'invite_member',
+                    'title' => 'Team Member Invited',
+                    'message' => $this->notificationService->formatTeamMessage('invite_member', $teamMember->first_name . ' ' . $teamMember->last_name),
+                    'data' => [
+                        'teamMemberId' => $teamMember->id,
+                        'teamMemberName' => $teamMember->first_name . ' ' . $teamMember->last_name,
+                        'teamMemberEmail' => $teamMember->email,
+                        'createdBy' => [
+                            'id' => $user->id,
+                            'name' => $user->first_name . ' ' . $user->last_name,
+                            'userType' => $user->user_type,
+                        ],
+                    ],
+                    'created_by' => $user->id,
+                ],
+                $user->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send team member invitation notifications', [
+                'team_member_id' => $teamMember->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         // Clear cache
         $this->cacheService->clearCompanyCache($user->company_id);
 
@@ -415,7 +448,36 @@ class TeamController extends Controller
         // Audit logging before deletion
         $this->auditService->logDeleted($teamMember, $user, $request->ip());
 
+        $teamMemberName = $teamMember->first_name . ' ' . $teamMember->last_name;
         $teamMember->delete();
+
+        // Send notifications to admins and company owners
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $user->company_id,
+                [
+                    'type' => 'team',
+                    'action' => 'remove_member',
+                    'title' => 'Team Member Removed',
+                    'message' => $this->notificationService->formatTeamMessage('remove_member', $teamMemberName),
+                    'data' => [
+                        'teamMemberName' => $teamMemberName,
+                        'createdBy' => [
+                            'id' => $user->id,
+                            'name' => $user->first_name . ' ' . $user->last_name,
+                            'userType' => $user->user_type,
+                        ],
+                    ],
+                    'created_by' => $user->id,
+                ],
+                $user->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send team member removal notifications', [
+                'team_member_name' => $teamMemberName,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         // Clear cache
         $this->cacheService->clearCompanyCache($user->company_id);
@@ -528,12 +590,46 @@ class TeamController extends Controller
         }
 
         // Toggle the active status
+        $wasActive = $teamMember->active;
         $teamMember->update(['active' => !$teamMember->active]);
 
         // Audit logging
         $this->auditService->logUpdated($teamMember, [
-            'active' => [$teamMember->active ? 'inactive' : 'active', $teamMember->active ? 'active' : 'inactive']
+            'active' => [$wasActive ? 'active' : 'inactive', $teamMember->active ? 'active' : 'inactive']
         ], $user, $request->ip());
+
+        // Send notifications to admins and company owners
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $user->company_id,
+                [
+                    'type' => 'team',
+                    'action' => $teamMember->active ? 'activate_member' : 'deactivate_member',
+                    'title' => $teamMember->active ? 'Team Member Activated' : 'Team Member Deactivated',
+                    'message' => $this->notificationService->formatTeamMessage(
+                        $teamMember->active ? 'activate_member' : 'deactivate_member',
+                        $teamMember->first_name . ' ' . $teamMember->last_name
+                    ),
+                    'data' => [
+                        'teamMemberId' => $teamMember->id,
+                        'teamMemberName' => $teamMember->first_name . ' ' . $teamMember->last_name,
+                        'isActive' => $teamMember->active,
+                        'createdBy' => [
+                            'id' => $user->id,
+                            'name' => $user->first_name . ' ' . $user->last_name,
+                            'userType' => $user->user_type,
+                        ],
+                    ],
+                    'created_by' => $user->id,
+                ],
+                $user->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send team member status change notifications', [
+                'team_member_id' => $teamMember->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         // Clear cache
         $this->cacheService->clearCompanyCache($user->company_id);
@@ -578,6 +674,39 @@ class TeamController extends Controller
         $this->auditService->logUpdated($teamMember, [
             'active' => [$oldStatus ? 'active' : 'inactive', $teamMember->active ? 'active' : 'inactive']
         ], $user, $request->ip());
+
+        // Send notifications to admins and company owners
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $user->company_id,
+                [
+                    'type' => 'team',
+                    'action' => $teamMember->active ? 'activate_member' : 'deactivate_member',
+                    'title' => $teamMember->active ? 'Team Member Activated' : 'Team Member Deactivated',
+                    'message' => $this->notificationService->formatTeamMessage(
+                        $teamMember->active ? 'activate_member' : 'deactivate_member',
+                        $teamMember->first_name . ' ' . $teamMember->last_name
+                    ),
+                    'data' => [
+                        'teamMemberId' => $teamMember->id,
+                        'teamMemberName' => $teamMember->first_name . ' ' . $teamMember->last_name,
+                        'isActive' => $teamMember->active,
+                        'createdBy' => [
+                            'id' => $user->id,
+                            'name' => $user->first_name . ' ' . $user->last_name,
+                            'userType' => $user->user_type,
+                        ],
+                    ],
+                    'created_by' => $user->id,
+                ],
+                $user->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send team member status change notifications', [
+                'team_member_id' => $teamMember->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         // Clear cache
         $this->cacheService->clearCompanyCache($user->company_id);

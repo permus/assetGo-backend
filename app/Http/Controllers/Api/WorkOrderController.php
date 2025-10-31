@@ -10,12 +10,19 @@ use App\Models\Asset;
 use App\Models\Location;
 use App\Models\User;
 use App\Models\Department;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class WorkOrderController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     /**
      * List work orders with pagination and filtering
      * Route: GET /api/work-orders
@@ -228,6 +235,36 @@ class WorkOrderController extends Controller
             $request->ip()
         );
 
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'work_order',
+                    'action' => 'created',
+                    'title' => 'Work Order Created',
+                    'message' => $this->notificationService->formatWorkOrderMessage('created', $workOrder->title),
+                    'data' => [
+                        'workOrderId' => $workOrder->id,
+                        'workOrderTitle' => $workOrder->title,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send work order creation notifications', [
+                'work_order_id' => $workOrder->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         // Clear cache
         app(\App\Services\WorkOrderCacheService::class)->clearCompanyCache($request->user()->company_id);
 
@@ -292,6 +329,36 @@ class WorkOrderController extends Controller
             );
         }
 
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'work_order',
+                    'action' => 'updated',
+                    'title' => 'Work Order Updated',
+                    'message' => $this->notificationService->formatWorkOrderMessage('updated', $workOrder->title),
+                    'data' => [
+                        'workOrderId' => $workOrder->id,
+                        'workOrderTitle' => $workOrder->title,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send work order update notifications', [
+                'work_order_id' => $workOrder->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         // Clear cache
         app(\App\Services\WorkOrderCacheService::class)->clearCompanyCache($request->user()->company_id);
 
@@ -337,6 +404,38 @@ class WorkOrderController extends Controller
             $request->ip()
         );
 
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'work_order',
+                    'action' => 'status_updated',
+                    'title' => 'Work Order Status Updated',
+                    'message' => $this->notificationService->formatWorkOrderMessage('status_updated', $workOrder->title),
+                    'data' => [
+                        'workOrderId' => $workOrder->id,
+                        'workOrderTitle' => $workOrder->title,
+                        'oldStatusId' => $oldStatusId,
+                        'newStatusId' => $validated['status_id'],
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send work order status update notifications', [
+                'work_order_id' => $workOrder->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         // Clear cache
         app(\App\Services\WorkOrderCacheService::class)->clearCompanyCache($request->user()->company_id);
 
@@ -364,6 +463,7 @@ class WorkOrderController extends Controller
         $workOrderId = $workOrder->id;
         $workOrderTitle = $workOrder->title;
         $companyId = $workOrder->company_id;
+        $creator = request()->user();
 
         $workOrder->delete();
 
@@ -371,9 +471,37 @@ class WorkOrderController extends Controller
         app(\App\Services\WorkOrderAuditService::class)->logDeleted(
             $workOrderId,
             $workOrderTitle,
-            request()->user()->id,
+            $creator->id,
             request()->ip()
         );
+
+        // Send notifications to admins and company owners
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $companyId,
+                [
+                    'type' => 'work_order',
+                    'action' => 'deleted',
+                    'title' => 'Work Order Deleted',
+                    'message' => $this->notificationService->formatWorkOrderMessage('deleted', $workOrderTitle),
+                    'data' => [
+                        'workOrderTitle' => $workOrderTitle,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send work order delete notifications', [
+                'work_order_title' => $workOrderTitle,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         // Clear cache
         app(\App\Services\WorkOrderCacheService::class)->clearCompanyCache($companyId);

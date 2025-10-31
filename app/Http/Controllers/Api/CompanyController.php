@@ -5,12 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Services\SettingsAuditService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class CompanyController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     /**
      * Get user's company details
      */
@@ -101,6 +108,36 @@ class CompanyController extends Controller
         );
 
         $company->update($updateData);
+
+        // Send notifications to admins and company owners
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $company->id,
+                [
+                    'type' => 'settings',
+                    'action' => 'update_company_info',
+                    'title' => 'Company Information Updated',
+                    'message' => $this->notificationService->formatSettingsMessage('update_company_info'),
+                    'data' => [
+                        'companyId' => $company->id,
+                        'companyName' => $company->name,
+                        'changes' => $updateData,
+                        'createdBy' => [
+                            'id' => $user->id,
+                            'name' => $user->first_name . ' ' . $user->last_name,
+                            'userType' => $user->user_type,
+                        ],
+                    ],
+                    'created_by' => $user->id,
+                ],
+                $user->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send company info update notifications', [
+                'company_id' => $company->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         $fresh = $company->fresh()->load('owner');
         // Generate full logo URL if logo exists

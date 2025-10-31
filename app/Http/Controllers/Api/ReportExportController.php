@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\ReportExportService;
+use App\Services\NotificationService;
 use App\Jobs\ExportReportJob;
 use App\Models\ReportRun;
 use Illuminate\Http\Request;
@@ -13,7 +14,12 @@ use Exception;
 
 class ReportExportController extends Controller
 {
-    public function __construct(private ReportExportService $exportService) {}
+    protected $notificationService;
+
+    public function __construct(private ReportExportService $exportService, NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
 
     /**
      * Export report in specified format
@@ -45,6 +51,37 @@ class ReportExportController extends Controller
 
             // Dispatch export job
             ExportReportJob::dispatch($reportRun->id)->onQueue('reports');
+
+            // Send notifications to admins and company owners
+            $creator = Auth::user();
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $companyId,
+                    [
+                        'type' => 'report',
+                        'action' => 'generate_report',
+                        'title' => 'Report Generated',
+                        'message' => $this->notificationService->formatReportMessage('generate_report', $reportKey),
+                        'data' => [
+                            'runId' => $reportRun->id,
+                            'reportKey' => $reportKey,
+                            'format' => $format,
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send report generation notifications', [
+                    'run_id' => $reportRun->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
 
             return response()->json([
                 'success' => true,

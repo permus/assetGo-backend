@@ -4,11 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\SettingsAuditService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class PreferencesController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     public function show(Request $request)
     {
         $user = $request->user();
@@ -55,7 +62,13 @@ class PreferencesController extends Controller
         $user = $request->user();
         $oldPreferences = $user->preferences ?? [];
         $preferences = $oldPreferences;
+        $changes = [];
         foreach ($validator->validated() as $k => $v) {
+            if (isset($oldPreferences[$k]) && $oldPreferences[$k] != $v) {
+                $changes[$k] = ['old' => $oldPreferences[$k], 'new' => $v];
+            } elseif (!isset($oldPreferences[$k])) {
+                $changes[$k] = ['old' => null, 'new' => $v];
+            }
             $preferences[$k] = $v;
         }
         $user->preferences = $preferences;
@@ -68,6 +81,44 @@ class PreferencesController extends Controller
             $user->id,
             $request->ip()
         );
+
+        // Determine which notification action to use based on what changed
+        $action = 'update_preferences';
+        if (isset($changes['language'])) {
+            $action = 'update_language';
+        } elseif (isset($changes['rtl'])) {
+            $action = 'toggle_rtl';
+        } elseif (isset($changes['date_format']) || isset($changes['time_format'])) {
+            $action = 'update_date_time_format';
+        }
+
+        // Send notifications to admins and company owners
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $user->company_id,
+                [
+                    'type' => 'settings',
+                    'action' => $action,
+                    'title' => ucfirst(str_replace('_', ' ', $action)),
+                    'message' => $this->notificationService->formatSettingsMessage($action),
+                    'data' => [
+                        'changes' => $changes,
+                        'createdBy' => [
+                            'id' => $user->id,
+                            'name' => $user->first_name . ' ' . $user->last_name,
+                            'userType' => $user->user_type,
+                        ],
+                    ],
+                    'created_by' => $user->id,
+                ],
+                $user->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send preferences update notifications', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'success' => true,

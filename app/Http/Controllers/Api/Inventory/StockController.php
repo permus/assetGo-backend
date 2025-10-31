@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Models\{InventoryStock, InventoryPart, Location, InventoryTransaction};
-use App\Services\{InventoryService, InventoryAuditService, InventoryCacheService};
+use App\Services\{InventoryService, InventoryAuditService, InventoryCacheService, NotificationService};
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 
@@ -12,11 +12,13 @@ class StockController extends Controller
 {
     protected $auditService;
     protected $cacheService;
+    protected $notificationService;
 
-    public function __construct(InventoryAuditService $auditService, InventoryCacheService $cacheService)
+    public function __construct(InventoryAuditService $auditService, InventoryCacheService $cacheService, NotificationService $notificationService)
     {
         $this->auditService = $auditService;
         $this->cacheService = $cacheService;
+        $this->notificationService = $notificationService;
     }
     public function index(Request $request)
     {
@@ -86,6 +88,38 @@ class StockController extends Controller
 
             // Clear cache
             $this->cacheService->clearStockCache($request->user()->company_id);
+
+            // Send notifications to admins and company owners
+            $creator = $request->user();
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $creator->company_id,
+                    [
+                        'type' => 'inventory',
+                        'action' => 'adjust_stock',
+                        'title' => 'Stock Adjusted',
+                        'message' => $this->notificationService->formatInventoryMessage('adjust_stock', $part->name),
+                        'data' => [
+                            'partId' => $data['part_id'],
+                            'partName' => $part->name,
+                            'quantity' => $data['quantity'],
+                            'type' => $data['type'],
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send stock adjustment notifications', [
+                    'part_id' => $data['part_id'],
+                    'error' => $e->getMessage()
+                ]);
+            }
         } catch (InvalidArgumentException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
@@ -138,6 +172,39 @@ class StockController extends Controller
 
             // Clear cache
             $this->cacheService->clearStockCache($request->user()->company_id);
+
+            // Send notifications to admins and company owners
+            $creator = $request->user();
+            try {
+                $this->notificationService->createForAdminsAndOwners(
+                    $creator->company_id,
+                    [
+                        'type' => 'inventory',
+                        'action' => 'transfer_stock',
+                        'title' => 'Stock Transferred',
+                        'message' => $this->notificationService->formatInventoryMessage('transfer_stock', $part->name),
+                        'data' => [
+                            'partId' => $data['part_id'],
+                            'partName' => $part->name,
+                            'quantity' => $data['quantity'],
+                            'fromLocationId' => $data['from_location_id'],
+                            'toLocationId' => $data['to_location_id'],
+                            'createdBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                                'userType' => $creator->user_type,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ],
+                    $creator->id
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send stock transfer notifications', [
+                    'part_id' => $data['part_id'],
+                    'error' => $e->getMessage()
+                ]);
+            }
         } catch (InvalidArgumentException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
@@ -174,6 +241,37 @@ class StockController extends Controller
 
         // Clear cache
         $this->cacheService->clearStockCache($request->user()->company_id);
+
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'inventory',
+                    'action' => 'reserve_stock',
+                    'title' => 'Stock Reserved',
+                    'message' => $this->notificationService->formatInventoryMessage('reserve_stock', $part->name),
+                    'data' => [
+                        'partId' => $data['part_id'],
+                        'partName' => $part->name,
+                        'quantity' => $data['quantity'],
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send stock reservation notifications', [
+                'part_id' => $data['part_id'],
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json(['success' => true, 'data' => $stock]);
     }
@@ -240,6 +338,38 @@ class StockController extends Controller
 
         // Clear cache
         $this->cacheService->clearStockCache($request->user()->company_id);
+
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'inventory',
+                    'action' => 'update_stock_count',
+                    'title' => 'Stock Count Updated',
+                    'message' => $this->notificationService->formatInventoryMessage('update_stock_count', $part->name),
+                    'data' => [
+                        'partId' => $data['part_id'],
+                        'partName' => $part->name,
+                        'countedQuantity' => $data['counted_quantity'],
+                        'adjustment' => $result['adjustment'],
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send stock count update notifications', [
+                'part_id' => $data['part_id'],
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json(['success' => true, 'data' => $result]);
     }

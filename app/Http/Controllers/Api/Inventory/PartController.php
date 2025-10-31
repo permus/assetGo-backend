@@ -7,7 +7,7 @@ use App\Models\InventoryPart;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Traits\HasPermissions;
-use App\Services\{InventoryAuditService, InventoryCacheService};
+use App\Services\{InventoryAuditService, InventoryCacheService, NotificationService};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -21,11 +21,13 @@ class PartController extends Controller
 
     protected $auditService;
     protected $cacheService;
+    protected $notificationService;
 
-    public function __construct(InventoryAuditService $auditService, InventoryCacheService $cacheService)
+    public function __construct(InventoryAuditService $auditService, InventoryCacheService $cacheService, NotificationService $notificationService)
     {
         $this->auditService = $auditService;
         $this->cacheService = $cacheService;
+        $this->notificationService = $notificationService;
     }
 
     public function overview(Request $request)
@@ -147,6 +149,37 @@ class PartController extends Controller
         // Clear cache
         $this->cacheService->clearPartCache($request->user()->company_id);
 
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'inventory',
+                    'action' => 'create_part',
+                    'title' => 'Inventory Part Created',
+                    'message' => $this->notificationService->formatInventoryMessage('create_part', $part->name),
+                    'data' => [
+                        'partId' => $part->id,
+                        'partName' => $part->name,
+                        'partNumber' => $part->part_number,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send inventory part creation notifications', [
+                'part_id' => $part->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         return response()->json(['success' => true, 'data' => $part], 201);
     }
 
@@ -191,6 +224,37 @@ class PartController extends Controller
         // Clear cache
         $this->cacheService->clearPartCache($request->user()->company_id);
 
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'inventory',
+                    'action' => 'edit_part',
+                    'title' => 'Inventory Part Updated',
+                    'message' => $this->notificationService->formatInventoryMessage('edit_part', $part->name),
+                    'data' => [
+                        'partId' => $part->id,
+                        'partName' => $part->name,
+                        'partNumber' => $part->part_number,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send inventory part update notifications', [
+                'part_id' => $part->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         return response()->json(['success' => true, 'data' => $part]);
     }
 
@@ -220,6 +284,36 @@ class PartController extends Controller
 
         // Clear cache
         $this->cacheService->clearPartCache($request->user()->company_id);
+
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'inventory',
+                    'action' => 'delete_part',
+                    'title' => 'Inventory Part Deleted',
+                    'message' => $this->notificationService->formatInventoryMessage('delete_part', $partName),
+                    'data' => [
+                        'partName' => $partName,
+                        'partNumber' => $partNumber,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send inventory part deletion notifications', [
+                'part_name' => $partName,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json(['success' => true]);
     }
@@ -310,6 +404,37 @@ class PartController extends Controller
         // Clear cache
         $this->cacheService->clearPartCache($request->user()->company_id);
 
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'inventory',
+                    'action' => 'archive_part',
+                    'title' => 'Inventory Part Archived',
+                    'message' => $this->notificationService->formatInventoryMessage('archive_part', $part->name),
+                    'data' => [
+                        'partId' => $part->id,
+                        'partName' => $part->name,
+                        'partNumber' => $part->part_number,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send inventory part archive notifications', [
+                'part_id' => $part->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Part archived successfully',
@@ -355,6 +480,37 @@ class PartController extends Controller
 
         // Clear cache
         $this->cacheService->clearPartCache($request->user()->company_id);
+
+        // Send notifications to admins and company owners
+        $creator = $request->user();
+        try {
+            $this->notificationService->createForAdminsAndOwners(
+                $creator->company_id,
+                [
+                    'type' => 'inventory',
+                    'action' => 'restore_part',
+                    'title' => 'Inventory Part Restored',
+                    'message' => $this->notificationService->formatInventoryMessage('restore_part', $part->name),
+                    'data' => [
+                        'partId' => $part->id,
+                        'partName' => $part->name,
+                        'partNumber' => $part->part_number,
+                        'createdBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                            'userType' => $creator->user_type,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ],
+                $creator->id
+            );
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send inventory part restore notifications', [
+                'part_id' => $part->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'success' => true,
@@ -632,6 +788,37 @@ class PartController extends Controller
                 $errorReportUrl = null;
                 if (!empty($invalidRows)) {
                     $errorReportUrl = $this->generateErrorReport($invalidRows, $user->id);
+                }
+
+                // Send notifications to admins and company owners
+                try {
+                    $this->notificationService->createForAdminsAndOwners(
+                        $companyId,
+                        [
+                            'type' => 'inventory',
+                            'action' => 'import_parts',
+                            'title' => 'Parts Imported',
+                            'message' => $this->notificationService->formatInventoryMessage('import_parts', "{$importedCount} parts"),
+                            'data' => [
+                                'importedCount' => $importedCount,
+                                'createdCount' => $createdCount,
+                                'updatedCount' => $updatedCount,
+                                'invalidCount' => count($invalidRows),
+                                'createdBy' => [
+                                    'id' => $user->id,
+                                    'name' => $user->first_name . ' ' . $user->last_name,
+                                    'userType' => $user->user_type,
+                                ],
+                            ],
+                            'created_by' => $user->id,
+                        ],
+                        $user->id
+                    );
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to send inventory parts import notifications', [
+                        'imported_count' => $importedCount,
+                        'error' => $e->getMessage()
+                    ]);
                 }
 
                 return response()->json([
