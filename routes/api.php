@@ -117,7 +117,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/', [PredictiveMaintenanceController::class, 'index'])
             ->middleware('throttle:60,1'); // 60 requests per minute
         Route::post('generate', [PredictiveMaintenanceController::class, 'generate'])
-            ->middleware('throttle:2,1'); // 2 requests per minute (AI intensive)
+            ->middleware('throttle:5,1'); // 5 requests per minute (AI intensive, allows testing)
         Route::get('job-status/{jobId}', [PredictiveMaintenanceController::class, 'jobStatus'])
             ->middleware('throttle:60,1'); // 60 requests per minute
         Route::get('export', [PredictiveMaintenanceController::class, 'export'])
@@ -414,7 +414,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/', [AIRecommendationsController::class, 'index'])
             ->middleware('throttle:60,1'); // 60 requests per minute
         Route::post('generate', [AIRecommendationsController::class, 'generate'])
-            ->middleware('throttle:2,1'); // 2 requests per minute (AI intensive)
+            ->middleware('throttle:5,1'); // 5 requests per minute (AI intensive)
         Route::post('{id}/toggle', [AIRecommendationsController::class, 'toggleImplementation'])
             ->middleware('throttle:30,1'); // 30 requests per minute
         Route::get('export', [AIRecommendationsController::class, 'export'])
@@ -428,7 +428,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/', [AIAnalyticsController::class, 'index'])
             ->middleware('throttle:60,1'); // 60 requests per minute
         Route::post('generate', [AIAnalyticsController::class, 'generate'])
-            ->middleware('throttle:2,1'); // 2 requests per minute (AI intensive)
+            ->middleware('throttle:5,1'); // 5 requests per minute (AI intensive)
         Route::get('export', [AIAnalyticsController::class, 'export'])
             ->middleware('throttle:10,1'); // 10 requests per minute
         Route::get('schedule', [AIAnalyticsController::class, 'getSchedule'])

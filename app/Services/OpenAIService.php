@@ -140,6 +140,109 @@ class OpenAIService {
         }
     }
 
+    /**
+     * Generate text completion using OpenAI Chat API.
+     * 
+     * @param array $messages Array of message objects with 'role' and 'content'
+     * @param array $options Optional configuration (response_format, temperature, etc.)
+     * @return array Array with 'content' and 'usage' keys
+     */
+    public function chat(array $messages, array $options = []): array
+    {
+        $apiKey = config('openai.api_key');
+        abort_if(empty($apiKey), 500, 'OPENAI_API_KEY missing. Please configure your OpenAI API key in the environment variables.');
+
+        $client = new Client(['timeout' => config('openai.timeout', 60)]);
+        
+        // Retry logic with exponential backoff
+        $maxRetries = 2;
+        $baseDelay = 1;
+        
+        for ($attempt = 0; $attempt <= $maxRetries; $attempt++) {
+            try {
+                $requestBody = [
+                    'model' => config('openai.model', 'gpt-4'),
+                    'messages' => $messages,
+                    'temperature' => $options['temperature'] ?? (float) config('openai.temperature', 0.7),
+                    'max_tokens' => $options['max_tokens'] ?? (int) config('openai.max_tokens', 2000),
+                ];
+                
+                // Add response_format if provided
+                if (isset($options['response_format'])) {
+                    $requestBody['response_format'] = $options['response_format'];
+                }
+                
+                $resp = $client->post(config('openai.base_url', 'https://api.openai.com/v1/chat/completions'), [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $apiKey,
+                        'Content-Type' => 'application/json',
+                    ],
+                    'json' => $requestBody,
+                ]);
+
+                $json = json_decode((string) $resp->getBody(), true);
+                $content = $json['choices'][0]['message']['content'] ?? '';
+                $usage = $json['usage'] ?? [];
+                
+                if (empty($content) && $attempt < $maxRetries) {
+                    $delay = $baseDelay * pow(2, $attempt) + rand(0, 1000) / 1000;
+                    sleep($delay);
+                    continue;
+                }
+                
+                return [
+                    'content' => $content,
+                    'usage' => [
+                        'prompt_tokens' => $usage['prompt_tokens'] ?? 0,
+                        'completion_tokens' => $usage['completion_tokens'] ?? 0,
+                        'total_tokens' => $usage['total_tokens'] ?? 0
+                    ]
+                ];
+                
+            } catch (\GuzzleHttp\Exception\ClientException $e) {
+                $response = $e->getResponse();
+                $responseBody = $response ? $response->getBody()->getContents() : '';
+                $responseData = json_decode($responseBody, true);
+                
+                if ($e->getCode() === 401) {
+                    $errorMessage = $responseData['error']['message'] ?? 'Invalid API key';
+                    abort(401, "OpenAI API Error: {$errorMessage}");
+                }
+                
+                if ($e->getCode() === 429) {
+                    if ($attempt < $maxRetries) {
+                        $delay = $baseDelay * pow(2, $attempt) + rand(0, 1000) / 1000;
+                        sleep($delay);
+                        continue;
+                    }
+                    abort(429, 'OpenAI rate limit exceeded. Please wait a moment and try again.');
+                }
+                
+                if ($e->getCode() >= 400 && $e->getCode() < 500) {
+                    $errorMessage = $responseData['error']['message'] ?? 'API request failed';
+                    abort(400, "OpenAI API Error: {$errorMessage}");
+                }
+                
+                throw $e;
+            } catch (\GuzzleHttp\Exception\ServerException $e) {
+                if ($attempt < $maxRetries) {
+                    $delay = $baseDelay * pow(2, $attempt) + rand(0, 1000) / 1000;
+                    sleep($delay);
+                    continue;
+                }
+                abort(502, 'OpenAI service is temporarily unavailable. Please try again later.');
+            } catch (\Exception $e) {
+                \Log::error('OpenAI Service Error: ' . $e->getMessage(), [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]);
+                abort(500, 'An unexpected error occurred: ' . $e->getMessage());
+            }
+        }
+        
+        abort(500, 'Failed to generate response after retries');
+    }
+
     private function systemPrompt(): string {
         return <<<TXT
 You are an image recognition assistant for an asset management system.

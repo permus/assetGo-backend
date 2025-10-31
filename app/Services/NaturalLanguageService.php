@@ -5,8 +5,8 @@ namespace App\Services;
 use App\Models\Asset;
 use App\Models\WorkOrder;
 use App\Models\Location;
-use App\Models\MaintenanceHistory;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -20,7 +20,8 @@ class NaturalLanguageService
      */
     public function getAssetContext(string $companyId): array
     {
-        // Get asset counts
+        return Cache::remember("nlq-context-{$companyId}", 300, function () use ($companyId) {
+            // Get asset counts
         $assetCounts = Asset::where('company_id', $companyId)
             ->selectRaw('
                 COUNT(*) as total_assets,
@@ -78,19 +79,20 @@ class NaturalLanguageService
             })
             ->toArray();
 
-        return [
-            'totalAssets' => $assetCounts->total_assets ?? 0,
-            'activeAssets' => $assetCounts->active_assets ?? 0,
-            'maintenanceAssets' => $assetCounts->maintenance_assets ?? 0,
-            'totalValue' => $assetCounts->total_value ?? 0,
-            'openWorkOrders' => $workOrderCounts->open_work_orders ?? 0,
-            'highPriorityWorkOrders' => $workOrderCounts->high_priority_work_orders ?? 0,
-            'overdueWorkOrders' => $workOrderCounts->overdue_work_orders ?? 0,
-            'overdueMaintenance' => $maintenanceCounts,
-            'totalLocations' => $locationCount,
-            'recentAssets' => $recentAssets,
-            'recentWorkOrders' => $recentWorkOrders
-        ];
+            return [
+                'totalAssets' => $assetCounts->total_assets ?? 0,
+                'activeAssets' => $assetCounts->active_assets ?? 0,
+                'maintenanceAssets' => $assetCounts->maintenance_assets ?? 0,
+                'totalValue' => $assetCounts->total_value ?? 0,
+                'openWorkOrders' => $workOrderCounts->open_work_orders ?? 0,
+                'highPriorityWorkOrders' => $workOrderCounts->high_priority_work_orders ?? 0,
+                'overdueWorkOrders' => $workOrderCounts->overdue_work_orders ?? 0,
+                'overdueMaintenance' => $maintenanceCounts,
+                'totalLocations' => $locationCount,
+                'recentAssets' => $recentAssets,
+                'recentWorkOrders' => $recentWorkOrders
+            ];
+        });
     }
 
     /**
@@ -120,12 +122,14 @@ class NaturalLanguageService
 
             return [
                 'success' => true,
-                'reply' => $response,
-                'usage' => [
-                    'prompt_tokens' => 0, // OpenAI doesn't return usage in text mode
-                    'completion_tokens' => 0,
-                    'total_tokens' => 0
-                ]
+                'reply' => is_array($response) ? $response['content'] : $response,
+                'usage' => is_array($response) && isset($response['usage']) 
+                    ? $response['usage'] 
+                    : [
+                        'prompt_tokens' => 0,
+                        'completion_tokens' => 0,
+                        'total_tokens' => 0
+                    ]
             ];
 
         } catch (Exception $e) {

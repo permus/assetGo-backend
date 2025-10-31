@@ -21,7 +21,7 @@ class InventoryCacheService
     public function getPartsOverview(int $companyId, callable $callback)
     {
         return Cache::remember(
-            "inventory-parts-overview-{$companyId}",
+            "inventory-parts-overview-v2-{$companyId}",
             self::CACHE_TTL_5MIN,
             $callback
         );
@@ -101,6 +101,7 @@ class InventoryCacheService
     public function clearCompanyCache(int $companyId): void
     {
         Cache::forget("inventory-parts-overview-{$companyId}");
+        Cache::forget("inventory-parts-overview-v2-{$companyId}");
         Cache::forget("inventory-po-overview-{$companyId}");
         Cache::forget("inventory-analytics-dashboard-{$companyId}");
         
@@ -121,6 +122,7 @@ class InventoryCacheService
     public function clearPartCache(int $companyId): void
     {
         Cache::forget("inventory-parts-overview-{$companyId}");
+        Cache::forget("inventory-parts-overview-v2-{$companyId}");
         Cache::forget("inventory-analytics-dashboard-{$companyId}");
         Cache::forget("inventory-abc-analysis-{$companyId}");
     }
@@ -134,6 +136,7 @@ class InventoryCacheService
     public function clearStockCache(int $companyId): void
     {
         Cache::forget("inventory-parts-overview-{$companyId}");
+        Cache::forget("inventory-parts-overview-v2-{$companyId}");
         Cache::forget("inventory-analytics-dashboard-{$companyId}");
         
         // Clear KPIs for all periods

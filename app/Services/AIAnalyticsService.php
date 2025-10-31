@@ -8,6 +8,7 @@ use App\Models\Asset;
 use App\Models\WorkOrder;
 use App\Models\Location;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -42,10 +43,20 @@ class AIAnalyticsService
             })
             ->toArray();
 
-        return [
+        // Get asset context for avgAssetAge
+        $assetContext = $this->getAssetContext($companyId);
+        
+        $result = [
             'latest' => $latest ? $this->formatAnalyticsSnapshot($latest) : null,
             'history' => $history
         ];
+        
+        // Add avgAssetAge to latest if available
+        if ($result['latest']) {
+            $result['latest']['avgAssetAge'] = $assetContext['avgAssetAge'] ?? 0;
+        }
+
+        return $result;
     }
 
     /**
@@ -72,8 +83,11 @@ class AIAnalyticsService
                 'response_format' => ['type' => 'json_object']
             ]);
 
+            // Extract content from response array
+            $content = is_array($response) ? $response['content'] : $response;
+
             // Parse JSON response
-            $data = json_decode($response, true);
+            $data = json_decode($content, true);
             
             if (!$data || !isset($data['healthScore'])) {
                 throw new Exception('Invalid response format from OpenAI');
@@ -91,7 +105,10 @@ class AIAnalyticsService
 
             // Get updated analytics
             $result = $this->getAnalytics();
-            $result['latest'] = $this->formatAnalyticsSnapshot($analyticsRun);
+            $formattedSnapshot = $this->formatAnalyticsSnapshot($analyticsRun);
+            // Add avgAssetAge from context
+            $formattedSnapshot['avgAssetAge'] = $assetContext['avgAssetAge'] ?? 0;
+            $result['latest'] = $formattedSnapshot;
 
             return $result;
 
@@ -223,8 +240,9 @@ class AIAnalyticsService
      */
     private function getAssetContext(string $companyId): array
     {
-        // Get asset counts and health indicators
-        $assetCounts = Asset::where('company_id', $companyId)
+        return Cache::remember("ai-analytics-context-{$companyId}", 300, function () use ($companyId) {
+            // Get asset counts and health indicators
+            $assetCounts = Asset::where('company_id', $companyId)
             ->selectRaw('
                 COUNT(*) as total_assets,
                 COUNT(CASE WHEN status = "active" THEN 1 END) as active_assets,
@@ -247,22 +265,23 @@ class AIAnalyticsService
             ')
             ->first();
 
-        // Get location count
-        $locationCount = Location::where('company_id', $companyId)->count();
+            // Get location count
+            $locationCount = Location::where('company_id', $companyId)->count();
 
-        return [
-            'totalAssets' => $assetCounts->total_assets ?? 0,
-            'activeAssets' => $assetCounts->active_assets ?? 0,
-            'maintenanceAssets' => $assetCounts->maintenance_assets ?? 0,
-            'inactiveAssets' => $assetCounts->inactive_assets ?? 0,
-            'avgAssetAge' => round($assetCounts->avg_age ?? 0, 1),
-            'totalValue' => $assetCounts->total_value ?? 0,
-            'totalWorkOrders' => $workOrderCounts->total_work_orders ?? 0,
-            'openWorkOrders' => $workOrderCounts->open_work_orders ?? 0,
-            'highPriorityWorkOrders' => $workOrderCounts->high_priority_work_orders ?? 0,
-            'overdueWorkOrders' => $workOrderCounts->overdue_work_orders ?? 0,
-            'totalLocations' => $locationCount
-        ];
+            return [
+                'totalAssets' => $assetCounts->total_assets ?? 0,
+                'activeAssets' => $assetCounts->active_assets ?? 0,
+                'maintenanceAssets' => $assetCounts->maintenance_assets ?? 0,
+                'inactiveAssets' => $assetCounts->inactive_assets ?? 0,
+                'avgAssetAge' => round($assetCounts->avg_age ?? 0, 1),
+                'totalValue' => $assetCounts->total_value ?? 0,
+                'totalWorkOrders' => $workOrderCounts->total_work_orders ?? 0,
+                'openWorkOrders' => $workOrderCounts->open_work_orders ?? 0,
+                'highPriorityWorkOrders' => $workOrderCounts->high_priority_work_orders ?? 0,
+                'overdueWorkOrders' => $workOrderCounts->overdue_work_orders ?? 0,
+                'totalLocations' => $locationCount
+            ];
+        });
     }
 
     /**

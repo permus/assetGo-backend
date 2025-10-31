@@ -19,21 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
-        'http://localhost:4200',
-        'http://127.0.0.1:4200',
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-        'http://localhost',
-        'http://127.0.0.1',
-        'https://portal.assetgo.thethemeai.com',
-        'https://assetgo.equidesk.io',
-        'https://portal.assetgo.equidesk.io',
-        'http://assetgo-backend.test',
-        'https://assetgo-backend.test',
-        'http://localhost:5173', // Vite dev server
-        'http://127.0.0.1:5173', // Vite dev server
-    ],
+    'allowed_origins' => ['*'],
 
     'allowed_origins_patterns' => [],
 

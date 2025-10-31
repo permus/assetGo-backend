@@ -6,12 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Services\PredictiveMaintenanceService;
 use App\Jobs\GeneratePredictiveMaintenancePredictions;
 use App\Models\PredictiveMaintenanceJob;
+use App\Http\Resources\PredictiveMaintenanceResource;
+use App\Http\Resources\PredictiveMaintenanceCollection;
+use App\Http\Resources\PredictiveMaintenanceSummaryResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PredictiveMaintenanceController extends Controller
 {
@@ -29,7 +33,10 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $result
+                'data' => [
+                    'predictions' => PredictiveMaintenanceResource::collection($result['predictions']),
+                    'summary' => new PredictiveMaintenanceSummaryResource($result['summary'])
+                ]
             ]);
 
         } catch (\Exception $e) {
@@ -41,7 +48,9 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch predictions: ' . $e->getMessage()
+                'message' => config('app.debug') 
+                    ? 'Failed to fetch predictions: ' . $e->getMessage()
+                    : 'Failed to fetch predictions. Please try again later.'
             ], 500);
         }
     }
@@ -104,7 +113,9 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to start predictions generation: ' . $e->getMessage()
+                'message' => config('app.debug') 
+                    ? 'Failed to start predictions generation: ' . $e->getMessage()
+                    : 'Failed to start predictions generation. Please try again later.'
             ], 500);
         }
     }
@@ -146,7 +157,9 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch job status: ' . $e->getMessage()
+                'message' => config('app.debug') 
+                    ? 'Failed to fetch job status: ' . $e->getMessage()
+                    : 'Failed to fetch job status. Please try again later.'
             ], 500);
         }
     }
@@ -154,7 +167,7 @@ class PredictiveMaintenanceController extends Controller
     /**
      * Export predictions to CSV.
      */
-    public function export(Request $request): JsonResponse
+    public function export(Request $request): JsonResponse|StreamedResponse
     {
         $request->validate([
             'format' => 'required|in:csv,excel',
@@ -197,7 +210,9 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to export data: ' . $e->getMessage()
+                'message' => config('app.debug') 
+                    ? 'Failed to export data: ' . $e->getMessage()
+                    : 'Failed to export data. Please try again later.'
             ], 500);
         }
     }
@@ -214,7 +229,7 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $summary
+                'data' => new PredictiveMaintenanceSummaryResource($summary)
             ]);
 
         } catch (\Exception $e) {
@@ -226,7 +241,9 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch summary: ' . $e->getMessage()
+                'message' => config('app.debug') 
+                    ? 'Failed to fetch summary: ' . $e->getMessage()
+                    : 'Failed to fetch summary. Please try again later.'
             ], 500);
         }
     }
@@ -260,7 +277,9 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to clear predictions: ' . $e->getMessage()
+                'message' => config('app.debug') 
+                    ? 'Failed to clear predictions: ' . $e->getMessage()
+                    : 'Failed to clear predictions. Please try again later.'
             ], 500);
         }
     }

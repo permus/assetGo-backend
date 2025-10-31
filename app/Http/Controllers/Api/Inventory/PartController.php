@@ -33,12 +33,25 @@ class PartController extends Controller
         $companyId = $request->user()->company_id;
 
         return $this->cacheService->getPartsOverview($companyId, function () use ($companyId) {
+            // Total parts (all parts including archived)
             $totalParts = \App\Models\InventoryPart::forCompany($companyId)->count();
+            
+            // Active parts (only non-archived parts)
+            $activeParts = \App\Models\InventoryPart::forCompany($companyId)
+                ->where('is_archived', false)
+                ->count();
 
             // Low stock: sum available across all locations <= part.reorder_point (and reorder_point > 0)
+            // Filter to only include active (non-archived) parts
             $stockAgg = DB::table('inventory_stocks')
                 ->select('part_id', DB::raw('SUM(available) as total_available'))
                 ->where('company_id', $companyId)
+                ->whereIn('part_id', function($query) use ($companyId) {
+                    $query->select('id')
+                        ->from('inventory_parts')
+                        ->where('company_id', $companyId)
+                        ->where('is_archived', false);
+                })
                 ->groupBy('part_id');
 
             $lowStock = DB::table('inventory_parts')
@@ -46,20 +59,25 @@ class PartController extends Controller
                     $join->on('inventory_parts.id', '=', 'agg.part_id');
                 })
                 ->where('inventory_parts.company_id', $companyId)
+                ->where('inventory_parts.is_archived', false)
                 ->where('inventory_parts.reorder_point', '>', 0)
                 ->whereRaw('COALESCE(agg.total_available, 0) <= inventory_parts.reorder_point')
                 ->count();
 
             // Total value: on_hand * average_cost across all stocks
+            // Filter to only include stocks for active (non-archived) parts
             $totalValue = DB::table('inventory_stocks')
-                ->where('company_id', $companyId)
-                ->select(DB::raw('SUM(on_hand * average_cost) as value'))
+                ->join('inventory_parts', 'inventory_stocks.part_id', '=', 'inventory_parts.id')
+                ->where('inventory_stocks.company_id', $companyId)
+                ->where('inventory_parts.is_archived', false)
+                ->select(DB::raw('SUM(inventory_stocks.on_hand * inventory_stocks.average_cost) as value'))
                 ->value('value') ?? 0;
 
             return response()->json([
                 'success' => true,
                 'data' => [
                     'total_parts' => $totalParts,
+                    'active_parts' => $activeParts,
                     'low_stock_count' => $lowStock,
                     'total_value' => round((float)$totalValue, 2),
                 ]

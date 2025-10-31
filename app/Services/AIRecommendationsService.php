@@ -7,6 +7,7 @@ use App\Models\Asset;
 use App\Models\WorkOrder;
 use App\Models\Location;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -58,7 +59,7 @@ class AIRecommendationsService
         $summary = $this->getSummary($companyId);
 
         return [
-            'recommendations' => $recommendations->toArray(),
+            'recommendations' => $recommendations, // Return Eloquent collection for Resource transformation
             'summary' => $summary,
             'pagination' => [
                 'page' => $page,
@@ -93,8 +94,11 @@ class AIRecommendationsService
                 'response_format' => ['type' => 'json_object']
             ]);
 
+            // Extract content from response array
+            $content = is_array($response) ? $response['content'] : $response;
+
             // Parse JSON response
-            $data = json_decode($response, true);
+            $data = json_decode($content, true);
             
             if (!$data || !isset($data['recommendations']) || !is_array($data['recommendations'])) {
                 throw new Exception('Invalid response format from OpenAI');
@@ -184,19 +188,19 @@ class AIRecommendationsService
             return [
                 'totalRecommendations' => 0,
                 'highPriorityCount' => 0,
-                'totalSavings' => 0,
-                'totalCost' => 0,
-                'roi' => 0,
+                'totalSavings' => 0.0,
+                'totalCost' => 0.0,
+                'roi' => 0.0,
                 'lastUpdated' => null
             ];
         }
 
         return [
-            'totalRecommendations' => $summary->total_recommendations,
-            'highPriorityCount' => $summary->high_priority_count,
-            'totalSavings' => $summary->total_savings,
-            'totalCost' => $summary->total_cost,
-            'roi' => $summary->roi,
+            'totalRecommendations' => (int) $summary->total_recommendations,
+            'highPriorityCount' => (int) $summary->high_priority_count,
+            'totalSavings' => (float) $summary->total_savings,
+            'totalCost' => (float) $summary->total_cost,
+            'roi' => (float) $summary->roi,
             'lastUpdated' => $summary->last_updated
         ];
     }
@@ -206,40 +210,42 @@ class AIRecommendationsService
      */
     private function getAssetContext(string $companyId): array
     {
-        // Get asset counts
-        $assetCounts = Asset::where('company_id', $companyId)
-            ->selectRaw('
-                COUNT(*) as total_assets,
-                COUNT(CASE WHEN status = "active" THEN 1 END) as active_assets,
-                COUNT(CASE WHEN status = "maintenance" THEN 1 END) as maintenance_assets,
-                SUM(COALESCE(purchase_price, 0)) as total_value
-            ')
-            ->first();
+        return Cache::remember("rec-context-{$companyId}", 300, function () use ($companyId) {
+            // Get asset counts
+            $assetCounts = Asset::where('company_id', $companyId)
+                ->selectRaw('
+                    COUNT(*) as total_assets,
+                    COUNT(CASE WHEN status = "active" THEN 1 END) as active_assets,
+                    COUNT(CASE WHEN status = "maintenance" THEN 1 END) as maintenance_assets,
+                    SUM(COALESCE(purchase_price, 0)) as total_value
+                ')
+                ->first();
 
-        // Get work order counts
-        $workOrderCounts = WorkOrder::where('work_orders.company_id', $companyId)
-            ->leftJoin('work_order_status', 'work_orders.status_id', '=', 'work_order_status.id')
-            ->leftJoin('work_order_priority', 'work_orders.priority_id', '=', 'work_order_priority.id')
-            ->selectRaw('
-                COUNT(*) as open_work_orders,
-                COUNT(CASE WHEN work_order_priority.slug = "high" OR work_order_priority.slug = "critical" THEN 1 END) as high_priority_work_orders,
-                COUNT(CASE WHEN work_orders.due_date < NOW() AND work_order_status.slug NOT IN ("completed", "cancelled") THEN 1 END) as overdue_work_orders
-            ')
-            ->first();
+            // Get work order counts
+            $workOrderCounts = WorkOrder::where('work_orders.company_id', $companyId)
+                ->leftJoin('work_order_status', 'work_orders.status_id', '=', 'work_order_status.id')
+                ->leftJoin('work_order_priority', 'work_orders.priority_id', '=', 'work_order_priority.id')
+                ->selectRaw('
+                    COUNT(*) as open_work_orders,
+                    COUNT(CASE WHEN work_order_priority.slug = "high" OR work_order_priority.slug = "critical" THEN 1 END) as high_priority_work_orders,
+                    COUNT(CASE WHEN work_orders.due_date < NOW() AND work_order_status.slug NOT IN ("completed", "cancelled") THEN 1 END) as overdue_work_orders
+                ')
+                ->first();
 
-        // Get location count
-        $locationCount = Location::where('company_id', $companyId)->count();
+            // Get location count
+            $locationCount = Location::where('company_id', $companyId)->count();
 
-        return [
-            'totalAssets' => $assetCounts->total_assets ?? 0,
-            'activeAssets' => $assetCounts->active_assets ?? 0,
-            'maintenanceAssets' => $assetCounts->maintenance_assets ?? 0,
-            'totalValue' => $assetCounts->total_value ?? 0,
-            'openWorkOrders' => $workOrderCounts->open_work_orders ?? 0,
-            'highPriorityWorkOrders' => $workOrderCounts->high_priority_work_orders ?? 0,
-            'overdueWorkOrders' => $workOrderCounts->overdue_work_orders ?? 0,
-            'totalLocations' => $locationCount
-        ];
+            return [
+                'totalAssets' => $assetCounts->total_assets ?? 0,
+                'activeAssets' => $assetCounts->active_assets ?? 0,
+                'maintenanceAssets' => $assetCounts->maintenance_assets ?? 0,
+                'totalValue' => $assetCounts->total_value ?? 0,
+                'openWorkOrders' => $workOrderCounts->open_work_orders ?? 0,
+                'highPriorityWorkOrders' => $workOrderCounts->high_priority_work_orders ?? 0,
+                'overdueWorkOrders' => $workOrderCounts->overdue_work_orders ?? 0,
+                'totalLocations' => $locationCount
+            ];
+        });
     }
 
     /**

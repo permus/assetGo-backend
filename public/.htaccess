@@ -21,6 +21,8 @@ php_value max_execution_time 600
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
     # Redirect Trailing Slashes If Not A Folder...
+    # Skip redirect for OPTIONS requests (CORS preflight) to avoid CORS errors
+    RewriteCond %{REQUEST_METHOD} !OPTIONS
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
