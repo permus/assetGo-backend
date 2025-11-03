@@ -130,6 +130,26 @@ class AuthController extends Controller
 
         $user = Auth::user();
         
+        // Check if user account is active
+        if (!$user->active) {
+            // Log out the user (clear authentication)
+            Auth::logout();
+            
+            // Log suspended login attempt
+            \Log::warning('Suspended user attempted login', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'timestamp' => now()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account has been suspended. Please contact support.'
+            ], 403);
+        }
+        
         // Clear failed login attempts on successful login
         ThrottleLoginAttempts::clearAttempts($request->email);
         

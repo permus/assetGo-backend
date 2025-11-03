@@ -142,6 +142,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get all team members created by this user
+     */
+    public function createdTeams()
+    {
+        return $this->hasMany(User::class, 'created_by')->where('user_type', 'team');
+    }
+
+    /**
      * Location scoping: Many-to-Many pivot user_location_scopes
      */
     public function locations(): BelongsToMany

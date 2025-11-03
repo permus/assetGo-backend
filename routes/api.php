@@ -509,3 +509,26 @@ Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/email/resend-authenticated', [AuthController::class, 'resendVerification']);
 });
+
+// Admin authentication routes
+Route::prefix('admin')->group(function () {
+    // Public admin routes
+    Route::post('/login', [\App\Http\Controllers\Admin\AdminAuthController::class, 'login'])
+        ->middleware('throttle:5,1');
+    
+    // Protected admin routes (AdminGuard handles authentication)
+    Route::middleware([\App\Http\Middleware\AdminGuard::class])->group(function () {
+        Route::post('/logout', [\App\Http\Controllers\Admin\AdminAuthController::class, 'logout']);
+        Route::get('/profile', [\App\Http\Controllers\Admin\AdminAuthController::class, 'profile']);
+        
+        // Admin management
+        Route::apiResource('admins', \App\Http\Controllers\Admin\AdminController::class);
+        
+        // Users management
+        Route::get('/users', [\App\Http\Controllers\Admin\AdminUsersController::class, 'index']);
+        Route::get('/users/{user}', [\App\Http\Controllers\Admin\AdminUsersController::class, 'show']);
+        Route::get('/users/{user}/teams', [\App\Http\Controllers\Admin\AdminUsersController::class, 'getCreatedTeams']);
+        Route::put('/users/{user}', [\App\Http\Controllers\Admin\AdminUsersController::class, 'update']);
+        Route::delete('/users/{user}', [\App\Http\Controllers\Admin\AdminUsersController::class, 'destroy']);
+    });
+});

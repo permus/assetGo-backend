@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
         
         // Phase 2: Core Data
         $this->command->info('Phase 2: Core tables...');
+        $this->call(AdminSeeder::class);
         $this->call(CompanySeeder::class);
         $this->call(RoleSeeder::class);
         $this->call(PermissionSeeder::class);
