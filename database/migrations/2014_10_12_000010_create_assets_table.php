@@ -26,6 +26,7 @@ return new class extends Migration
             $table->string('dimensions')->nullable();
             $table->string('weight')->nullable();
             $table->string('capacity')->nullable();
+            $table->string('capacity_unit', 50)->nullable();
             $table->date('purchase_date')->nullable();
             $table->decimal('purchase_price', 15, 2)->nullable();
             $table->decimal('depreciation', 15, 2)->nullable();

@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\{Asset, WorkOrder, ScheduleMaintenance, AssetTransfer};
+use App\Models\{Asset, WorkOrder, ScheduleMaintenance, AssetMaintenanceSchedule, AssetTransfer};
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,11 +24,10 @@ class DashboardService
             })
             ->whereNull('deleted_at')
             ->count();
-        // Consider archived if explicitly archived (archive_reason set) or soft-deleted
-        $archivedAssets = Asset::where('company_id', $companyId)
-            ->where(function ($q) {
-                $q->whereNotNull('archive_reason')->orWhereNotNull('deleted_at');
-            })
+        // Consider archived if soft-deleted with is_active = 2
+        $archivedAssets = Asset::onlyTrashed()
+            ->where('company_id', $companyId)
+            ->where('is_active', 2)
             ->count();
 
         // Placeholder for alerts/investments/utilization until dedicated tables exist
@@ -76,7 +75,22 @@ class DashboardService
         }
 
         // Scheduled maintenance next 30 days
-        $scheduledMaintenance = ScheduleMaintenance::whereBetween('due_date', [$today, $in30])->count();
+        // Count AssetMaintenanceSchedule (schedules created directly on assets)
+        $assetMaintenanceCount = AssetMaintenanceSchedule::whereHas('asset', function ($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            })
+            ->whereBetween('next_due', [$today, $in30])
+            ->whereNull('deleted_at')
+            ->count();
+        
+        // Count ScheduleMaintenance (schedules from maintenance plans)
+        $scheduleMaintenanceCount = ScheduleMaintenance::whereHas('plan', function ($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            })
+            ->whereBetween('due_date', [$today, $in30])
+            ->count();
+        
+        $scheduledMaintenance = $assetMaintenanceCount + $scheduleMaintenanceCount;
 
         // Transfers pending approvals (assume status = pending)
         $transferApprovals = AssetTransfer::whereNull('deleted_at')

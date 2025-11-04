@@ -530,9 +530,11 @@ Route::prefix('admin')->group(function () {
         
         // Users management
         Route::get('/users', [\App\Http\Controllers\Admin\AdminUsersController::class, 'index']);
+        Route::post('/users', [\App\Http\Controllers\Admin\AdminUsersController::class, 'store']);
         Route::get('/users/{user}', [\App\Http\Controllers\Admin\AdminUsersController::class, 'show']);
         Route::get('/users/{user}/teams', [\App\Http\Controllers\Admin\AdminUsersController::class, 'getCreatedTeams']);
         Route::put('/users/{user}', [\App\Http\Controllers\Admin\AdminUsersController::class, 'update']);
+        Route::post('/users/{user}/change-password', [\App\Http\Controllers\Admin\AdminUsersController::class, 'changePassword']);
         Route::delete('/users/{user}', [\App\Http\Controllers\Admin\AdminUsersController::class, 'destroy']);
     });
 });
