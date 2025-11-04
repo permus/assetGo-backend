@@ -25,6 +25,7 @@ class UpdateAssetRequest extends FormRequest
             'manufacturer' => 'nullable|string|max:255',
             'brand' => 'nullable|string|max:255',
             'capacity' => 'nullable|string|max:255',
+            'capacity_unit' => 'nullable|string|max:50|in:Unit,GB,TB,Liters,kg,BTU,kW,HP,Tons,Seats,Units',
             'dimensions' => 'nullable|string|max:255',
             'weight' => 'nullable|string|max:255',
             'purchase_date' => 'nullable|date|before_or_equal:today',

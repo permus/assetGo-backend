@@ -21,6 +21,7 @@ class Asset extends Model
         'manufacturer',
         'brand',
         'capacity',
+        'capacity_unit',
         'dimensions',
         'weight',
         'purchase_date',
