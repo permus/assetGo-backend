@@ -12,8 +12,10 @@ class BroadcastServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Broadcast::routes();
-
+        // Load channel authorization routes first
         require base_path('routes/channels.php');
+        
+        // Note: Broadcasting routes are registered in routes/api.php
+        // to ensure they're under the /api prefix with Sanctum auth
     }
 }

@@ -258,6 +258,29 @@ class WorkOrderController extends Controller
                 ],
                 $creator->id
             );
+
+            // If work order was created with assigned_to, notify that user
+            if (isset($data['assigned_to']) && $data['assigned_to']) {
+                $this->notificationService->createForUsers(
+                    [$data['assigned_to']],
+                    [
+                        'company_id' => $creator->company_id,
+                        'type' => 'work_order',
+                        'action' => 'assigned',
+                        'title' => 'Work Order Assigned to You',
+                        'message' => "You have been assigned to work order '{$workOrder->title}'",
+                        'data' => [
+                            'workOrderId' => $workOrder->id,
+                            'workOrderTitle' => $workOrder->title,
+                            'assignedBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ]
+                );
+            }
         } catch (\Exception $e) {
             \Log::warning('Failed to send work order creation notifications', [
                 'work_order_id' => $workOrder->id,
@@ -352,6 +375,38 @@ class WorkOrderController extends Controller
                 ],
                 $creator->id
             );
+
+            // Notify work order assignees if status was updated
+            if (isset($changes['status_id'])) {
+                $assignedUserIds = $this->notificationService->getWorkOrderAssignees($workOrder->id);
+                if (!empty($assignedUserIds)) {
+                    // Exclude the updater from notifications
+                    $assignedUserIds = array_filter($assignedUserIds, fn($id) => $id !== $creator->id);
+                    if (!empty($assignedUserIds)) {
+                        $this->notificationService->createForUsers(
+                            array_values($assignedUserIds),
+                            [
+                                'company_id' => $creator->company_id,
+                                'type' => 'work_order',
+                                'action' => 'status_updated',
+                                'title' => 'Work Order Status Updated',
+                                'message' => "Work order '{$workOrder->title}' status was updated",
+                                'data' => [
+                                    'workOrderId' => $workOrder->id,
+                                    'workOrderTitle' => $workOrder->title,
+                                    'oldStatusId' => $changes['status_id']['old'] ?? null,
+                                    'newStatusId' => $changes['status_id']['new'] ?? null,
+                                    'createdBy' => [
+                                        'id' => $creator->id,
+                                        'name' => $creator->first_name . ' ' . $creator->last_name,
+                                    ],
+                                ],
+                                'created_by' => $creator->id,
+                            ]
+                        );
+                    }
+                }
+            }
         } catch (\Exception $e) {
             \Log::warning('Failed to send work order update notifications', [
                 'work_order_id' => $workOrder->id,
@@ -429,6 +484,36 @@ class WorkOrderController extends Controller
                 ],
                 $creator->id
             );
+
+            // Notify work order assignees
+            $assignedUserIds = $this->notificationService->getWorkOrderAssignees($workOrder->id);
+            if (!empty($assignedUserIds)) {
+                // Exclude the updater from notifications
+                $assignedUserIds = array_filter($assignedUserIds, fn($id) => $id !== $creator->id);
+                if (!empty($assignedUserIds)) {
+                    $this->notificationService->createForUsers(
+                        array_values($assignedUserIds),
+                        [
+                            'company_id' => $creator->company_id,
+                            'type' => 'work_order',
+                            'action' => 'status_updated',
+                            'title' => 'Work Order Status Updated',
+                            'message' => "Work order '{$workOrder->title}' status was updated",
+                            'data' => [
+                                'workOrderId' => $workOrder->id,
+                                'workOrderTitle' => $workOrder->title,
+                                'oldStatusId' => $oldStatusId,
+                                'newStatusId' => $validated['status_id'],
+                                'createdBy' => [
+                                    'id' => $creator->id,
+                                    'name' => $creator->first_name . ' ' . $creator->last_name,
+                                ],
+                            ],
+                            'created_by' => $creator->id,
+                        ]
+                    );
+                }
+            }
         } catch (\Exception $e) {
             \Log::warning('Failed to send work order status update notifications', [
                 'work_order_id' => $workOrder->id,

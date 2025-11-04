@@ -114,6 +114,36 @@ class WorkOrderTimeLogController extends Controller
                 ],
                 $creator->id
             );
+
+            // Notify work order assignees (excluding the user who logged time)
+            $assignedUserIds = $this->notificationService->getWorkOrderAssignees($workOrder->id);
+            if (!empty($assignedUserIds)) {
+                // Exclude the user who logged time from notifications
+                $assignedUserIds = array_filter($assignedUserIds, fn($id) => $id !== $creator->id);
+                if (!empty($assignedUserIds)) {
+                    $this->notificationService->createForUsers(
+                        array_values($assignedUserIds),
+                        [
+                            'company_id' => $creator->company_id,
+                            'type' => 'work_order',
+                            'action' => 'time_logged',
+                            'title' => 'Time Logged on Your Work Order',
+                            'message' => "Time was logged for work order '{$workOrder->title}'",
+                            'data' => [
+                                'workOrderId' => $workOrder->id,
+                                'workOrderTitle' => $workOrder->title,
+                                'durationMinutes' => $log->duration_minutes,
+                                'totalCost' => $log->total_cost,
+                                'createdBy' => [
+                                    'id' => $creator->id,
+                                    'name' => $creator->first_name . ' ' . $creator->last_name,
+                                ],
+                            ],
+                            'created_by' => $creator->id,
+                        ]
+                    );
+                }
+            }
         } catch (\Exception $e) {
             \Log::warning('Failed to send work order time log notification', [
                 'work_order_id' => $workOrder->id,

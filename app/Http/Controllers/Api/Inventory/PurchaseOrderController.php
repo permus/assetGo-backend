@@ -452,6 +452,41 @@ class PurchaseOrderController extends Controller
             $request->ip()
         );
 
+        // Send notification to the PO creator (if different from approver)
+        $approver = $request->user();
+        if ($po->created_by && $po->created_by != $approver->id) {
+            try {
+                $action = $data['approve'] ? 'approved' : 'rejected';
+                $this->notificationService->createForUsers(
+                    [$po->created_by],
+                    [
+                        'company_id' => $approver->company_id,
+                        'type' => 'inventory',
+                        'action' => $action,
+                        'title' => 'Purchase Order ' . ucfirst($action),
+                        'message' => "Your purchase order {$po->po_number} has been {$action}" . ($data['comment'] ? ". Comment: {$data['comment']}" : ''),
+                        'data' => [
+                            'orderId' => $po->id,
+                            'poNumber' => $po->po_number,
+                            'status' => $newStatus,
+                            'comment' => $data['comment'] ?? null,
+                            'approvedBy' => [
+                                'id' => $approver->id,
+                                'name' => $approver->first_name . ' ' . $approver->last_name,
+                            ],
+                        ],
+                        'created_by' => $approver->id,
+                    ]
+                );
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send purchase order approval notification to creator', [
+                    'po_id' => $po->id,
+                    'creator_id' => $po->created_by,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
         // Clear cache
         $this->cacheService->clearPurchaseOrderCache($request->user()->company_id);
 

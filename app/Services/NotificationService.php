@@ -48,6 +48,7 @@ class NotificationService
     public function createForUsers(array $userIds, array $data): array
     {
         $notifications = [];
+        $notifiedUserIds = [];
         
         foreach ($userIds as $userId) {
             try {
@@ -62,12 +63,18 @@ class NotificationService
                     'created_by' => $data['created_by'] ?? null,
                 ]);
                 $notifications[] = $notification;
+                $notifiedUserIds[] = $userId;
             } catch (Exception $e) {
                 Log::error('Failed to create notification for user', [
                     'user_id' => $userId,
                     'error' => $e->getMessage()
                 ]);
             }
+        }
+
+        // Broadcast unread count updates for all users who received notifications
+        foreach ($notifiedUserIds as $userId) {
+            $this->broadcastUnreadCount($userId);
         }
 
         return $notifications;
@@ -220,17 +227,32 @@ class NotificationService
     }
 
     /**
+     * Get work order assignee user IDs
+     */
+    public function getWorkOrderAssignees(int $workOrderId): array
+    {
+        return \App\Models\WorkOrderAssignment::where('work_order_id', $workOrderId)
+            ->pluck('user_id')
+            ->toArray();
+    }
+
+    /**
      * Broadcast notification via Pusher
      */
     private function broadcastNotification(Notification $notification): void
     {
         try {
-            broadcast(new \App\Events\NotificationCreated($notification))
-                ->toOthers();
+            broadcast(new \App\Events\NotificationCreated($notification));
+            
+            // Also broadcast unread count update for the user
+            // This ensures the count is updated immediately after notification creation
+            $this->broadcastUnreadCount($notification->user_id);
         } catch (Exception $e) {
             Log::warning('Failed to broadcast notification', [
                 'notification_id' => $notification->id,
-                'error' => $e->getMessage()
+                'user_id' => $notification->user_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
         }
     }
@@ -242,12 +264,12 @@ class NotificationService
     {
         try {
             $count = $this->getUnreadCount($userId);
-            broadcast(new \App\Events\UnreadCountUpdated($userId, $count))
-                ->toOthers();
+            broadcast(new \App\Events\UnreadCountUpdated($userId, $count));
         } catch (Exception $e) {
             Log::warning('Failed to broadcast unread count', [
                 'user_id' => $userId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
         }
     }

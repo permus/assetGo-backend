@@ -950,6 +950,8 @@ class LocationController extends Controller
             }
 
             $assignedCount = 0;
+            $notifyUserIds = [];
+            
             foreach ($assets as $asset) {
                 $before = $asset->toArray();
                 
@@ -968,6 +970,11 @@ class LocationController extends Controller
                     'after' => $asset->fresh()->toArray(),
                     'comment' => "Asset assigned to location: {$location->name}",
                 ]);
+
+                // Collect user IDs for notification if asset is assigned to a user
+                if ($asset->user_id && !in_array($asset->user_id, $notifyUserIds)) {
+                    $notifyUserIds[] = $asset->user_id;
+                }
 
                 $assignedCount++;
             }
@@ -997,6 +1004,32 @@ class LocationController extends Controller
                     ],
                     $creator->id
                 );
+
+                // Notify users whose assets were moved to the new location
+                if (!empty($notifyUserIds)) {
+                    $this->notificationService->createForUsers(
+                        $notifyUserIds,
+                        [
+                            'company_id' => $creator->company_id,
+                            'type' => 'location',
+                            'action' => 'asset_moved',
+                            'title' => 'Your Asset Location Changed',
+                            'message' => count($notifyUserIds) === 1 && $assignedCount === 1
+                                ? "An asset assigned to you has been moved to location '{$location->name}'"
+                                : "Assets assigned to you have been moved to location '{$location->name}'",
+                            'data' => [
+                                'locationId' => $location->id,
+                                'locationName' => $location->name,
+                                'assetCount' => $assignedCount,
+                                'movedBy' => [
+                                    'id' => $creator->id,
+                                    'name' => $creator->first_name . ' ' . $creator->last_name,
+                                ],
+                            ],
+                            'created_by' => $creator->id,
+                        ]
+                    );
+                }
             } catch (\Exception $e) {
                 \Log::warning('Failed to send asset assignment notifications', [
                     'location_id' => $location->id,

@@ -7,6 +7,7 @@ use App\Http\Requests\WorkOrder\StoreWorkOrderCommentRequest;
 use App\Http\Resources\WorkOrderCommentResource;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderComment;
+use App\Models\WorkOrderAssignment;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
@@ -69,6 +70,35 @@ class WorkOrderCommentController extends Controller
                 ],
                 $creator->id
             );
+
+            // Notify work order assignees
+            $assignedUserIds = $this->notificationService->getWorkOrderAssignees($workOrder->id);
+            if (!empty($assignedUserIds)) {
+                // Exclude the comment creator from notifications
+                $assignedUserIds = array_filter($assignedUserIds, fn($id) => $id !== $creator->id);
+                if (!empty($assignedUserIds)) {
+                    $this->notificationService->createForUsers(
+                        array_values($assignedUserIds),
+                        [
+                            'company_id' => $creator->company_id,
+                            'type' => 'work_order',
+                            'action' => 'comment_added',
+                            'title' => 'New Comment on Your Work Order',
+                            'message' => "A comment was added to work order '{$workOrder->title}'",
+                            'data' => [
+                                'workOrderId' => $workOrder->id,
+                                'workOrderTitle' => $workOrder->title,
+                                'commentId' => $comment->id,
+                                'createdBy' => [
+                                    'id' => $creator->id,
+                                    'name' => $creator->first_name . ' ' . $creator->last_name,
+                                ],
+                            ],
+                            'created_by' => $creator->id,
+                        ]
+                    );
+                }
+            }
         } catch (\Exception $e) {
             \Log::warning('Failed to send work order comment notification', [
                 'work_order_id' => $workOrder->id,

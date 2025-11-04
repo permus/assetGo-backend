@@ -489,6 +489,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 });
 
+// Broadcasting auth route (for Pusher private channels)
+Route::post('/broadcasting/auth', [\App\Http\Controllers\Api\BroadcastAuthController::class, 'authenticate'])
+    ->middleware('auth:sanctum');
+
 // Notifications
 Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
     Route::get('/', [NotificationController::class, 'index'])

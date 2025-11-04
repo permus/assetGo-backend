@@ -22,18 +22,36 @@ class NotificationController extends Controller
     {
         try {
             $user = Auth::user();
-            $perPage = min($request->get('per_page', 20), 50);
-            $read = $request->get('read'); // null, true, false
+            
+            // Ensure user is authenticated
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Unauthenticated'
+                ], 401);
+            }
+
+            $perPage = min((int) $request->get('per_page', 20), 50);
+            $readParam = $request->get('read'); // null, 'true', 'false', '1', '0'
             $type = $request->get('type');
+
+            Log::info('Fetching notifications', [
+                'user_id' => $user->id,
+                'per_page' => $perPage,
+                'read' => $readParam,
+                'type' => $type,
+            ]);
 
             $query = \App\Models\Notification::where('user_id', $user->id)
                 ->orderBy('created_at', 'desc');
 
             // Filter by read status
-            if ($read !== null) {
-                if ($read) {
+            // Handle string values 'true', 'false', '1', '0' from query string
+            if ($readParam !== null) {
+                $read = filter_var($readParam, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                if ($read === true) {
                     $query->read();
-                } else {
+                } elseif ($read === false) {
                     $query->unread();
                 }
             }
@@ -45,10 +63,20 @@ class NotificationController extends Controller
 
             $notifications = $query->paginate($perPage);
 
-            return response()->json([
+            Log::info('Notifications fetched successfully', [
+                'user_id' => $user->id,
+                'total' => $notifications->total(),
+                'current_page' => $notifications->currentPage(),
+                'items_count' => count($notifications->items()),
+            ]);
+
+            // Transform notifications using resource collection
+            $notificationResources = NotificationResource::collection($notifications->items());
+
+            $responseData = [
                 'success' => true,
                 'data' => [
-                    'notifications' => NotificationResource::collection($notifications->items()),
+                    'notifications' => $notificationResources->resolve(),
                     'pagination' => [
                         'current_page' => $notifications->currentPage(),
                         'last_page' => $notifications->lastPage(),
@@ -58,13 +86,15 @@ class NotificationController extends Controller
                         'to' => $notifications->lastItem(),
                     ],
                 ],
-            ]);
-        } catch (Exception $e) {
-            Log::error('Failed to fetch notifications', [
-                'user_id' => Auth::id(),
-                'error' => $e->getMessage()
+            ];
+
+            Log::info('Response data prepared', [
+                'notifications_count' => count($responseData['data']['notifications']),
+                'pagination_total' => $responseData['data']['pagination']['total'],
             ]);
 
+            return response()->json($responseData);
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'error' => config('app.debug')

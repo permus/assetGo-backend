@@ -101,6 +101,27 @@ class WorkOrderAssignmentController extends Controller
                     ],
                     $creator->id
                 );
+
+                // Notify assigned users directly
+                $this->notificationService->createForUsers(
+                    $toAdd->toArray(),
+                    [
+                        'company_id' => $creator->company_id,
+                        'type' => 'work_order',
+                        'action' => 'assigned',
+                        'title' => 'Work Order Assigned to You',
+                        'message' => "You have been assigned to work order '{$workOrder->title}'",
+                        'data' => [
+                            'workOrderId' => $workOrder->id,
+                            'workOrderTitle' => $workOrder->title,
+                            'assignedBy' => [
+                                'id' => $creator->id,
+                                'name' => $creator->first_name . ' ' . $creator->last_name,
+                            ],
+                        ],
+                        'created_by' => $creator->id,
+                    ]
+                );
             } catch (\Exception $e) {
                 \Log::warning('Failed to send work order assignment notifications', [
                     'work_order_id' => $workOrder->id,
@@ -184,6 +205,27 @@ class WorkOrderAssignmentController extends Controller
                     'created_by' => $creator->id,
                 ],
                 $creator->id
+            );
+
+            // Notify assigned user directly
+            $this->notificationService->createForUsers(
+                [$validated['user_id']],
+                [
+                    'company_id' => $creator->company_id,
+                    'type' => 'work_order',
+                    'action' => 'assigned',
+                    'title' => 'Work Order Assigned to You',
+                    'message' => "You have been assigned to work order '{$workOrder->title}'",
+                    'data' => [
+                        'workOrderId' => $workOrder->id,
+                        'workOrderTitle' => $workOrder->title,
+                        'assignedBy' => [
+                            'id' => $creator->id,
+                            'name' => $creator->first_name . ' ' . $creator->last_name,
+                        ],
+                    ],
+                    'created_by' => $creator->id,
+                ]
             );
         } catch (\Exception $e) {
             \Log::warning('Failed to send work order assignment notifications', [

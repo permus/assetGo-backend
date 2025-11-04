@@ -251,6 +251,29 @@ class AssetController extends Controller
                     ],
                     $creator->id // Exclude the creator from notifications
                 );
+
+                // Notify the user if asset is assigned to them during creation
+                if ($request->filled('user_id')) {
+                    $this->notificationService->createForUsers(
+                        [$request->user_id],
+                        [
+                            'company_id' => $creator->company_id,
+                            'type' => 'asset',
+                            'action' => 'assigned',
+                            'title' => 'Asset Assigned to You',
+                            'message' => "Asset '{$asset->name}' has been assigned to you",
+                            'data' => [
+                                'assetId' => $asset->id,
+                                'assetName' => $asset->name,
+                                'assignedBy' => [
+                                    'id' => $creator->id,
+                                    'name' => $creator->first_name . ' ' . $creator->last_name,
+                                ],
+                            ],
+                            'created_by' => $creator->id,
+                        ]
+                    );
+                }
             } catch (\Exception $e) {
                 // Log error but don't fail the asset creation
                 \Log::warning('Failed to send asset creation notifications', [
@@ -364,6 +387,29 @@ class AssetController extends Controller
                     ],
                     $creator->id
                 );
+
+                // Notify the user if asset is assigned to them (user_id changed)
+                if ($request->filled('user_id') && $before['user_id'] != $request->user_id) {
+                    $this->notificationService->createForUsers(
+                        [$request->user_id],
+                        [
+                            'company_id' => $creator->company_id,
+                            'type' => 'asset',
+                            'action' => 'assigned',
+                            'title' => 'Asset Assigned to You',
+                            'message' => "Asset '{$asset->name}' has been assigned to you",
+                            'data' => [
+                                'assetId' => $asset->id,
+                                'assetName' => $asset->name,
+                                'assignedBy' => [
+                                    'id' => $creator->id,
+                                    'name' => $creator->first_name . ' ' . $creator->last_name,
+                                ],
+                            ],
+                            'created_by' => $creator->id,
+                        ]
+                    );
+                }
             } catch (\Exception $e) {
                 \Log::warning('Failed to send asset update notifications', [
                     'asset_id' => $asset->id,
@@ -1269,6 +1315,31 @@ class AssetController extends Controller
                     ],
                     $creator->id
                 );
+
+                // Notify the receiving user if asset is transferred to them
+                if ($request->filled('to_user_id')) {
+                    $this->notificationService->createForUsers(
+                        [$request->to_user_id],
+                        [
+                            'company_id' => $creator->company_id,
+                            'type' => 'asset',
+                            'action' => 'assigned',
+                            'title' => 'Asset Assigned to You',
+                            'message' => "Asset '{$asset->name}' has been transferred to you" . ($request->transfer_reason ? ". Reason: {$request->transfer_reason}" : ''),
+                            'data' => [
+                                'assetId' => $asset->id,
+                                'assetName' => $asset->name,
+                                'transferId' => $transfer->id,
+                                'transferReason' => $request->transfer_reason,
+                                'assignedBy' => [
+                                    'id' => $creator->id,
+                                    'name' => $creator->first_name . ' ' . $creator->last_name,
+                                ],
+                            ],
+                            'created_by' => $creator->id,
+                        ]
+                    );
+                }
             } catch (\Exception $e) {
                 \Log::warning('Failed to send asset transfer notifications', [
                     'asset_id' => $asset->id,

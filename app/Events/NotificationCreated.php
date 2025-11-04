@@ -52,12 +52,15 @@ class NotificationCreated implements ShouldBroadcast
     {
         return [
             'id' => $this->notification->id,
+            'companyId' => $this->notification->company_id,
+            'userId' => $this->notification->user_id,
             'type' => $this->notification->type,
             'action' => $this->notification->action,
             'title' => $this->notification->title,
             'message' => $this->notification->message,
             'data' => $this->notification->data,
             'read' => $this->notification->read,
+            'readAt' => $this->notification->read_at?->toISOString(),
             'createdAt' => $this->notification->created_at->toISOString(),
         ];
     }

@@ -96,6 +96,35 @@ class WorkOrderPartController extends Controller
                 ],
                 $creator->id
             );
+
+            // Notify work order assignees
+            $assignedUserIds = $this->notificationService->getWorkOrderAssignees($workOrder->id);
+            if (!empty($assignedUserIds)) {
+                // Exclude the creator from notifications
+                $assignedUserIds = array_filter($assignedUserIds, fn($id) => $id !== $creator->id);
+                if (!empty($assignedUserIds)) {
+                    $this->notificationService->createForUsers(
+                        array_values($assignedUserIds),
+                        [
+                            'company_id' => $creator->company_id,
+                            'type' => 'work_order',
+                            'action' => 'parts_added',
+                            'title' => 'Parts Added to Your Work Order',
+                            'message' => "Parts were added to work order '{$workOrder->title}'",
+                            'data' => [
+                                'workOrderId' => $workOrder->id,
+                                'workOrderTitle' => $workOrder->title,
+                                'partCount' => count($created),
+                                'createdBy' => [
+                                    'id' => $creator->id,
+                                    'name' => $creator->first_name . ' ' . $creator->last_name,
+                                ],
+                            ],
+                            'created_by' => $creator->id,
+                        ]
+                    );
+                }
+            }
         } catch (\Exception $e) {
             \Log::warning('Failed to send work order parts notification', [
                 'work_order_id' => $workOrder->id,
