@@ -1854,13 +1854,28 @@ class AssetController extends Controller
         return $cacheService->getStatistics($companyId, function() use ($companyId) {
             // Basic asset counts
             $totalAssets = Asset::where('company_id', $companyId)->count();
-            $activeAssets = Asset::where('company_id', $companyId)->where('status', 'active')->count();
-            $inactiveAssets = Asset::where('company_id', $companyId)->where('status', '!=', 'active')->count();
-
-            // Maintenance count (status is stored as string, not ID)
-            $maintenanceAssets = Asset::where('company_id', $companyId)
-                ->where('status', 'Maintenance')
-                ->count();
+            
+            // Active assets - status column stores asset_status ID, join to check name
+            $activeAssets = Asset::where('assets.company_id', $companyId)
+                ->join('asset_statuses', 'assets.status', '=', 'asset_statuses.id')
+                ->where('asset_statuses.name', 'Active')
+                ->distinct()
+                ->count('assets.id');
+            
+            // Maintenance count - status column stores asset_status ID, join to check name
+            $maintenanceAssets = Asset::where('assets.company_id', $companyId)
+                ->join('asset_statuses', 'assets.status', '=', 'asset_statuses.id')
+                ->where('asset_statuses.name', 'Maintenance')
+                ->distinct()
+                ->count('assets.id');
+            
+            // Inactive assets - status column stores asset_status ID, exclude "Active" and "Maintenance"
+            $inactiveAssets = Asset::where('assets.company_id', $companyId)
+                ->join('asset_statuses', 'assets.status', '=', 'asset_statuses.id')
+                ->where('asset_statuses.name', '!=', 'Active')
+                ->where('asset_statuses.name', '!=', 'Maintenance')
+                ->distinct()
+                ->count('assets.id');
 
 
             // Financial statistics

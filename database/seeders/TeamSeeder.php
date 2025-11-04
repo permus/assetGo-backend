@@ -91,7 +91,7 @@ class TeamSeeder extends Seeder
                     'first_name' => $firstName,
                     'last_name' => $lastName,
                     'email' => $email,
-                    'password' => Hash::make('password'),
+                    'password' => Hash::make('Password1'),
                     'user_type' => 'team',
                     'company_id' => $company->id,
                     'hourly_rate' => fake()->randomFloat(2, 25, 75),

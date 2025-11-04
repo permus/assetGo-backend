@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Asset;
 use App\Models\AssetCategory;
+use App\Models\AssetStatus;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Location;
@@ -30,6 +31,10 @@ class AssetSeeder extends Seeder
         $locations = Location::where('company_id', $company->id)->get();
         $departments = Department::where('company_id', $company->id)->get();
         $categories = AssetCategory::all();
+        
+        // Get the "Active" asset status ID (status column stores the asset_status ID)
+        $activeStatus = AssetStatus::where('name', 'Active')->first();
+        $activeStatusId = $activeStatus ? $activeStatus->id : 1; // Default to 1 if not found
 
         $assetTemplates = [
             ['name' => 'Dell Laptop XPS 15', 'manufacturer' => 'Dell', 'model' => 'XPS 15 9500'],
@@ -66,7 +71,7 @@ class AssetSeeder extends Seeder
                     'company_id' => $company->id,
                     'warranty' => $faker->randomElement(['1 Year', '2 Years', '3 Years']),
                     'health_score' => $faker->randomFloat(2, 70, 100),
-                    'status' => 'active',
+                    'status' => $activeStatusId, // Store asset_status ID, not string
                     'is_active' => 1,
                 ]);
                 $counter++;

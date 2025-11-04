@@ -41,7 +41,7 @@ class UserSeeder extends Seeder
             User::firstOrCreate(
                 ['email' => $userData['email']],
                 array_merge($userData, [
-                    'password' => Hash::make('password'),
+                    'password' => Hash::make('Password1'),
                     'company_id' => $company->id,
                     'email_verified_at' => now(),
                 ])
@@ -58,7 +58,7 @@ class UserSeeder extends Seeder
                     'last_name' => fake()->lastName(),
                     'user_type' => fake()->randomElement($userTypes),
                     'hourly_rate' => fake()->randomFloat(2, 25, 60),
-                    'password' => Hash::make('password'),
+                    'password' => Hash::make('Password1'),
                     'company_id' => $company->id,
                     'email_verified_at' => now(),
                 ]
