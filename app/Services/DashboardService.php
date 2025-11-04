@@ -92,8 +92,11 @@ class DashboardService
         
         $scheduledMaintenance = $assetMaintenanceCount + $scheduleMaintenanceCount;
 
-        // Transfers pending approvals (assume status = pending)
-        $transferApprovals = AssetTransfer::whereNull('deleted_at')
+        // Transfers pending approvals (filtered by company_id)
+        $transferApprovals = AssetTransfer::whereHas('asset', function ($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            })
+            ->whereNull('deleted_at')
             ->where('status', 'pending')
             ->count();
 

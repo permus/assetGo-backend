@@ -184,6 +184,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::apiResource('assets', AssetController::class);
     Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);
     Route::post('assets/{asset}/transfer', [AssetController::class, 'transfer']);
+    Route::get('assets/transfers/pending', [AssetController::class, 'getPendingTransfers']);
+    Route::get('assets/transfers/{transfer}', [AssetController::class, 'getTransferDetails']);
+    Route::post('assets/transfers/{transfer}/approve', [AssetController::class, 'approveTransfer']);
+    Route::post('assets/transfers/{transfer}/reject', [AssetController::class, 'rejectTransfer']);
     Route::post('assets/{asset}/restore', [AssetController::class, 'restore']);
     Route::post('assets/bulk-restore', [AssetController::class, 'bulkRestore'])
         ->middleware('throttle:20,1'); // 20 bulk restores per minute

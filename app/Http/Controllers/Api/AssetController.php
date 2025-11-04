@@ -1203,19 +1203,27 @@ class AssetController extends Controller
             ], 400);
         }
 
+        $user = $request->user();
+        $userType = $user->user_type;
+        $requiresApproval = $userType === 'user';
+        
         \DB::beginTransaction();
         try {
             $before = $asset->toArray();
 
-            // Update asset location and department
-            $asset->location_id = $request->new_location_id;
-            if ($request->filled('new_department_id')) {
-                $asset->department_id = $request->new_department_id;
+            // If user_type is 'user', create pending transfer (don't update asset yet)
+            // If user_type is 'manager' or 'admin', allow direct transfer
+            if (!$requiresApproval) {
+                // Update asset location and department immediately for managers/admins
+                $asset->location_id = $request->new_location_id;
+                if ($request->filled('new_department_id')) {
+                    $asset->department_id = $request->new_department_id;
+                }
+                if ($request->filled('to_user_id')) {
+                    $asset->user_id = $request->to_user_id;
+                }
+                $asset->save();
             }
-            if ($request->filled('to_user_id')) {
-                $asset->user_id = $request->to_user_id;
-            }
-            $asset->save();
 
             // Create transfer record
             $transfer = $asset->transfers()->create([
@@ -1229,59 +1237,295 @@ class AssetController extends Controller
                 'transfer_date' => $request->transfer_date,
                 'notes' => $request->notes,
                 'condition_report' => $request->condition_report,
-                'status' => 'completed',
-                'approved_by' => $request->user()->id,
-                'created_by' => $request->user()->id,
+                'status' => $requiresApproval ? 'pending' : 'completed',
+                'approved_by' => $requiresApproval ? null : $user->id,
+                'created_by' => $user->id,
             ]);
 
             // Log activity
+            $activityAction = $requiresApproval ? 'transfer_requested' : 'transferred';
+            $activityComment = $requiresApproval 
+                ? 'Transfer request submitted: ' . $request->transfer_reason . ' (Pending approval)'
+                : 'Asset transferred: ' . $request->transfer_reason;
+            
             $asset->activities()->create([
-                'user_id' => $request->user()->id,
+                'user_id' => $user->id,
+                'action' => $activityAction,
+                'before' => $before,
+                'after' => $requiresApproval ? $before : $asset->toArray(), // Don't change 'after' if pending
+                'comment' => $activityComment,
+            ]);
+
+            // Send notifications
+            if (!$requiresApproval) {
+                // Send notifications to admins and company owners for completed transfers
+                try {
+                    $this->notificationService->createForAdminsAndOwners(
+                        $user->company_id,
+                        [
+                            'type' => 'asset',
+                            'action' => 'transferred',
+                            'title' => 'Asset Transferred',
+                            'message' => $this->notificationService->formatAssetMessage('transferred', $asset->name),
+                            'data' => [
+                                'assetId' => $asset->id,
+                                'assetName' => $asset->name,
+                                'transferId' => $transfer->id,
+                                'oldLocationId' => $before['location_id'],
+                                'newLocationId' => $request->new_location_id,
+                                'createdBy' => [
+                                    'id' => $user->id,
+                                    'name' => $user->first_name . ' ' . $user->last_name,
+                                    'userType' => $user->user_type,
+                                ],
+                            ],
+                            'created_by' => $user->id,
+                        ],
+                        $user->id
+                    );
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to send asset transfer notifications', [
+                        'asset_id' => $asset->id,
+                        'transfer_id' => $transfer->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            } else {
+                // Send notifications to managers/admins for pending approval
+                try {
+                    $managersAdmins = \App\Models\User::where('company_id', $user->company_id)
+                        ->whereIn('user_type', ['manager', 'admin', 'owner'])
+                        ->get();
+                    
+                    foreach ($managersAdmins as $approver) {
+                        \App\Models\Notification::create([
+                            'user_id' => $approver->id,
+                            'type' => 'asset',
+                            'action' => 'transfer_approval_required',
+                            'title' => 'Transfer Approval Required',
+                            'message' => $user->first_name . ' ' . $user->last_name . ' requested to transfer ' . $asset->name,
+                            'data' => [
+                                'assetId' => $asset->id,
+                                'assetName' => $asset->name,
+                                'transferId' => $transfer->id,
+                                'createdBy' => [
+                                    'id' => $user->id,
+                                    'name' => $user->first_name . ' ' . $user->last_name,
+                                ],
+                            ],
+                            'created_by' => $user->id,
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to send transfer approval notifications', [
+                        'asset_id' => $asset->id,
+                        'transfer_id' => $transfer->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            \DB::commit();
+
+            $message = $requiresApproval 
+                ? 'Transfer request submitted successfully. Awaiting approval from manager or admin.'
+                : 'Asset transfer completed.';
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'data' => [
+                    'transfer_id' => $transfer->id,
+                    'asset_id' => $asset->asset_id,
+                    'status' => $transfer->status,
+                    'requires_approval' => $requiresApproval,
+                    'new_location' => $requiresApproval ? null : ($asset->location->name ?? null),
+                    'new_department' => $requiresApproval ? null : ($asset->department->name ?? null),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Asset transfer failed',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // Get pending transfers for approval
+    public function getPendingTransfers(Request $request)
+    {
+        $user = $request->user();
+        $companyId = $user->company_id;
+        
+        // Only managers and admins can see pending transfers
+        if (!in_array($user->user_type, ['manager', 'admin', 'owner'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Only managers and admins can view pending transfers.'
+            ], 403);
+        }
+
+        $transfers = AssetTransfer::with([
+            'asset:id,name,asset_id,location_id,department_id',
+            'asset.location:id,name',
+            'asset.department:id,name',
+            'oldLocation:id,name',
+            'newLocation:id,name',
+            'oldDepartment:id,name',
+            'newDepartment:id,name',
+            'fromUser:id,first_name,last_name,email',
+            'toUser:id,first_name,last_name,email',
+            'createdBy:id,first_name,last_name,email'
+        ])
+        ->whereHas('asset', function ($q) use ($companyId) {
+            $q->where('company_id', $companyId);
+        })
+        ->where('status', 'pending')
+        ->whereNull('deleted_at')
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'pending_transfers' => $transfers
+            ]
+        ]);
+    }
+
+    // Get transfer details
+    public function getTransferDetails(Request $request, AssetTransfer $transfer)
+    {
+        $user = $request->user();
+        
+        // Check if transfer belongs to user's company
+        if ($transfer->asset->company_id !== $user->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transfer not found or unauthorized'
+            ], 404);
+        }
+
+        // Only managers and admins can view transfer details
+        if (!in_array($user->user_type, ['manager', 'admin', 'owner'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Only managers and admins can view transfer details.'
+            ], 403);
+        }
+
+        $transfer->load([
+            'asset:id,name,asset_id,location_id,department_id,user_id',
+            'asset.location:id,name',
+            'asset.department:id,name',
+            'asset.user:id,first_name,last_name,email',
+            'oldLocation:id,name',
+            'newLocation:id,name',
+            'oldDepartment:id,name',
+            'newDepartment:id,name',
+            'fromUser:id,first_name,last_name,email',
+            'toUser:id,first_name,last_name,email',
+            'createdBy:id,first_name,last_name,email',
+            'approver:id,first_name,last_name,email'
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'transfer' => $transfer
+            ]
+        ]);
+    }
+
+    // Approve transfer
+    public function approveTransfer(Request $request, AssetTransfer $transfer)
+    {
+        $user = $request->user();
+        
+        // Check if transfer belongs to user's company
+        if ($transfer->asset->company_id !== $user->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transfer not found or unauthorized'
+            ], 404);
+        }
+
+        // Only managers and admins can approve transfers
+        if (!in_array($user->user_type, ['manager', 'admin', 'owner'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Only managers and admins can approve transfers.'
+            ], 403);
+        }
+
+        // Check if transfer is pending
+        if ($transfer->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transfer is not pending approval.'
+            ], 400);
+        }
+
+        \DB::beginTransaction();
+        try {
+            $asset = $transfer->asset;
+            $before = $asset->toArray();
+
+            // Update asset location and department
+            $asset->location_id = $transfer->new_location_id;
+            if ($transfer->new_department_id) {
+                $asset->department_id = $transfer->new_department_id;
+            }
+            if ($transfer->to_user_id) {
+                $asset->user_id = $transfer->to_user_id;
+            }
+            $asset->save();
+
+            // Update transfer status
+            $transfer->status = 'completed';
+            $transfer->approved_by = $user->id;
+            $transfer->save();
+
+            // Log activity
+            $asset->activities()->create([
+                'user_id' => $user->id,
                 'action' => 'transferred',
                 'before' => $before,
                 'after' => $asset->toArray(),
-                'comment' => 'Asset transferred: ' . $request->transfer_reason,
+                'comment' => 'Transfer approved by ' . $user->first_name . ' ' . $user->last_name . ': ' . $transfer->reason,
             ]);
 
-            // Send notifications to admins and company owners
-            $creator = $request->user();
-            try {
-                $this->notificationService->createForAdminsAndOwners(
-                    $creator->company_id,
-                    [
+            // Send notification to requester
+            if ($transfer->created_by) {
+                try {
+                    \App\Models\Notification::create([
+                        'user_id' => $transfer->created_by,
                         'type' => 'asset',
-                        'action' => 'transferred',
-                        'title' => 'Asset Transferred',
-                        'message' => $this->notificationService->formatAssetMessage('transferred', $asset->name),
+                        'action' => 'transfer_approved',
+                        'title' => 'Transfer Approved',
+                        'message' => 'Your transfer request for ' . $asset->name . ' has been approved.',
                         'data' => [
                             'assetId' => $asset->id,
                             'assetName' => $asset->name,
                             'transferId' => $transfer->id,
-                            'oldLocationId' => $before['location_id'],
-                            'newLocationId' => $request->new_location_id,
-                            'createdBy' => [
-                                'id' => $creator->id,
-                                'name' => $creator->first_name . ' ' . $creator->last_name,
-                                'userType' => $creator->user_type,
-                            ],
                         ],
-                        'created_by' => $creator->id,
-                    ],
-                    $creator->id
-                );
-            } catch (\Exception $e) {
-                \Log::warning('Failed to send asset transfer notifications', [
-                    'asset_id' => $asset->id,
-                    'transfer_id' => $transfer->id,
-                    'error' => $e->getMessage()
-                ]);
+                        'created_by' => $user->id,
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to send transfer approval notification', [
+                        'transfer_id' => $transfer->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
             }
 
             \DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Asset transfer completed.',
+                'message' => 'Transfer approved successfully.',
                 'data' => [
                     'transfer_id' => $transfer->id,
                     'asset_id' => $asset->asset_id,
@@ -1293,7 +1537,100 @@ class AssetController extends Controller
             \DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Asset transfer failed',
+                'message' => 'Failed to approve transfer',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // Reject transfer
+    public function rejectTransfer(Request $request, AssetTransfer $transfer)
+    {
+        $user = $request->user();
+        
+        // Check if transfer belongs to user's company
+        if ($transfer->asset->company_id !== $user->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transfer not found or unauthorized'
+            ], 404);
+        }
+
+        // Only managers and admins can reject transfers
+        if (!in_array($user->user_type, ['manager', 'admin', 'owner'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Only managers and admins can reject transfers.'
+            ], 403);
+        }
+
+        // Check if transfer is pending
+        if ($transfer->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transfer is not pending approval.'
+            ], 400);
+        }
+
+        \DB::beginTransaction();
+        try {
+            $asset = $transfer->asset;
+            $rejectionReason = $request->input('rejection_reason', 'No reason provided');
+
+            // Update transfer status
+            $transfer->status = 'rejected';
+            $transfer->approved_by = $user->id;
+            $transfer->notes = ($transfer->notes ? $transfer->notes . "\n\n" : '') . 'Rejection reason: ' . $rejectionReason;
+            $transfer->save();
+
+            // Log activity
+            $asset->activities()->create([
+                'user_id' => $user->id,
+                'action' => 'transfer_rejected',
+                'before' => $asset->toArray(),
+                'after' => $asset->toArray(),
+                'comment' => 'Transfer rejected by ' . $user->first_name . ' ' . $user->last_name . '. Reason: ' . $rejectionReason,
+            ]);
+
+            // Send notification to requester
+            if ($transfer->created_by) {
+                try {
+                    \App\Models\Notification::create([
+                        'user_id' => $transfer->created_by,
+                        'type' => 'asset',
+                        'action' => 'transfer_rejected',
+                        'title' => 'Transfer Rejected',
+                        'message' => 'Your transfer request for ' . $asset->name . ' has been rejected.',
+                        'data' => [
+                            'assetId' => $asset->id,
+                            'assetName' => $asset->name,
+                            'transferId' => $transfer->id,
+                            'rejectionReason' => $rejectionReason,
+                        ],
+                        'created_by' => $user->id,
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to send transfer rejection notification', [
+                        'transfer_id' => $transfer->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transfer rejected successfully.',
+                'data' => [
+                    'transfer_id' => $transfer->id,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reject transfer',
                 'error' => $e->getMessage(),
             ], 500);
         }
