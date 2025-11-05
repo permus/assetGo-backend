@@ -29,6 +29,7 @@ class UpdateLocationRequest extends FormRequest
             'location_code' => 'sometimes|required|string|max:255|unique:locations,location_code,' . $locationId . ',id,user_id,' . $this->user()->id,
             'location_type_id' => 'sometimes|required|exists:location_types,id',
             'parent_id' => 'nullable|exists:locations,id',
+            'address_type' => 'sometimes|string|in:gps,manual',
             'address' => 'nullable|string|max:500',
             'description' => 'nullable|string|max:1000',
             'slug' => 'nullable|string|max:255|unique:locations,slug,' . $locationId,

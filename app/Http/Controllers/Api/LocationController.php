@@ -9,6 +9,7 @@ use App\Http\Requests\Location\BulkCreateLocationRequest;
 use App\Http\Requests\Location\MoveLocationRequest;
 use App\Models\Location;
 use App\Models\LocationType;
+use App\Models\LocationActivity;
 use App\Services\QRCodeService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
@@ -124,6 +125,7 @@ class LocationController extends Controller
                 'location_code' => $request->location_code,
                 'location_type_id' => $request->location_type_id,
                 'parent_id' => $request->parent_id,
+                'address_type' => $request->address_type ?? 'gps',
                 'address' => $request->address,
                 'description' => $request->description,
                 'slug' => $request->slug,
@@ -135,9 +137,38 @@ class LocationController extends Controller
                 $location->update(['qr_code_path' => $qrPath]);
             }
 
+            // Log activity
+            $isSubLocation = $request->filled('parent_id');
+            $action = $isSubLocation ? 'sub_location_created' : 'location_created';
+            $comment = $isSubLocation 
+                ? "Sub-location '{$location->name}' was created"
+                : "Location '{$location->name}' was created";
+
+            // Log on current location
+            $location->activities()->create([
+                'user_id' => $request->user()->id,
+                'action' => $action,
+                'before' => null,
+                'after' => $location->fresh()->toArray(),
+                'comment' => $comment,
+            ]);
+
+            // If this is a sub-location, also log on parent location
+            if ($isSubLocation && $location->parent_id) {
+                $parent = Location::find($location->parent_id);
+                if ($parent) {
+                    $parent->activities()->create([
+                        'user_id' => $request->user()->id,
+                        'action' => 'sub_location_created',
+                        'before' => null,
+                        'after' => ['sub_location_id' => $location->id, 'sub_location_name' => $location->name],
+                        'comment' => "Sub-location '{$location->name}' was added to this location",
+                    ]);
+                }
+            }
+
             // Send notifications to admins and company owners
             $creator = $request->user();
-            $isSubLocation = $request->filled('parent_id');
             try {
                 $this->notificationService->createForAdminsAndOwners(
                     $creator->company_id,
@@ -213,7 +244,8 @@ class LocationController extends Controller
             'parent.type',
             'children.type',
             'creator',
-            'assetSummary'
+            'assetSummary',
+            'assets' // Load assets for summary calculation
         ]);
 
         $locationArray = $location->toArray();
@@ -224,6 +256,7 @@ class LocationController extends Controller
             'success' => true,
             'data' => [
                 'location' => $locationArray,
+                'asset_summary' => $location->getAssetSummaryData(),
                 'ancestors' => $location->ancestors(),
                 'children_count' => $location->children()->count(),
                 'descendants_count' => $location->descendants()->count(),
@@ -240,7 +273,32 @@ class LocationController extends Controller
             DB::beginTransaction();
 
             $oldName = $location->name;
+            $before = $location->fresh()->toArray();
             $location->update($request->validated());
+            $after = $location->fresh()->toArray();
+
+            // Track changed fields
+            $changes = [];
+            foreach ($request->validated() as $key => $value) {
+                if (isset($before[$key]) && $before[$key] != $value) {
+                    $changes[$key] = [
+                        'from' => $before[$key],
+                        'to' => $value
+                    ];
+                }
+            }
+
+            // Log activity if there are changes
+            if (!empty($changes)) {
+                $changedFields = implode(', ', array_keys($changes));
+                $location->activities()->create([
+                    'user_id' => $request->user()->id,
+                    'action' => 'location_updated',
+                    'before' => $before,
+                    'after' => $after,
+                    'comment' => "Location '{$location->name}' was updated. Changed fields: {$changedFields}",
+                ]);
+            }
 
             // Regenerate QR code if name changed
             if ($request->name && $request->name !== $oldName) {
@@ -336,6 +394,31 @@ class LocationController extends Controller
 
             $locationName = $location->name;
             $companyId = $location->company_id;
+            $parentId = $location->parent_id;
+            $before = $location->fresh()->toArray();
+            
+            // Log activity before deletion
+            $location->activities()->create([
+                'user_id' => $request->user()->id,
+                'action' => 'location_deleted',
+                'before' => $before,
+                'after' => null,
+                'comment' => "Location '{$locationName}' was deleted",
+            ]);
+
+            // If this is a sub-location, also log on parent location
+            if ($parentId) {
+                $parent = Location::find($parentId);
+                if ($parent) {
+                    $parent->activities()->create([
+                        'user_id' => $request->user()->id,
+                        'action' => 'sub_location_deleted',
+                        'before' => ['sub_location_id' => $location->id, 'sub_location_name' => $locationName],
+                        'after' => null,
+                        'comment' => "Sub-location '{$locationName}' was removed from this location",
+                    ]);
+                }
+            }
             
             // Delete QR codes
             $this->qrCodeService->deleteAllQRCodes($location);
@@ -998,6 +1081,18 @@ class LocationController extends Controller
                 $assignedCount++;
             }
 
+            // Log activity on location for asset assignment
+            $assetNames = $assets->pluck('name')->toArray();
+            $location->activities()->create([
+                'user_id' => $request->user()->id,
+                'action' => 'asset_assigned',
+                'before' => null,
+                'after' => ['asset_count' => $assignedCount, 'asset_ids' => $assetIds],
+                'comment' => $assignedCount === 1 
+                    ? "Asset '{$assetNames[0]}' was assigned to this location"
+                    : "{$assignedCount} assets were assigned to this location",
+            ]);
+
             // Send notifications to admins and company owners
             $creator = $request->user();
             try {
@@ -1092,6 +1187,49 @@ class LocationController extends Controller
                 'children' => $this->buildHierarchyTree($location->children)
             ];
         });
+    }
+
+    /**
+     * Get activities for a location
+     */
+    public function activities(Request $request, Location $location)
+    {
+        // Check company ownership
+        if ($location->company_id !== $request->user()->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Location not found'
+            ], 404);
+        }
+
+        $perPage = min($request->get('per_page', 15), 50);
+        $page = $request->get('page', 1);
+
+        $query = $location->activities()
+            ->with('user:id,first_name,last_name,email')
+            ->orderBy('created_at', 'desc');
+
+        // Filter by action type if provided
+        if ($request->filled('action')) {
+            $query->where('action', $request->action);
+        }
+
+        $activities = $query->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'activities' => $activities->items(),
+                'pagination' => [
+                    'current_page' => $activities->currentPage(),
+                    'last_page' => $activities->lastPage(),
+                    'per_page' => $activities->perPage(),
+                    'total' => $activities->total(),
+                    'from' => $activities->firstItem(),
+                    'to' => $activities->lastItem(),
+                ]
+            ]
+        ]);
     }
 
     /**

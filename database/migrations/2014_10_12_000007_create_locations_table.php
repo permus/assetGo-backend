@@ -20,7 +20,8 @@ return new class extends Migration
             $table->string('name');
             $table->string('location_code');               // Location code unique per user
             $table->string('slug')->unique()->nullable();   // SEO & QR-friendly
-            $table->string('address')->nullable();          // From Google Maps
+            $table->string('address_type')->default('gps')->nullable(); // 'gps' or 'manual'
+            $table->string('address')->nullable();          // From Google Maps or manual text
             $table->text('description')->nullable();
             $table->string('icon')->nullable();              // Icon for the location
             $table->string('qr_code_path')->nullable();     // Path to generated QR code

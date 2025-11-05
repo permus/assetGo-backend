@@ -2802,54 +2802,57 @@ class AssetController extends Controller
             $limit = $request->get('limit', 10);
             $type = $request->get('type', 'all'); // all, category, location, department, manufacturer, parent, children
 
-            $query = Asset::where('company_id', $request->user()->company_id)
-                ->where('id', '!=', $asset->id) // Exclude the current asset
-                ->where('status', 'active'); // Only active assets
+            // Status column stores asset_status ID, join to check for 'Active' status
+            $query = Asset::where('assets.company_id', $request->user()->company_id)
+                ->where('assets.id', '!=', $asset->id) // Exclude the current asset
+                ->join('asset_statuses', 'assets.status', '=', 'asset_statuses.id')
+                ->where('asset_statuses.name', 'Active')
+                ->select('assets.*'); // Select only asset columns to avoid conflicts
 
             // Apply different filtering based on type
             switch ($type) {
                 case 'category':
-                    $query->where('category_id', $asset->category_id);
+                    $query->where('assets.category_id', $asset->category_id);
                     break;
 
                 case 'location':
-                    $query->where('location_id', $asset->location_id);
+                    $query->where('assets.location_id', $asset->location_id);
                     break;
 
                 case 'department':
-                    $query->where('department_id', $asset->department_id);
+                    $query->where('assets.department_id', $asset->department_id);
                     break;
 
                 case 'manufacturer':
                     if ($asset->manufacturer) {
-                        $query->where('manufacturer', $asset->manufacturer);
+                        $query->where('assets.manufacturer', $asset->manufacturer);
                     }
                     break;
 
                 case 'parent':
                     // Assets that have the same parent
-                    $query->where('parent_id', $asset->parent_id);
+                    $query->where('assets.parent_id', $asset->parent_id);
                     break;
 
                 case 'children':
                     // Child assets of the current asset
-                    $query->where('parent_id', $asset->id);
+                    $query->where('assets.parent_id', $asset->id);
                     break;
 
                 case 'siblings':
                     // Assets with the same parent (excluding the current asset)
                     if ($asset->parent_id) {
-                        $query->where('parent_id', $asset->parent_id);
+                        $query->where('assets.parent_id', $asset->parent_id);
                     }
                     break;
 
                 case 'similar':
                     // Assets with similar characteristics
                     $query->where(function($q) use ($asset) {
-                        $q->where('category_id', $asset->category_id)
-                          ->orWhere('location_id', $asset->location_id)
-                          ->orWhere('department_id', $asset->department_id)
-                          ->orWhere('manufacturer', $asset->manufacturer);
+                        $q->where('assets.category_id', $asset->category_id)
+                          ->orWhere('assets.location_id', $asset->location_id)
+                          ->orWhere('assets.department_id', $asset->department_id)
+                          ->orWhere('assets.manufacturer', $asset->manufacturer);
                     });
                     break;
 
@@ -2857,30 +2860,31 @@ class AssetController extends Controller
                 default:
                     // Get assets with any relation
                     $query->where(function($q) use ($asset) {
-                        $q->where('category_id', $asset->category_id)
-                          ->orWhere('location_id', $asset->location_id)
-                          ->orWhere('department_id', $asset->department_id)
-                          ->orWhere('manufacturer', $asset->manufacturer)
-                          ->orWhere('parent_id', $asset->parent_id)
-                          ->orWhere('parent_id', $asset->id);
+                        $q->where('assets.category_id', $asset->category_id)
+                          ->orWhere('assets.location_id', $asset->location_id)
+                          ->orWhere('assets.department_id', $asset->department_id)
+                          ->orWhere('assets.manufacturer', $asset->manufacturer)
+                          ->orWhere('assets.parent_id', $asset->parent_id)
+                          ->orWhere('assets.parent_id', $asset->id);
                     });
                     break;
             }
 
             // Load relationships
-            $relatedAssets = $query->with([
-                'category:id,name',
-                'assetType:id,name',
-                'assetStatus:id,name,color',
-                'department:id,name',
-                'location:id,name',
-                'company:id,name',
-                'tags:id,name',
-                'images:id,asset_id,image_path'
-            ])
-            ->orderBy('created_at', 'desc')
-            ->limit($limit)
-            ->get();
+            $relatedAssets = $query->distinct()
+                ->with([
+                    'category:id,name',
+                    'assetType:id,name',
+                    'assetStatus:id,name,color',
+                    'department:id,name',
+                    'location:id,name',
+                    'company:id,name',
+                    'tags:id,name',
+                    'images:id,asset_id,image_path'
+                ])
+                ->orderBy('assets.created_at', 'desc')
+                ->limit($limit)
+                ->get();
 
             // Transform the data
             $transformedAssets = $relatedAssets->map(function ($relatedAsset) {

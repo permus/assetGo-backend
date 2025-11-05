@@ -26,6 +26,7 @@ class StoreLocationRequest extends FormRequest
             'location_code' => 'required|string|max:255|unique:locations,location_code,NULL,id,user_id,' . $this->user()->id,
             'location_type_id' => 'required|exists:location_types,id',
             'parent_id' => 'nullable|exists:locations,id',
+            'address_type' => 'nullable|string|in:gps,manual',
             'address' => 'nullable|string|max:500',
             'description' => 'nullable|string|max:1000',
             'slug' => 'nullable|string|max:255|unique:locations,slug',

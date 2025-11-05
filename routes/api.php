@@ -162,6 +162,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         ->middleware('throttle:60,1'); // 60 hierarchy requests per minute
     Route::get('location-types', [LocationController::class, 'types']);
     Route::get('locations/possible-parents/{locationId?}', [LocationController::class, 'possibleParents']);
+    Route::get('locations/{location}/activities', [LocationController::class, 'activities']);
 
     // Asset resource routes (guarded by module enablement)
     Route::middleware('module:assets')->group(function () {

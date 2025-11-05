@@ -18,6 +18,7 @@ class Location extends Model
         'name',
         'location_code',
         'slug',
+        'address_type',
         'address',
         'description',
         'icon',
@@ -211,6 +212,14 @@ class Location extends Model
     }
 
     /**
+     * Get all activities for this location
+     */
+    public function activities()
+    {
+        return $this->hasMany(LocationActivity::class);
+    }
+
+    /**
      * Generate unique slug
      */
     public function generateUniqueSlug($name)
@@ -296,13 +305,24 @@ class Location extends Model
      */
     public function getAssetSummaryData()
     {
-        $summary = $this->assetSummary;
-        return $summary ? [
-            'asset_count' => $summary->asset_count,
-            'health_score' => $summary->health_score,
-        ] : [
-            'asset_count' => 0,
-            'health_score' => 100.00,
+        // Get assets directly to calculate accurate stats
+        $assets = $this->assets;
+        $assetCount = $assets->count();
+        
+        // Calculate total value from assets' purchase_price
+        $totalValue = $assets->sum('purchase_price') ?? 0;
+        
+        // Calculate health score as average of asset health scores
+        $healthScore = 100.00; // Default if no assets
+        if ($assetCount > 0) {
+            $totalHealthScore = $assets->sum('health_score');
+            $healthScore = round($totalHealthScore / $assetCount, 2);
+        }
+        
+        return [
+            'asset_count' => $assetCount,
+            'health_score' => $healthScore,
+            'total_value' => $totalValue,
         ];
     }
 
