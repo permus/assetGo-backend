@@ -16,6 +16,7 @@ class Location extends Model
         'location_type_id',
         'parent_id',
         'name',
+        'location_code',
         'slug',
         'address',
         'description',
@@ -421,5 +422,34 @@ class Location extends Model
             return $query->where('hierarchy_level', $hierarchyLevel);
         }
         return $query;
+    }
+
+    /**
+     * Generate a unique location code for a user
+     */
+    public static function generateLocationCode($userId, $name)
+    {
+        // Generate base code from name initials
+        $baseCode = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $name), 0, 3));
+        if (empty($baseCode)) {
+            $baseCode = 'LOC';
+        }
+        
+        // Find existing codes for this user with the same base
+        $existingCodes = self::where('user_id', $userId)
+            ->where('location_code', 'like', $baseCode . '%')
+            ->pluck('location_code')
+            ->toArray();
+        
+        // Find the next available number
+        $counter = 1;
+        $code = $baseCode . '-' . str_pad($counter, 3, '0', STR_PAD_LEFT);
+        
+        while (in_array($code, $existingCodes)) {
+            $counter++;
+            $code = $baseCode . '-' . str_pad($counter, 3, '0', STR_PAD_LEFT);
+        }
+        
+        return $code;
     }
 }

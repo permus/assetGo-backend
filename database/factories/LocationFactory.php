@@ -25,6 +25,11 @@ class LocationFactory extends Factory
             'location_type_id' => LocationType::factory(),
             'parent_id' => null,
             'name' => fake()->words(2, true),
+            'location_code' => function (array $attributes) {
+                $name = $attributes['name'] ?? fake()->words(2, true);
+                $userId = $attributes['user_id'] ?? 1;
+                return \App\Models\Location::generateLocationCode($userId, $name);
+            },
             'slug' => fake()->unique()->slug(),
             'address' => fake()->address(),
             'description' => fake()->sentence(),

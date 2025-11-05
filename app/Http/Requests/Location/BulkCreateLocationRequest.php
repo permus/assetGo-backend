@@ -24,6 +24,7 @@ class BulkCreateLocationRequest extends FormRequest
         return [
             'locations' => 'required|array|min:1|max:5',
             'locations.*.name' => 'required|string|max:255',
+            'locations.*.location_code' => 'nullable|string|max:255',
             'locations.*.location_type_id' => 'required|exists:location_types,id',
             'locations.*.parent_id' => 'nullable|exists:locations,id',
             'locations.*.address' => 'nullable|string|max:500',

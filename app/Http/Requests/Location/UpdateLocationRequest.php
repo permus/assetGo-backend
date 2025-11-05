@@ -26,6 +26,7 @@ class UpdateLocationRequest extends FormRequest
         
         return [
             'name' => 'sometimes|required|string|max:255',
+            'location_code' => 'sometimes|required|string|max:255|unique:locations,location_code,' . $locationId . ',id,user_id,' . $this->user()->id,
             'location_type_id' => 'sometimes|required|exists:location_types,id',
             'parent_id' => 'nullable|exists:locations,id',
             'address' => 'nullable|string|max:500',
@@ -103,6 +104,8 @@ class UpdateLocationRequest extends FormRequest
     {
         return [
             'name.required' => 'Location name is required',
+            'location_code.required' => 'Location code is required',
+            'location_code.unique' => 'This location code is already in use. Please use a different code.',
             'location_type_id.required' => 'Location type is required',
             'location_type_id.exists' => 'Selected location type does not exist',
             'parent_id.exists' => 'Selected parent location does not exist',

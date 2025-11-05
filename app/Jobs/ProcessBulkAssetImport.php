@@ -345,6 +345,7 @@ class ProcessBulkAssetImport implements ShouldQueue, ShouldBeUnique
                 ],
                 [
                     'user_id' => $user->id,
+                    'location_code' => Location::generateLocationCode($user->id, $assetData['building']),
                     'description' => 'Building: ' . $assetData['building'],
                     'qr_code_path' => null,
                     'address' => null,
@@ -374,6 +375,7 @@ class ProcessBulkAssetImport implements ShouldQueue, ShouldBeUnique
                 ],
                 [
                     'user_id' => $user->id,
+                    'location_code' => Location::generateLocationCode($user->id, $assetData['location']),
                     'description' => 'Location: ' . $assetData['location'],
                     'qr_code_path' => null,
                     'address' => null,
@@ -406,6 +408,7 @@ class ProcessBulkAssetImport implements ShouldQueue, ShouldBeUnique
                 ],
                 [
                     'user_id' => $user->id,
+                    'location_code' => Location::generateLocationCode($user->id, $assetData['floor']),
                     'description' => 'Floor: ' . $assetData['floor'],
                     'qr_code_path' => null,
                     'address' => null,

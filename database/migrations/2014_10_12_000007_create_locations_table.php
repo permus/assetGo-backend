@@ -18,6 +18,7 @@ return new class extends Migration
             $table->unsignedBigInteger('location_type_id')->nullable(); // Type (from location_types)
             $table->unsignedBigInteger('parent_id')->nullable(); // For hierarchy
             $table->string('name');
+            $table->string('location_code');               // Location code unique per user
             $table->string('slug')->unique()->nullable();   // SEO & QR-friendly
             $table->string('address')->nullable();          // From Google Maps
             $table->text('description')->nullable();
@@ -28,6 +29,9 @@ return new class extends Migration
 
             $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
             $table->foreign('parent_id')->references('id')->on('locations')->onDelete('cascade');
+            
+            // Unique constraint: location_code must be unique per user
+            $table->unique(['user_id', 'location_code']);
         });
     }
 

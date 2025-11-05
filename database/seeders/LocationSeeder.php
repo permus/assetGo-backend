@@ -30,7 +30,8 @@ class LocationSeeder extends Seeder
         // Create Main Building
         $mainBuilding = Location::create([
             'company_id' => $company->id,
-            'user_id' => $user?->id,
+            'user_id' => $user?->id ?? 1,
+            'location_code' => Location::generateLocationCode($user?->id ?? 1, 'Main Office Building'),
             'location_type_id' => $building?->id ?? 1,
             'name' => 'Main Office Building',
             'slug' => 'main-office-building',
@@ -44,7 +45,8 @@ class LocationSeeder extends Seeder
         foreach ($floors as $index => $floorName) {
             $floor = Location::create([
                 'company_id' => $company->id,
-                'user_id' => $user?->id,
+                'user_id' => $user?->id ?? 1,
+                'location_code' => Location::generateLocationCode($user?->id ?? 1, $floorName),
                 'location_type_id' => $floor?->id ?? 2,
                 'parent_id' => $mainBuilding->id,
                 'name' => $floorName,
@@ -54,12 +56,14 @@ class LocationSeeder extends Seeder
             // Create rooms for each floor
             for ($i = 1; $i <= 3; $i++) {
                 $roomType = $roomTypes[array_rand($roomTypes)];
+                $roomName = $roomType . ' ' . (($index * 100) + $i);
                 Location::create([
                     'company_id' => $company->id,
-                    'user_id' => $user?->id,
+                    'user_id' => $user?->id ?? 1,
+                    'location_code' => Location::generateLocationCode($user?->id ?? 1, $roomName),
                     'location_type_id' => $room?->id ?? 3,
                     'parent_id' => $floor->id,
-                    'name' => $roomType . ' ' . (($index * 100) + $i),
+                    'name' => $roomName,
                     'slug' => strtolower(str_replace(' ', '-', $roomType . '-' . (($index * 100) + $i))),
                 ]);
             }
@@ -68,7 +72,8 @@ class LocationSeeder extends Seeder
         // Create Warehouse Building
         $warehouse = Location::create([
             'company_id' => $company->id,
-            'user_id' => $user?->id,
+            'user_id' => $user?->id ?? 1,
+            'location_code' => Location::generateLocationCode($user?->id ?? 1, 'Warehouse'),
             'location_type_id' => $building?->id ?? 1,
             'name' => 'Warehouse',
             'slug' => 'warehouse',
@@ -81,7 +86,8 @@ class LocationSeeder extends Seeder
         foreach ($sections as $sectionName) {
             $section = Location::create([
                 'company_id' => $company->id,
-                'user_id' => $user?->id,
+                'user_id' => $user?->id ?? 1,
+                'location_code' => Location::generateLocationCode($user?->id ?? 1, $sectionName),
                 'location_type_id' => $floor?->id ?? 2,
                 'parent_id' => $warehouse->id,
                 'name' => $sectionName,
@@ -90,12 +96,14 @@ class LocationSeeder extends Seeder
             
             // Create aisles in each section
             for ($i = 1; $i <= 2; $i++) {
+                $aisleName = 'Aisle ' . $aisleCounter;
                 Location::create([
                     'company_id' => $company->id,
-                    'user_id' => $user?->id,
+                    'user_id' => $user?->id ?? 1,
+                    'location_code' => Location::generateLocationCode($user?->id ?? 1, $aisleName),
                     'location_type_id' => $room?->id ?? 3,
                     'parent_id' => $section->id,
-                    'name' => 'Aisle ' . $aisleCounter,
+                    'name' => $aisleName,
                     'slug' => strtolower('aisle-' . $aisleCounter),
                 ]);
                 $aisleCounter++;

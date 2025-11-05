@@ -58,12 +58,26 @@ class LocationController extends Controller
                 $query->orderBy('updated_at', $sortDirection);
                 break;
             case 'name':
-                $query->orderBy('name', $sortDirection);
+                // Case-insensitive sorting for name
+                if (strtolower($sortDirection) === 'asc') {
+                    $query->orderByRaw('LOWER(name) ASC');
+                } else {
+                    $query->orderByRaw('LOWER(name) DESC');
+                }
                 break;
+            case 'assets':
+                $query->orderBy('assets_count', $sortDirection);
+                break;
+            case 'level':
             case 'hierarchy_level':
             default:
-                $query->orderBy('hierarchy_level', $sortDirection)
-                      ->orderBy('name', 'asc'); // Secondary sort by name
+                // Sort by hierarchy level, then by name in the same direction
+                $query->orderBy('hierarchy_level', $sortDirection);
+                if (strtolower($sortDirection) === 'asc') {
+                    $query->orderByRaw('LOWER(name) ASC');
+                } else {
+                    $query->orderByRaw('LOWER(name) DESC');
+                }
                 break;
         }
 
@@ -107,6 +121,7 @@ class LocationController extends Controller
                 'company_id' => $request->user()->company_id,
                 'user_id' => $request->user()->id,
                 'name' => $request->name,
+                'location_code' => $request->location_code,
                 'location_type_id' => $request->location_type_id,
                 'parent_id' => $request->parent_id,
                 'address' => $request->address,
@@ -398,10 +413,14 @@ class LocationController extends Controller
                     }
                 }
 
+                // Generate location code if not provided
+                $locationCode = $data['location_code'] ?? $this->generateLocationCode($request->user()->id, $data['name']);
+                
                 $location = Location::create([
                     'company_id' => $request->user()->company_id,
                     'user_id' => $request->user()->id,
                     'name' => $data['name'],
+                    'location_code' => $locationCode,
                     'location_type_id' => $data['location_type_id'],
                     'parent_id' => $data['parent_id'] ?? null,
                     'address' => $data['address'] ?? null,
@@ -1073,5 +1092,13 @@ class LocationController extends Controller
                 'children' => $this->buildHierarchyTree($location->children)
             ];
         });
+    }
+
+    /**
+     * Generate a unique location code for a user
+     */
+    private function generateLocationCode($userId, $name)
+    {
+        return Location::generateLocationCode($userId, $name);
     }
 }
