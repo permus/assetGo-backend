@@ -8,6 +8,7 @@ use App\Http\Requests\Maintenance\UpdateScheduleMaintenanceRequest;
 use App\Http\Resources\ScheduleMaintenanceResource;
 use App\Models\MaintenancePlan;
 use App\Models\ScheduleMaintenance;
+use App\Models\Asset;
 use App\Services\Maintenance\DueDateService;
 use App\Services\NotificationService;
 use Carbon\Carbon;
@@ -50,11 +51,51 @@ class ScheduleMaintenanceController extends Controller
         }
 
         $query->orderBy('due_date')->orderBy('id');
-        $items = $query->with('plan.priority')->paginate($perPage);
+        // Load plan (with plan_type) and priority to ensure they're available in the resource
+        $items = $query->with(['plan', 'plan.priority'])->paginate($perPage);
+
+        // Collect all unique asset IDs from all schedules
+        $allAssetIds = [];
+        foreach ($items->items() as $schedule) {
+            if (is_array($schedule->asset_ids)) {
+                $allAssetIds = array_merge($allAssetIds, $schedule->asset_ids);
+            }
+        }
+        $allAssetIds = array_unique(array_filter($allAssetIds));
+
+        // Fetch assets in bulk if we have asset IDs
+        $assetsMap = [];
+        if (!empty($allAssetIds)) {
+            $assets = Asset::whereIn('id', $allAssetIds)
+                ->where('company_id', auth()->user()->company_id)
+                ->get(['id', 'name', 'purchase_price']);
+            
+            foreach ($assets as $asset) {
+                $assetsMap[$asset->id] = [
+                    'id' => $asset->id,
+                    'name' => $asset->name,
+                    'purchase_price' => $asset->purchase_price ?? 0,
+                ];
+            }
+        }
+
+        // Attach assets data to each schedule
+        $schedules = $items->items();
+        foreach ($schedules as $schedule) {
+            if (is_array($schedule->asset_ids) && !empty($schedule->asset_ids)) {
+                $scheduleAssets = [];
+                foreach ($schedule->asset_ids as $assetId) {
+                    if (isset($assetsMap[$assetId])) {
+                        $scheduleAssets[] = $assetsMap[$assetId];
+                    }
+                }
+                $schedule->setAttribute('assets_data', $scheduleAssets);
+            }
+        }
 
         return response()->json([
             'success' => true,
-            'data' => ScheduleMaintenanceResource::collection($items->items()),
+            'data' => ScheduleMaintenanceResource::collection($schedules),
             'pagination' => [
                 'current_page' => $items->currentPage(),
                 'last_page' => $items->lastPage(),
@@ -117,7 +158,32 @@ class ScheduleMaintenanceController extends Controller
 
     public function show(ScheduleMaintenance $scheduleMaintenance)
     {
-        $scheduleMaintenance->load('assignees');
+        // Ensure we have the latest data by refreshing from database
+        $scheduleMaintenance->refresh();
+        
+        // Explicitly reload the status to ensure it's current
+        $scheduleMaintenance->makeVisible(['status']);
+        
+        // Load relationships
+        $scheduleMaintenance->load('plan.priority', 'assignees');
+        
+        // Load assets data if asset_ids exist
+        $assetIds = is_array($scheduleMaintenance->asset_ids) ? $scheduleMaintenance->asset_ids : [];
+        if (!empty($assetIds)) {
+            $assets = Asset::whereIn('id', $assetIds)
+                ->where('company_id', auth()->user()->company_id)
+                ->get(['id', 'name']);
+            
+            $assetsData = $assets->map(function ($asset) {
+                return [
+                    'id' => $asset->id,
+                    'name' => $asset->name,
+                ];
+            })->values();
+            
+            $scheduleMaintenance->setAttribute('assets_data', $assetsData);
+        }
+        
         return response()->json(['success' => true, 'data' => new ScheduleMaintenanceResource($scheduleMaintenance)]);
     }
 

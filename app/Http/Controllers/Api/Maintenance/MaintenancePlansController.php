@@ -26,6 +26,7 @@ class MaintenancePlansController extends Controller
         $perPage = min((int)$request->get('per_page', 15), 100);
         $query = MaintenancePlan::query()
             ->where('company_id', auth()->user()->company_id)
+            ->with('priority')
             ->withCount(['schedules as scheduled_count']);
 
         if ($name = $request->get('name')) {
@@ -57,8 +58,14 @@ class MaintenancePlansController extends Controller
         ];
 
         if ($request->get('include') === 'meta') {
+            $companyId = auth()->user()->company_id;
             $response['meta'] = [
-                'active_plans_count' => MaintenancePlan::active()->count(),
+                'active_plans_count' => MaintenancePlan::where('company_id', $companyId)->active()->count(),
+                'critical_plans_count' => MaintenancePlan::where('company_id', $companyId)
+                    ->whereHas('priority', function ($q) {
+                        $q->where('slug', 'critical');
+                    })
+                    ->count(),
             ];
         }
 

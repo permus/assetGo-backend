@@ -407,6 +407,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('schedule-assignments/{scheduleMaintenanceAssigned}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'show']);
         Route::put('schedule-assignments/{scheduleMaintenanceAssigned}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'update']);
         Route::delete('schedule-assignments/{scheduleMaintenanceAssigned}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'destroy']);
+
+        // Stats endpoints
+        Route::get('stats/history', [\App\Http\Controllers\Api\Maintenance\MaintenanceStatsController::class, 'history']);
+        Route::get('stats/analytics', [\App\Http\Controllers\Api\Maintenance\MaintenanceStatsController::class, 'analytics']);
     });
 
     
