@@ -32,6 +32,7 @@ class PreferencesController extends Controller
         $validator = Validator::make($request->all(), [
             'language' => 'sometimes|string|max:10',
             'rtl' => 'sometimes|boolean',
+            'currency' => 'sometimes|string|regex:/^[A-Z]{3}$/',
             'date_format' => 'sometimes|string|max:20',
             'time_format' => 'sometimes|string|max:20',
             'number_format' => 'sometimes|string|max:20',

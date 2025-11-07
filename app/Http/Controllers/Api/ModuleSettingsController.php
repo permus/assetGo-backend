@@ -178,7 +178,7 @@ class ModuleSettingsController extends Controller
         if ($ownerId == $userId) {
             return true;
         }
-        $adminTypes = ['super_admin', 'company_admin'];
+        $adminTypes = ['admin', 'super_admin', 'company_admin'];
         return in_array($userType, $adminTypes, true);
     }
 }

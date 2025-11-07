@@ -59,9 +59,9 @@ class CompanyController extends Controller
             ], 404);
         }
 
-        // Check if user is the owner or admin (super_admin/company_admin)
+        // Check if user is the owner or admin (admin/super_admin/company_admin)
         $isOwner = ($company->owner_id === $user->id);
-        $isAdmin = in_array($user->user_type, ['super_admin', 'company_admin'], true);
+        $isAdmin = in_array($user->user_type, ['admin', 'super_admin', 'company_admin'], true);
         if (!$isOwner && !$isAdmin) {
             return response()->json([
                 'success' => false,

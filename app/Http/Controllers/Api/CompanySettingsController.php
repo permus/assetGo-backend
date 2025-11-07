@@ -157,7 +157,7 @@ class CompanySettingsController extends Controller
         }
 
         // Map legacy user_type to admin-like permissions
-        $adminTypes = ['super_admin', 'company_admin'];
+        $adminTypes = ['admin', 'super_admin', 'company_admin'];
         return in_array($userType, $adminTypes, true);
     }
 }
