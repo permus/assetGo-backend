@@ -176,9 +176,30 @@ class ExportReportJob implements ShouldQueue
         // Set title
         $sheet->setTitle('Report Data');
         
-        // Add headers
+        // Add headers and data
         if (!empty($excelData)) {
-            $headers = array_keys($excelData[0]);
+            // Ensure all rows have the same keys
+            $allKeys = [];
+            foreach ($excelData as $row) {
+                if (is_array($row)) {
+                    $allKeys = array_merge($allKeys, array_keys($row));
+                }
+            }
+            $allKeys = array_unique($allKeys);
+            
+            // Normalize all rows to have the same keys
+            $normalizedData = array_map(function($row) use ($allKeys) {
+                $normalized = [];
+                foreach ($allKeys as $key) {
+                    $normalized[$key] = $this->convertToScalar($row[$key] ?? null);
+                }
+                return $normalized;
+            }, $excelData);
+            
+            $headers = array_map(function($key) {
+                return ucwords(str_replace('_', ' ', $key));
+            }, $allKeys);
+            
             $sheet->fromArray([$headers], null, 'A1');
             
             // Style headers
@@ -189,8 +210,14 @@ class ExportReportJob implements ShouldQueue
             ];
             $sheet->getStyle('A1:' . $sheet->getHighestColumn() . '1')->applyFromArray($headerStyle);
             
-            // Add data rows
-            $sheet->fromArray($excelData, null, 'A2');
+            // Add data rows - convert to indexed arrays for fromArray
+            $dataRows = array_map(function($row) use ($allKeys) {
+                return array_map(function($key) use ($row) {
+                    return $this->convertToScalar($row[$key] ?? null);
+                }, $allKeys);
+            }, $normalizedData);
+            
+            $sheet->fromArray($dataRows, null, 'A2');
             
             // Auto-size columns
             foreach (range('A', $sheet->getHighestColumn()) as $col) {
@@ -233,9 +260,35 @@ class ExportReportJob implements ShouldQueue
             return $this->flattenArray($data['work_orders']);
         } elseif (isset($data['technicians']) && is_array($data['technicians'])) {
             return $this->flattenArray($data['technicians']);
+        } elseif (isset($data['stocks']) && is_array($data['stocks'])) {
+            // Inventory Current Stock report
+            return $this->flattenArray($data['stocks']);
+        } elseif (isset($data['items']) && is_array($data['items'])) {
+            // Inventory ABC Analysis, Slow Moving, Reorder Analysis reports
+            return $this->flattenArray($data['items']);
+        } elseif (isset($data['cost_by_category'])) {
+            // Financial Maintenance Cost Breakdown report
+            $categories = is_array($data['cost_by_category']) 
+                ? $data['cost_by_category'] 
+                : (is_object($data['cost_by_category']) && method_exists($data['cost_by_category'], 'toArray')
+                    ? $data['cost_by_category']->toArray()
+                    : []);
+            return $this->flattenArray($categories);
+        } elseif (isset($data['summary'])) {
+            // Financial TCO and Budget vs Actual reports - convert summary to rows
+            $summary = $data['summary'];
+            $rows = [];
+            foreach ($summary as $key => $value) {
+                $rows[] = [
+                    'field' => ucwords(str_replace('_', ' ', $key)),
+                    'value' => $this->convertToScalar($value)
+                ];
+            }
+            return $rows;
         }
         
-        return [$data];
+        // Default: try to flatten the entire data array
+        return $this->flattenArray([$data]);
     }
     
     /**
@@ -243,17 +296,62 @@ class ExportReportJob implements ShouldQueue
      */
     private function flattenArray(array $data): array
     {
+        if (empty($data)) {
+            return [];
+        }
+
         return array_map(function ($item) {
+            // Convert objects to arrays
+            if (is_object($item)) {
+                if (method_exists($item, 'toArray')) {
+                    $item = $item->toArray();
+                } else {
+                    $item = (array) $item;
+                }
+            }
+
+            // Ensure item is an array
+            if (!is_array($item)) {
+                $item = ['value' => $item];
+            }
+
             $flattened = [];
             foreach ($item as $key => $value) {
-                if (is_array($value) || is_object($value)) {
-                    $flattened[$key] = json_encode($value);
-                } else {
-                    $flattened[$key] = $value;
-                }
+                $flattened[$key] = $this->convertToScalar($value);
             }
             return $flattened;
         }, $data);
+    }
+
+    /**
+     * Convert any value to a scalar (string, number, or null) for Excel
+     */
+    private function convertToScalar($value)
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if (is_array($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+
+        if (is_object($value)) {
+            if (method_exists($value, '__toString')) {
+                return (string) $value;
+            }
+            if (method_exists($value, 'toArray')) {
+                return json_encode($value->toArray(), JSON_UNESCAPED_UNICODE);
+            }
+            return json_encode((array) $value, JSON_UNESCAPED_UNICODE);
+        }
+
+        // Return scalar values as-is (string, int, float)
+        return $value;
     }
 
     /**
@@ -281,22 +379,38 @@ class ExportReportJob implements ShouldQueue
 
         // Handle different data structures
         if (isset($data['assets']) && is_array($data['assets'])) {
-            return $this->arrayToCsv($data['assets']);
+            return $this->arrayToCsv($this->flattenArray($data['assets']));
         } elseif (isset($data['work_orders']) && is_array($data['work_orders'])) {
-            return $this->arrayToCsv($data['work_orders']);
+            return $this->arrayToCsv($this->flattenArray($data['work_orders']));
         } elseif (isset($data['technicians']) && is_array($data['technicians'])) {
-            return $this->arrayToCsv($data['technicians']);
+            return $this->arrayToCsv($this->flattenArray($data['technicians']));
         } elseif (isset($data['stocks']) && is_array($data['stocks'])) {
-            return $this->arrayToCsv($data['stocks']);
+            return $this->arrayToCsv($this->flattenArray($data['stocks']));
         } elseif (isset($data['items']) && is_array($data['items'])) {
-            return $this->arrayToCsv($data['items']);
+            return $this->arrayToCsv($this->flattenArray($data['items']));
         } elseif (isset($data['cost_by_category'])) {
-            $categories = is_array($data['cost_by_category']) ? $data['cost_by_category'] : $data['cost_by_category']->toArray();
-            return $this->arrayToCsv($categories);
+            // Financial Maintenance Cost Breakdown report
+            $categories = is_array($data['cost_by_category']) 
+                ? $data['cost_by_category'] 
+                : (is_object($data['cost_by_category']) && method_exists($data['cost_by_category'], 'toArray')
+                    ? $data['cost_by_category']->toArray()
+                    : []);
+            return $this->arrayToCsv($this->flattenArray($categories));
+        } elseif (isset($data['summary'])) {
+            // Financial TCO and Budget vs Actual reports - convert summary to rows
+            $summary = $data['summary'];
+            $rows = [];
+            foreach ($summary as $key => $value) {
+                $rows[] = [
+                    'field' => ucwords(str_replace('_', ' ', $key)),
+                    'value' => $this->convertToScalar($value)
+                ];
+            }
+            return $this->arrayToCsv($rows);
         }
 
-        // Default: convert the entire data array
-        return $this->arrayToCsv([$data]);
+        // Default: try to flatten the entire data array
+        return $this->arrayToCsv($this->flattenArray([$data]));
     }
 
     /**
@@ -310,13 +424,47 @@ class ExportReportJob implements ShouldQueue
 
         $output = fopen('php://temp', 'r+');
         
+        // Ensure all rows are arrays and have consistent structure
+        $normalizedData = [];
+        $allKeys = [];
+        
+        // Collect all possible keys from all rows
+        foreach ($data as $row) {
+            if (is_object($row)) {
+                if (method_exists($row, 'toArray')) {
+                    $row = $row->toArray();
+                } else {
+                    $row = (array) $row;
+                }
+            }
+            
+            if (is_array($row)) {
+                $allKeys = array_merge($allKeys, array_keys($row));
+                $normalizedData[] = $row;
+            }
+        }
+        
+        $allKeys = array_unique($allKeys);
+        
+        if (empty($allKeys)) {
+            fclose($output);
+            return '';
+        }
+        
         // Write headers
-        $headers = array_keys($data[0]);
+        $headers = array_map(function($key) {
+            return ucwords(str_replace('_', ' ', $key));
+        }, $allKeys);
         fputcsv($output, $headers);
         
-        // Write data rows
-        foreach ($data as $row) {
-            fputcsv($output, array_values($row));
+        // Write data rows - ensure all values are scalars
+        foreach ($normalizedData as $row) {
+            $values = [];
+            foreach ($allKeys as $key) {
+                $value = $row[$key] ?? null;
+                $values[] = $this->convertToScalar($value);
+            }
+            fputcsv($output, $values);
         }
         
         rewind($output);
