@@ -248,6 +248,7 @@ class AuthController extends Controller
             $moduleAccess = [
                 'dashboard' => true,
                 'settings' => true,
+                'roles' => true,
                 'assets' => true,
                 'locations' => true,
                 'work_orders' => true,
@@ -271,6 +272,11 @@ class AuthController extends Controller
                 'business_directory' => true,
                 'tenant_communication' => true,
             ];
+        }
+
+        // Admin users always have access to roles module
+        if (strtolower($user->user_type) === 'admin') {
+            $moduleAccess['roles'] = true;
         }
 
         return response()->json([
@@ -360,6 +366,7 @@ class AuthController extends Controller
             $moduleAccess = [
                 'dashboard' => true,
                 'settings' => true,
+                'roles' => true,
                 'assets' => true,
                 'locations' => true,
                 'work_orders' => true,
@@ -383,6 +390,11 @@ class AuthController extends Controller
                 'business_directory' => true,
                 'tenant_communication' => true,
             ];
+        }
+        
+        // Admin users always have access to roles module
+        if (strtolower($user->user_type) === 'admin') {
+            $moduleAccess['roles'] = true;
         }
         
         // Add avatar URL to user data
