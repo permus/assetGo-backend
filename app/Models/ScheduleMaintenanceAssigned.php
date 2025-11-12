@@ -21,6 +21,16 @@ class ScheduleMaintenanceAssigned extends Model
     {
         return $this->belongsTo(ScheduleMaintenance::class, 'schedule_maintenance_id');
     }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'team_id');
+    }
+
+    public function responses(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(MaintenanceChecklistResponse::class, 'schedule_maintenance_assigned_id');
+    }
 }
 
 

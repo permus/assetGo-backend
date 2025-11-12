@@ -164,8 +164,12 @@ class ScheduleMaintenanceController extends Controller
         // Explicitly reload the status to ensure it's current
         $scheduleMaintenance->makeVisible(['status']);
         
-        // Load relationships
-        $scheduleMaintenance->load('plan.priority', 'assignees');
+        // Load relationships - for assignees only load user and responses (not nested schedule/plan to avoid redundancy)
+        $scheduleMaintenance->load([
+            'plan.priority',
+            'assignees.user',
+            'assignees.responses'
+        ]);
         
         // Load assets data if asset_ids exist
         $assetIds = is_array($scheduleMaintenance->asset_ids) ? $scheduleMaintenance->asset_ids : [];

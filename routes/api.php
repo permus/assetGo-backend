@@ -408,6 +408,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::put('schedule-assignments/{scheduleMaintenanceAssigned}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'update']);
         Route::delete('schedule-assignments/{scheduleMaintenanceAssigned}', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'destroy']);
 
+        // My Assignments - Get current user's assigned maintenance
+        Route::get('my-assignments', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'myAssignments']);
+        
+        // Assignment Management
+        Route::get('assignable-users', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'getAssignableUsers']);
+        Route::get('schedules/{id}/assignments', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'getScheduleAssignments']);
+        
+        // Checklist Responses
+        Route::get('checklist-responses', [\App\Http\Controllers\Api\Maintenance\MaintenanceChecklistResponseController::class, 'index']);
+        Route::post('checklist-responses', [\App\Http\Controllers\Api\Maintenance\MaintenanceChecklistResponseController::class, 'store']);
+        Route::get('checklist-responses/{id}', [\App\Http\Controllers\Api\Maintenance\MaintenanceChecklistResponseController::class, 'show']);
+        Route::put('checklist-responses/{id}', [\App\Http\Controllers\Api\Maintenance\MaintenanceChecklistResponseController::class, 'update']);
+        Route::delete('checklist-responses/{id}', [\App\Http\Controllers\Api\Maintenance\MaintenanceChecklistResponseController::class, 'destroy']);
+
         // Stats endpoints
         Route::get('stats/history', [\App\Http\Controllers\Api\Maintenance\MaintenanceStatsController::class, 'history']);
         Route::get('stats/analytics', [\App\Http\Controllers\Api\Maintenance\MaintenanceStatsController::class, 'analytics']);
