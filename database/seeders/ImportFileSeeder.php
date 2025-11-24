@@ -10,7 +10,7 @@ class ImportFileSeeder extends Seeder
 {
     public function run(): void
     {
-        if (ImportFile::count() >= 20) {
+        if (ImportFile::count() >= 10) {
             $this->command->info('Import files already exist. Skipping.');
             return;
         }
@@ -24,13 +24,13 @@ class ImportFileSeeder extends Seeder
             return;
         }
 
-        foreach (range(1, 25) as $index) {
+        foreach (range(1, 12) as $index) {
             ImportFile::factory()->create([
                 'import_session_id' => $sessions->random()->id,
             ]);
         }
 
-        $this->command->info('Created 25 import files.');
+        $this->command->info('Created 12 import files.');
     }
 }
 

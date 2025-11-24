@@ -10,7 +10,7 @@ class ImportMappingSeeder extends Seeder
 {
     public function run(): void
     {
-        if (ImportMapping::count() >= 20) {
+        if (ImportMapping::count() >= 10) {
             $this->command->info('Import mappings already exist. Skipping.');
             return;
         }
@@ -24,13 +24,13 @@ class ImportMappingSeeder extends Seeder
             return;
         }
 
-        foreach (range(1, 25) as $index) {
+        foreach (range(1, 12) as $index) {
             ImportMapping::factory()->create([
                 'import_session_id' => $sessions->random()->id,
             ]);
         }
 
-        $this->command->info('Created 25 import mappings.');
+        $this->command->info('Created 12 import mappings.');
     }
 }
 

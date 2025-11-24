@@ -21,7 +21,7 @@ class PurchaseOrderItemSeeder extends Seeder
         if ($orders->count() == 0 || $parts->count() == 0) return;
 
         foreach ($orders as $order) {
-            for ($i = 0; $i < rand(1, 3); $i++) {
+            for ($i = 0; $i < rand(1, 1); $i++) {
                 $part = $parts->random();
                 $qty = rand(5, 50);
 

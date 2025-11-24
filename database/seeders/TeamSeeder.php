@@ -54,8 +54,8 @@ class TeamSeeder extends Seeder
                 ->where('user_type', 'team')
                 ->count();
 
-            if ($existingTeamCount >= 50) {
-                $this->command->info("Company '{$company->name}' already has 50+ team members. Skipping.");
+            if ($existingTeamCount >= 25) {
+                $this->command->info("Company '{$company->name}' already has 25+ team members. Skipping.");
                 continue;
             }
 
@@ -65,9 +65,9 @@ class TeamSeeder extends Seeder
                 continue;
             }
 
-            // Create 50 team members per company
+            // Create 25 team members per company
             $companyCreatedCount = 0;
-            $targetCount = 50 - $existingTeamCount;
+            $targetCount = 25 - $existingTeamCount;
 
             for ($i = 1; $i <= $targetCount; $i++) {
                 $firstName = $firstNames[array_rand($firstNames)];

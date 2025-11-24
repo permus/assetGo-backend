@@ -11,7 +11,7 @@ class AssetActivitySeeder extends Seeder
 {
     public function run(): void
     {
-        $assets = Asset::limit(5)->get();
+        $assets = Asset::limit(2)->get();
         if ($assets->count() == 0) return;
 
         foreach ($assets as $asset) {

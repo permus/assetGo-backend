@@ -17,7 +17,7 @@ class PredictiveMaintenanceSeeder extends Seeder
             return;
         }
 
-        if (PredictiveMaintenance::where('company_id', $company->id)->count() >= 20) {
+        if (PredictiveMaintenance::where('company_id', $company->id)->count() >= 10) {
             $this->command->info('Predictive maintenance records already exist. Skipping.');
             return;
         }
@@ -31,14 +31,14 @@ class PredictiveMaintenanceSeeder extends Seeder
             return;
         }
 
-        foreach (range(1, 25) as $index) {
+        foreach (range(1, 12) as $index) {
             PredictiveMaintenance::factory()->create([
                 'asset_id' => $assets->random()->id,
                 'company_id' => $company->id,
             ]);
         }
 
-        $this->command->info('Created 25 predictive maintenance records.');
+        $this->command->info('Created 12 predictive maintenance records.');
     }
 }
 

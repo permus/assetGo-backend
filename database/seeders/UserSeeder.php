@@ -50,7 +50,7 @@ class UserSeeder extends Seeder
 
         // Create additional random users
         $userTypes = ['user', 'manager', 'admin'];
-        foreach (range(1, 15) as $index) {
+        foreach (range(1, 7) as $index) {
             User::firstOrCreate(
                 ['email' => 'user' . $index . '@assetgo.com'],
                 [

@@ -51,7 +51,7 @@ class AssetSeeder extends Seeder
 
         $counter = 1;
         foreach ($assetTemplates as $template) {
-            for ($i = 1; $i <= 3; $i++) {
+            for ($i = 1; $i <= 1; $i++) {
                 Asset::create([
                     'asset_id' => 'AST-' . str_pad($counter, 6, '0', STR_PAD_LEFT),
                     'name' => $template['name'] . ' #' . $i,

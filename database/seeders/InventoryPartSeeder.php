@@ -19,7 +19,7 @@ class InventoryPartSeeder extends Seeder
             return;
         }
 
-        if (InventoryPart::where('company_id', $company->id)->count() >= 20) {
+        if (InventoryPart::where('company_id', $company->id)->count() >= 10) {
             $this->command->info('Inventory parts already exist. Skipping.');
             return;
         }
@@ -30,8 +30,8 @@ class InventoryPartSeeder extends Seeder
         $categories = InventoryCategory::where('company_id', $company->id)->get();
         $user = User::where('company_id', $company->id)->first();
 
-        // Use factory to create 25 inventory parts
-        for ($i = 1; $i <= 25; $i++) {
+        // Use factory to create 12 inventory parts
+        for ($i = 1; $i <= 12; $i++) {
             InventoryPart::create([
                 'company_id' => $company->id,
                 'user_id' => $user?->id,

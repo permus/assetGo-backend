@@ -13,6 +13,8 @@ use App\Models\User;
 use App\Models\Company;
 use App\Models\Role;
 use App\Models\Permission;
+use App\Models\CompanyModule;
+use App\Models\ModuleDefinition;
 use App\Http\Middleware\ThrottleLoginAttempts;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
@@ -174,8 +176,11 @@ class AuthController extends Controller
             // For team users, get permissions from their roles
             $permissions = $user->getAllPermissions();
             
-            // Determine module access based on permissions
-            $moduleAccess = $this->getModuleAccessFromPermissions($permissions);
+            // Get enabled modules for the company
+            $enabledModules = $this->getEnabledModulesForCompany($user->company_id);
+            
+            // Determine module access based on permissions AND enabled modules
+            $moduleAccess = $this->getModuleAccessFromPermissions($permissions, $enabledModules);
         } else {
             // For company users (owners, etc.), return all permissions as true
             $permissions = [
@@ -294,10 +299,13 @@ class AuthController extends Controller
     }
 
     /**
-     * Determine module access based on user permissions
+     * Determine module access based on user permissions and module enablement
      */
-    private function getModuleAccessFromPermissions(array $permissions): array
+    private function getModuleAccessFromPermissions(array $permissions, array $enabledModules = null): array
     {
+        // System modules that should always be enabled if user has permission
+        $systemModules = ['dashboard', 'settings'];
+        
         $moduleAccess = [
             'dashboard' => true, // Always accessible
             'settings' => false, // Only for company users
@@ -331,22 +339,70 @@ class AuthController extends Controller
 
         // Check if user has any permission for each module
         foreach ($moduleMapping as $permissionModule => $moduleKey) {
-            $hasAccess = false;
+            $hasPermission = false;
             
             if (isset($permissions[$permissionModule])) {
                 // Check if user has any permission for this module
                 foreach ($permissions[$permissionModule] as $action => $value) {
                     if ($value === true) {
-                        $hasAccess = true;
+                        $hasPermission = true;
                         break;
                     }
                 }
             }
             
-            $moduleAccess[$moduleKey] = $hasAccess;
+            // Determine if module is enabled
+            $isEnabled = true; // Default to true if enabledModules not provided (backward compatibility)
+            if ($enabledModules !== null) {
+                if (isset($enabledModules[$moduleKey])) {
+                    $isEnabled = $enabledModules[$moduleKey] === true;
+                } else {
+                    // Module not found in enabledModules - default based on type
+                    // System modules default to enabled, feature modules default to disabled
+                    $isEnabled = in_array($moduleKey, $systemModules);
+                }
+            }
+            
+            // Module is accessible if user has permission AND module is enabled
+            // System modules are always accessible if user has permission
+            if (in_array($moduleKey, $systemModules)) {
+                $moduleAccess[$moduleKey] = $hasPermission;
+            } else {
+                $moduleAccess[$moduleKey] = $hasPermission && $isEnabled;
+            }
         }
 
         return $moduleAccess;
+    }
+
+    /**
+     * Get enabled modules for a company
+     * Returns a map of module_key => is_enabled boolean values
+     */
+    private function getEnabledModulesForCompany($companyId): array
+    {
+        // Get all module definitions
+        $modules = ModuleDefinition::all();
+        
+        // Get all company module records (both enabled and disabled)
+        $companyModules = CompanyModule::where('company_id', $companyId)
+            ->pluck('is_enabled', 'module_id')
+            ->toArray();
+        
+        // Build map of module_key => is_enabled
+        $enabledMap = [];
+        foreach ($modules as $module) {
+            // System modules are always enabled
+            if ($module->is_system_module) {
+                $enabledMap[$module->key] = true;
+            } else {
+                // Feature modules: enabled only if explicitly enabled in CompanyModule
+                // If no record exists, default to false (disabled)
+                $enabledMap[$module->key] = isset($companyModules[$module->id]) && $companyModules[$module->id] === true;
+            }
+        }
+        
+        return $enabledMap;
     }
 
     /**
@@ -359,9 +415,82 @@ class AuthController extends Controller
         $moduleAccess = [];
         
         if ($user->user_type === 'team') {
+            // For team users, get permissions from their roles
             $permissions = $user->getAllPermissions();
-            $moduleAccess = $this->getModuleAccessFromPermissions($permissions);
+            
+            // Get enabled modules for the company
+            $enabledModules = $this->getEnabledModulesForCompany($user->company_id);
+            
+            // Determine module access based on permissions AND enabled modules
+            $moduleAccess = $this->getModuleAccessFromPermissions($permissions, $enabledModules);
         } else {
+            // For company users (owners, etc.), return all permissions as true
+            $permissions = [
+                'assets' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'locations' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'work_orders' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'teams' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'maintenance' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'inventory' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'sensors' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'ai_features' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+                'reports' => [
+                    'can_view' => true,
+                    'can_create' => true,
+                    'can_edit' => true,
+                    'can_delete' => true,
+                    'can_export' => true,
+                ],
+            ];
+            
             // Company users have access to all modules
             $moduleAccess = [
                 'dashboard' => true,

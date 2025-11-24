@@ -12,7 +12,7 @@ class AssetTypeSeeder extends Seeder
      */
     public function run(): void
     {
-        if (AssetType::count() >= 20) {
+        if (AssetType::count() >= 11) {
             $this->command->info('Asset types already exist. Skipping.');
             return;
         }
@@ -31,17 +31,6 @@ class AssetTypeSeeder extends Seeder
             ['name' => 'Tools', 'icon' => 'https://unpkg.com/lucide-static/icons/wrench.svg'],
             ['name' => 'Vehicles', 'icon' => 'https://unpkg.com/lucide-static/icons/car.svg'],
             ['name' => 'Medical Equipment', 'icon' => 'https://unpkg.com/lucide-static/icons/stethoscope.svg'],
-            ['name' => 'Laboratory Equipment', 'icon' => 'https://unpkg.com/lucide-static/icons/flask-conical.svg'],
-            ['name' => 'Communication Devices', 'icon' => 'https://unpkg.com/lucide-static/icons/phone.svg'],
-            ['name' => 'Audio Visual Equipment', 'icon' => 'https://unpkg.com/lucide-static/icons/video.svg'],
-            ['name' => 'Safety Equipment', 'icon' => 'https://unpkg.com/lucide-static/icons/shield.svg'],
-            ['name' => 'Networking Equipment', 'icon' => 'https://unpkg.com/lucide-static/icons/network.svg'],
-            ['name' => 'Storage Equipment', 'icon' => 'https://unpkg.com/lucide-static/icons/hard-drive.svg'],
-            ['name' => 'HVAC Systems', 'icon' => 'https://unpkg.com/lucide-static/icons/air-vent.svg'],
-            ['name' => 'Security Systems', 'icon' => 'https://unpkg.com/lucide-static/icons/lock.svg'],
-            ['name' => 'Building Systems', 'icon' => 'https://unpkg.com/lucide-static/icons/building.svg'],
-            ['name' => 'Production Equipment', 'icon' => 'https://unpkg.com/lucide-static/icons/factory.svg'],
-            ['name' => 'Electrical Equipment', 'icon' => 'https://unpkg.com/lucide-static/icons/zap.svg'],
         ];
 
         foreach ($assetTypes as $type) {

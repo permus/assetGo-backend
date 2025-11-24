@@ -16,20 +16,20 @@ class AIRecommendationSeeder extends Seeder
             return;
         }
 
-        if (AIRecommendation::where('company_id', $company->id)->count() >= 20) {
+        if (AIRecommendation::where('company_id', $company->id)->count() >= 10) {
             $this->command->info('AI recommendations already exist. Skipping.');
             return;
         }
 
         $this->command->info('Seeding AI recommendations...');
 
-        foreach (range(1, 25) as $index) {
+        foreach (range(1, 12) as $index) {
             AIRecommendation::factory()->create([
                 'company_id' => $company->id,
             ]);
         }
 
-        $this->command->info('Created 25 AI recommendations.');
+        $this->command->info('Created 12 AI recommendations.');
     }
 }
 

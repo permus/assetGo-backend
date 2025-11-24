@@ -17,7 +17,7 @@ class AssetImageSeeder extends Seeder
             return;
         }
 
-        if (AssetImage::count() >= 20) {
+        if (AssetImage::count() >= 10) {
             $this->command->info('Asset images already exist. Skipping.');
             return;
         }
@@ -40,7 +40,7 @@ class AssetImageSeeder extends Seeder
 
         $createdCount = 0;
 
-        // Create 1-3 images per asset (ensure we get 20+ total)
+        // Create 1-3 images per asset (ensure we get 10+ total)
         // Using placeholder image service URLs for testing
         foreach ($assets as $asset) {
             $imageCount = rand(1, 3);
@@ -60,8 +60,8 @@ class AssetImageSeeder extends Seeder
                 ]);
                 $createdCount++;
                 
-                if ($createdCount >= 50) {
-                    break 2; // Exit both loops once we have 50 images
+                if ($createdCount >= 25) {
+                    break 2; // Exit both loops once we have 25 images
                 }
             }
         }

@@ -16,20 +16,20 @@ class AIAnalyticsRunSeeder extends Seeder
             return;
         }
 
-        if (AIAnalyticsRun::where('company_id', $company->id)->count() >= 20) {
+        if (AIAnalyticsRun::where('company_id', $company->id)->count() >= 10) {
             $this->command->info('AI analytics runs already exist. Skipping.');
             return;
         }
 
         $this->command->info('Seeding AI analytics runs...');
 
-        foreach (range(1, 25) as $index) {
+        foreach (range(1, 12) as $index) {
             AIAnalyticsRun::factory()->create([
                 'company_id' => $company->id,
             ]);
         }
 
-        $this->command->info('Created 25 AI analytics runs.');
+        $this->command->info('Created 12 AI analytics runs.');
     }
 }
 

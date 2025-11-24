@@ -17,7 +17,7 @@ class AIRecognitionHistorySeeder extends Seeder
             return;
         }
 
-        if (AIRecognitionHistory::where('company_id', $company->id)->count() >= 20) {
+        if (AIRecognitionHistory::where('company_id', $company->id)->count() >= 10) {
             $this->command->info('AI recognition history already exists. Skipping.');
             return;
         }
@@ -31,7 +31,7 @@ class AIRecognitionHistorySeeder extends Seeder
             return;
         }
 
-        foreach (range(1, 25) as $index) {
+        foreach (range(1, 12) as $index) {
             $confidenceScore = fake()->randomFloat(2, 70, 99);
             AIRecognitionHistory::create([
                 'user_id' => $users->random()->id,
@@ -51,7 +51,7 @@ class AIRecognitionHistorySeeder extends Seeder
             ]);
         }
 
-        $this->command->info('Created 25 AI recognition history records.');
+        $this->command->info('Created 12 AI recognition history records.');
     }
 }
 

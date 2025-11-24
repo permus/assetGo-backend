@@ -111,7 +111,7 @@ class SupplierSeeder extends Seeder
         }
 
         // Create additional random suppliers using factory
-        Supplier::factory(17)->create([
+        Supplier::factory(8)->create([
             'company_id' => $company->id
         ]);
 

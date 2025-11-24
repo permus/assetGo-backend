@@ -22,7 +22,7 @@ class PurchaseOrderSeeder extends Seeder
 
         if (!$supplier || !$user) return;
 
-        for ($i = 1; $i <= 3; $i++) {
+        for ($i = 1; $i <= 1; $i++) {
             $subtotal = rand(500, 5000);
             $tax = $subtotal * 0.1;
             $shipping = rand(20, 100);

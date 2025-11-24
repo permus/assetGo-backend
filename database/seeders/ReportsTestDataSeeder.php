@@ -145,7 +145,7 @@ class ReportsTestDataSeeder extends Seeder
         $formats = ['json', 'csv', 'xlsx', 'pdf'];
         $statuses = ['success', 'failed', 'queued', 'running'];
         
-        for ($i = 0; $i < 20; $i++) {
+        for ($i = 0; $i < 10; $i++) {
             $reportKey = $reportKeys[array_rand($reportKeys)];
             $format = $formats[array_rand($formats)];
             $status = $statuses[array_rand($statuses)];
@@ -184,7 +184,7 @@ class ReportsTestDataSeeder extends Seeder
             ]);
         }
         
-        $this->command->info('Created 20 sample report runs');
+        $this->command->info('Created 10 sample report runs');
     }
     
     /**

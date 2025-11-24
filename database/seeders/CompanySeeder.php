@@ -54,7 +54,7 @@ class CompanySeeder extends Seeder
         $industries = ['Manufacturing', 'Healthcare', 'Education', 'Retail', 'Construction', 'Transportation', 'Finance', 'Hospitality'];
         $businessTypes = ['Enterprise', 'SMB', 'Startup', 'Non-Profit'];
         
-        foreach (range(1, 19) as $index) {
+        foreach (range(1, 9) as $index) {
             $companyOwner = User::create([
                 'first_name' => fake()->firstName(),
                 'last_name' => fake()->lastName(),
@@ -85,6 +85,6 @@ class CompanySeeder extends Seeder
             $companyOwner->update(['company_id' => $newCompany->id]);
         }
 
-        $this->command->info('Created 20 companies in total.');
+        $this->command->info('Created 10 companies in total.');
     }
 }

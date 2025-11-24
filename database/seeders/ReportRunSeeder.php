@@ -18,7 +18,7 @@ class ReportRunSeeder extends Seeder
             return;
         }
 
-        if (ReportRun::where('company_id', $company->id)->count() >= 20) {
+        if (ReportRun::where('company_id', $company->id)->count() >= 10) {
             $this->command->info('Report runs already exist. Skipping.');
             return;
         }
@@ -33,7 +33,7 @@ class ReportRunSeeder extends Seeder
             return;
         }
 
-        foreach (range(1, 25) as $index) {
+        foreach (range(1, 12) as $index) {
             ReportRun::factory()->create([
                 'company_id' => $company->id,
                 'user_id' => $users->random()->id,
@@ -41,7 +41,7 @@ class ReportRunSeeder extends Seeder
             ]);
         }
 
-        $this->command->info('Created 25 report runs.');
+        $this->command->info('Created 12 report runs.');
     }
 }
 

@@ -54,7 +54,7 @@ class LocationSeeder extends Seeder
             ]);
             
             // Create rooms for each floor
-            for ($i = 1; $i <= 3; $i++) {
+            for ($i = 1; $i <= 1; $i++) {
                 $roomType = $roomTypes[array_rand($roomTypes)];
                 $roomName = $roomType . ' ' . (($index * 100) + $i);
                 Location::create([
@@ -95,7 +95,7 @@ class LocationSeeder extends Seeder
             ]);
             
             // Create aisles in each section
-            for ($i = 1; $i <= 2; $i++) {
+            for ($i = 1; $i <= 1; $i++) {
                 $aisleName = 'Aisle ' . $aisleCounter;
                 Location::create([
                     'company_id' => $company->id,

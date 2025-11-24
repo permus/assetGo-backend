@@ -38,7 +38,7 @@ class WorkOrderSeeder extends Seeder
 
             // Create work orders for this company
             WorkOrder::factory()
-                ->count(rand(10, 30))
+                ->count(rand(5, 15))
                 ->create([
                     'company_id' => $company->id,
                     'asset_id' => $assets->random()->id,
@@ -50,7 +50,7 @@ class WorkOrderSeeder extends Seeder
 
             // Create some specific work order types
             WorkOrder::factory()
-                ->count(5)
+                ->count(2)
                 ->open()
                 ->create([
                     'company_id' => $company->id,
@@ -61,7 +61,7 @@ class WorkOrderSeeder extends Seeder
                 ]);
 
             WorkOrder::factory()
-                ->count(3)
+                ->count(1)
                 ->inProgress()
                 ->create([
                     'company_id' => $company->id,
@@ -72,7 +72,7 @@ class WorkOrderSeeder extends Seeder
                 ]);
 
             WorkOrder::factory()
-                ->count(8)
+                ->count(4)
                 ->completed()
                 ->create([
                     'company_id' => $company->id,
@@ -83,7 +83,7 @@ class WorkOrderSeeder extends Seeder
                 ]);
 
             WorkOrder::factory()
-                ->count(2)
+                ->count(1)
                 ->overdue()
                 ->create([
                     'company_id' => $company->id,
@@ -94,7 +94,7 @@ class WorkOrderSeeder extends Seeder
                 ]);
 
             WorkOrder::factory()
-                ->count(3)
+                ->count(1)
                 ->highPriority()
                 ->create([
                     'company_id' => $company->id,
@@ -105,7 +105,7 @@ class WorkOrderSeeder extends Seeder
                 ]);
 
             WorkOrder::factory()
-                ->count(2)
+                ->count(1)
                 ->criticalPriority()
                 ->create([
                     'company_id' => $company->id,

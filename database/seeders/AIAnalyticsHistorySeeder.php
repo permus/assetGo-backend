@@ -17,7 +17,7 @@ class AIAnalyticsHistorySeeder extends Seeder
             return;
         }
 
-        if (AIAnalyticsHistory::where('company_id', $company->id)->count() >= 20) {
+        if (AIAnalyticsHistory::where('company_id', $company->id)->count() >= 10) {
             $this->command->info('AI analytics history already exists. Skipping.');
             return;
         }
@@ -31,14 +31,14 @@ class AIAnalyticsHistorySeeder extends Seeder
             return;
         }
 
-        foreach (range(1, 25) as $index) {
+        foreach (range(1, 12) as $index) {
             AIAnalyticsHistory::factory()->create([
                 'user_id' => $users->random()->id,
                 'company_id' => $company->id,
             ]);
         }
 
-        $this->command->info('Created 25 AI analytics history records.');
+        $this->command->info('Created 12 AI analytics history records.');
     }
 }
 

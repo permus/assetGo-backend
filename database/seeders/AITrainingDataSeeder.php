@@ -11,7 +11,7 @@ class AITrainingDataSeeder extends Seeder
 {
     public function run(): void
     {
-        if (AITrainingData::count() >= 20) {
+        if (AITrainingData::count() >= 10) {
             $this->command->info('AI training data already exists. Skipping.');
             return;
         }
@@ -29,7 +29,7 @@ class AITrainingDataSeeder extends Seeder
         $fieldNames = ['asset_name', 'category', 'location', 'condition', 'serial_number'];
         $correctionTypes = ['text', 'classification', 'confidence'];
 
-        foreach (range(1, 25) as $index) {
+        foreach (range(1, 12) as $index) {
             AITrainingData::create([
                 'recognition_id' => $recognitions->random()->id,
                 'field_name' => fake()->randomElement($fieldNames),
@@ -41,7 +41,7 @@ class AITrainingDataSeeder extends Seeder
             ]);
         }
 
-        $this->command->info('Created 25 AI training data records.');
+        $this->command->info('Created 12 AI training data records.');
     }
 }
 
