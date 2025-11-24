@@ -24,21 +24,23 @@ class WorkOrderGenerationService
         $workOrderIds = [];
         $startDate = $schedule->start_date ? Carbon::parse($schedule->start_date) : Carbon::now();
 
-        // Calculate only the next due date based on frequency
-        $dueDate = $this->calculateNextDueDate($plan, $startDate);
+        // Generate multiple due dates based on frequency (default: 12 months ahead)
+        $dueDates = $this->generateMultipleDueDates($plan, $startDate, 12);
         
-        if (!$dueDate) {
+        if (empty($dueDates)) {
             return [];
         }
 
         DB::beginTransaction();
         try {
-            $workOrder = $this->createWorkOrderFromSchedule($schedule, $plan, $dueDate);
-            if ($workOrder) {
-                $workOrderIds[] = $workOrder->id;
+            foreach ($dueDates as $dueDate) {
+                $workOrder = $this->createWorkOrderFromSchedule($schedule, $plan, $dueDate);
+                if ($workOrder) {
+                    $workOrderIds[] = $workOrder->id;
 
-                // Add parts from maintenance plan
-                $this->addPartsToWorkOrder($workOrder, $plan);
+                    // Add parts from maintenance plan
+                    $this->addPartsToWorkOrder($workOrder, $plan);
+                }
             }
 
             // Update schedule with generated work order IDs
@@ -79,6 +81,35 @@ class WorkOrderGenerationService
         return $dueDate;
     }
 
+    protected function generateMultipleDueDates(MaintenancePlan $plan, Carbon $startDate, int $monthsAhead = 12): array
+    {
+        $dueDates = [];
+        $currentDate = $startDate->copy();
+        $endDate = Carbon::now()->addMonths($monthsAhead);
+        $maxOccurrences = 100; // safety limit
+        
+        $value = (int)($plan->frequency_value ?? 0);
+        $unit = $plan->frequency_unit;
+        
+        if ($value <= 0 || !$unit) {
+            return [];
+        }
+        
+        while ($currentDate->lte($endDate) && count($dueDates) < $maxOccurrences) {
+            $nextDate = $this->calculateNextDueDate($plan, $currentDate);
+            if (!$nextDate) {
+                break;
+            }
+            
+            if ($nextDate->lte($endDate)) {
+                $dueDates[] = $nextDate->copy();
+            }
+            $currentDate = $nextDate;
+        }
+        
+        return $dueDates;
+    }
+
     protected function createWorkOrderFromSchedule(
         ScheduleMaintenance $schedule,
         MaintenancePlan $plan,
@@ -100,6 +131,7 @@ class WorkOrderGenerationService
         $statusId = $openStatus ? $openStatus->id : null;
 
         // Create work order
+        // Note: assigned_by and created_by can be null for auto-generated work orders (e.g., from cron)
         $workOrder = WorkOrder::create([
             'title' => "PPM: {$plan->name} - " . $dueDate->format('Y-m-d'),
             'description' => $plan->descriptions ?? "Preventive maintenance scheduled for {$plan->name}",
@@ -111,8 +143,8 @@ class WorkOrderGenerationService
             'asset_id' => $assetId,
             'location_id' => $locationId,
             'assigned_to' => $assignedUserId,
-            'assigned_by' => auth()->id(),
-            'created_by' => auth()->id(),
+            'assigned_by' => auth()->check() ? auth()->id() : null,
+            'created_by' => auth()->check() ? auth()->id() : null,
             'company_id' => $plan->company_id,
             'estimated_hours' => $plan->estimeted_duration,
             'notes' => "Auto-generated from maintenance schedule #{$schedule->id}",
@@ -142,6 +174,76 @@ class WorkOrderGenerationService
                 'unit_cost' => $planPart->part->unit_cost ?? null,
                 'status' => 'reserved',
             ]);
+        }
+    }
+
+    /**
+     * Extend work orders for a schedule starting from a specific date
+     * This method generates new work orders while avoiding duplicates
+     */
+    public function extendWorkOrdersForSchedule(ScheduleMaintenance $schedule, Carbon $startFromDate): array
+    {
+        $plan = $schedule->plan;
+        if (!$plan || $plan->frequency_type !== 'time') {
+            return [];
+        }
+
+        // Generate due dates starting from the provided start date
+        $dueDates = $this->generateMultipleDueDates($plan, $startFromDate, 12);
+        
+        if (empty($dueDates)) {
+            return [];
+        }
+
+        // Filter out due dates that already have work orders
+        $newDueDates = [];
+        foreach ($dueDates as $dueDate) {
+            $exists = WorkOrder::where('meta->schedule_id', $schedule->id)
+                ->whereDate('due_date', $dueDate->toDateString())
+                ->exists();
+            
+            if (!$exists) {
+                $newDueDates[] = $dueDate;
+            }
+        }
+
+        if (empty($newDueDates)) {
+            return [];
+        }
+
+        $workOrderIds = [];
+        $existingWorkOrderIds = $schedule->auto_generated_wo_ids ?? [];
+
+        DB::beginTransaction();
+        try {
+            foreach ($newDueDates as $dueDate) {
+                $workOrder = $this->createWorkOrderFromSchedule($schedule, $plan, $dueDate);
+                if ($workOrder) {
+                    $workOrderIds[] = $workOrder->id;
+
+                    // Add parts from maintenance plan
+                    $this->addPartsToWorkOrder($workOrder, $plan);
+                }
+            }
+
+            // Merge new work order IDs with existing ones
+            $allWorkOrderIds = array_unique(array_merge($existingWorkOrderIds, $workOrderIds));
+
+            // Update schedule with merged work order IDs
+            $schedule->update([
+                'auto_generated_wo_ids' => array_values($allWorkOrderIds)
+            ]);
+
+            DB::commit();
+            return $workOrderIds;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to extend work orders for schedule', [
+                'schedule_id' => $schedule->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
         }
     }
 

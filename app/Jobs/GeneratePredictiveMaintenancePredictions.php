@@ -129,3 +129,4 @@ class GeneratePredictiveMaintenancePredictions implements ShouldQueue
 }
 
 
+
