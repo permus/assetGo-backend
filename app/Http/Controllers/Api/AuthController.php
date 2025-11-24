@@ -168,6 +168,9 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        // Get enabled modules for the company (for ALL users)
+        $enabledModules = $this->getEnabledModulesForCompany($user->company_id);
+
         // Get user permissions based on user type
         $permissions = [];
         $moduleAccess = [];
@@ -176,13 +179,10 @@ class AuthController extends Controller
             // For team users, get permissions from their roles
             $permissions = $user->getAllPermissions();
             
-            // Get enabled modules for the company
-            $enabledModules = $this->getEnabledModulesForCompany($user->company_id);
-            
             // Determine module access based on permissions AND enabled modules
             $moduleAccess = $this->getModuleAccessFromPermissions($permissions, $enabledModules);
         } else {
-            // For company users (owners, etc.), return all permissions as true
+            // For company users (owners, admins, etc.), return all permissions as true
             $permissions = [
                 'assets' => [
                     'can_view' => true,
@@ -249,34 +249,8 @@ class AuthController extends Controller
                 ],
             ];
             
-            // Company users have access to all modules
-            $moduleAccess = [
-                'dashboard' => true,
-                'settings' => true,
-                'roles' => true,
-                'assets' => true,
-                'locations' => true,
-                'work_orders' => true,
-                'teams' => true,
-                'maintenance' => true,
-                'inventory' => true,
-                'sensors' => true,
-                'ai_features' => true,
-                'reports' => true,
-                'facilities_locations' => true,
-                'sla' => true,
-                'eservices' => true,
-                'tenant_portal' => true,
-                'maintenance_requests' => true,
-                'amenity_bookings' => true,
-                'move_in_out_requests' => true,
-                'fitout_requests' => true,
-                'inhouse_services' => true,
-                'parcel_management' => true,
-                'visitor_management' => true,
-                'business_directory' => true,
-                'tenant_communication' => true,
-            ];
+            // Build module access from enabled modules (respects company settings)
+            $moduleAccess = $this->buildModuleAccessFromEnabledModules($enabledModules);
         }
 
         // Admin users always have access to roles module
@@ -406,11 +380,37 @@ class AuthController extends Controller
     }
 
     /**
+     * Build module access array from enabled modules map
+     * Returns complete module_access array with all modules
+     */
+    private function buildModuleAccessFromEnabledModules(array $enabledModules): array
+    {
+        // Get all module definitions to ensure we include all modules
+        $modules = ModuleDefinition::all();
+        
+        $moduleAccess = [];
+        foreach ($modules as $module) {
+            // Use enabled status from the map
+            $moduleAccess[$module->key] = $enabledModules[$module->key] ?? false;
+        }
+        
+        // Ensure dashboard and settings are always true (system modules)
+        $moduleAccess['dashboard'] = true;
+        $moduleAccess['settings'] = true;
+        
+        return $moduleAccess;
+    }
+
+    /**
      * Get user profile
      */
     public function profile(Request $request)
     {
         $user = $request->user();
+        
+        // Get enabled modules for the company (for ALL users)
+        $enabledModules = $this->getEnabledModulesForCompany($user->company_id);
+        
         $permissions = [];
         $moduleAccess = [];
         
@@ -418,13 +418,10 @@ class AuthController extends Controller
             // For team users, get permissions from their roles
             $permissions = $user->getAllPermissions();
             
-            // Get enabled modules for the company
-            $enabledModules = $this->getEnabledModulesForCompany($user->company_id);
-            
             // Determine module access based on permissions AND enabled modules
             $moduleAccess = $this->getModuleAccessFromPermissions($permissions, $enabledModules);
         } else {
-            // For company users (owners, etc.), return all permissions as true
+            // For company users (owners, admins, etc.), return all permissions as true
             $permissions = [
                 'assets' => [
                     'can_view' => true,
@@ -491,34 +488,8 @@ class AuthController extends Controller
                 ],
             ];
             
-            // Company users have access to all modules
-            $moduleAccess = [
-                'dashboard' => true,
-                'settings' => true,
-                'roles' => true,
-                'assets' => true,
-                'locations' => true,
-                'work_orders' => true,
-                'teams' => true,
-                'maintenance' => true,
-                'inventory' => true,
-                'sensors' => true,
-                'ai_features' => true,
-                'reports' => true,
-                'facilities_locations' => true,
-                'sla' => true,
-                'eservices' => true,
-                'tenant_portal' => true,
-                'maintenance_requests' => true,
-                'amenity_bookings' => true,
-                'move_in_out_requests' => true,
-                'fitout_requests' => true,
-                'inhouse_services' => true,
-                'parcel_management' => true,
-                'visitor_management' => true,
-                'business_directory' => true,
-                'tenant_communication' => true,
-            ];
+            // Build module access from enabled modules (respects company settings)
+            $moduleAccess = $this->buildModuleAccessFromEnabledModules($enabledModules);
         }
         
         // Admin users always have access to roles module
