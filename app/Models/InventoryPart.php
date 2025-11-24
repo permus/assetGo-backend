@@ -58,6 +58,11 @@ class InventoryPart extends Model
     {
         return $query->where('is_archived', true);
     }
+
+    public function assets()
+    {
+        return $this->belongsToMany(Asset::class, 'asset_inventory_part', 'inventory_part_id', 'asset_id');
+    }
 }
 
 

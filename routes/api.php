@@ -393,6 +393,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::put('plans-checklists/{maintenancePlanChecklist}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansChecklistsController::class, 'update']);
         Route::delete('plans-checklists/{maintenancePlanChecklist}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansChecklistsController::class, 'destroy']);
 
+        // Plan Parts Management
+        Route::get('plans/{maintenancePlan}/parts', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'getParts']);
+        Route::post('plans/{maintenancePlan}/parts', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'addParts']);
+        Route::put('plans/{maintenancePlan}/parts/{part}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'updatePart']);
+        Route::delete('plans/{maintenancePlan}/parts/{part}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'removePart']);
+        Route::get('plans/asset-parts', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'getAssetParts']);
+
         // Schedules
         Route::get('schedules', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceController::class, 'index'])
             ->middleware('throttle:60,1');

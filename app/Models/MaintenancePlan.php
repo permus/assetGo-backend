@@ -28,6 +28,9 @@ class MaintenancePlan extends Model
         'frequency_value',
         'frequency_unit',
         'is_active',
+        'assigned_user_id',
+        'assigned_role_id',
+        'assigned_team_id',
     ];
 
     protected $casts = [
@@ -71,6 +74,16 @@ class MaintenancePlan extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(WorkOrderCategory::class, 'category_id');
+    }
+
+    public function parts(): HasMany
+    {
+        return $this->hasMany(MaintenancePlanPart::class, 'maintenance_plan_id');
+    }
+
+    public function assignedUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_user_id');
     }
 }
 

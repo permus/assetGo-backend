@@ -50,6 +50,10 @@ class UpdateMaintenancePlanRequest extends FormRequest
             'checklist_items.*.is_safety_critical' => 'nullable|boolean',
             'checklist_items.*.is_photo_required' => 'nullable|boolean',
             'checklist_items.*.order' => 'nullable|integer|min:0',
+            
+            'assigned_user_id' => 'sometimes|nullable|exists:users,id',
+            'assigned_role_id' => 'sometimes|nullable|integer',
+            'assigned_team_id' => 'sometimes|nullable|integer',
         ];
     }
 }

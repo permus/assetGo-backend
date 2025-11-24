@@ -21,6 +21,9 @@ class UpdateScheduleMaintenanceRequest extends FormRequest
             'due_date' => 'prohibited',
             'status' => 'sometimes|nullable|in:scheduled,in_progress,completed',
             'priority_id' => 'sometimes|nullable|integer',
+            'assigned_user_id' => 'sometimes|nullable|exists:users,id',
+            'assigned_role_id' => 'sometimes|nullable|integer',
+            'assigned_team_id' => 'sometimes|nullable|integer',
         ];
     }
 }

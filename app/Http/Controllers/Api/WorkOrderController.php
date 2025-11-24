@@ -74,6 +74,9 @@ class WorkOrderController extends Controller
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
         }
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
         if ($request->filled('asset_id')) {
             $query->where('asset_id', $request->asset_id);
         }
@@ -138,6 +141,9 @@ class WorkOrderController extends Controller
         }
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
+        }
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
         }
         if ($request->filled('asset_id')) {
             $query->where('asset_id', $request->asset_id);
@@ -882,6 +888,14 @@ class WorkOrderController extends Controller
             'critical' => 'Critical'
         ];
 
+        // Type options
+        $typeOptions = [
+            'ppm' => 'PPM (Planned Preventive Maintenance)',
+            'corrective' => 'Corrective',
+            'predictive' => 'Predictive',
+            'reactive' => 'Reactive'
+        ];
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -890,6 +904,7 @@ class WorkOrderController extends Controller
                 'users' => $users,
                 'status_options' => $statusOptions,
                 'priority_options' => $priorityOptions,
+                'type_options' => $typeOptions,
             ],
             'message' => 'Work order filters retrieved successfully'
         ]);

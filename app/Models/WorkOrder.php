@@ -18,6 +18,7 @@ class WorkOrder extends Model
         'priority_id',
         'status_id',
         'category_id',
+        'type',
         'due_date',
         'completed_at',
         'asset_id',
@@ -126,6 +127,14 @@ class WorkOrder extends Model
     public function scopeByCategory($query, $categoryId)
     {
         return $query->where('category_id', $categoryId);
+    }
+
+    /**
+     * Scope for type
+     */
+    public function scopeByType($query, $type)
+    {
+        return $query->where('type', $type);
     }
 
     /**

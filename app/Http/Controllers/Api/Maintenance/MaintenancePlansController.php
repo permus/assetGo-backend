@@ -8,6 +8,7 @@ use App\Http\Requests\Maintenance\UpdateMaintenancePlanRequest;
 use App\Http\Resources\MaintenancePlanResource;
 use App\Models\MaintenancePlan;
 use App\Models\MaintenancePlanChecklist;
+use App\Models\MaintenancePlanPart;
 use App\Models\Asset;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
@@ -312,6 +313,126 @@ class MaintenancePlansController extends Controller
         return response()->json([
             'success' => true,
             'data' => new MaintenancePlanResource($maintenancePlan->fresh('checklists')),
+        ]);
+    }
+
+    // Plan Parts Management
+    public function getParts(MaintenancePlan $maintenancePlan)
+    {
+        if ($maintenancePlan->company_id !== auth()->user()->company_id) {
+            abort(403, 'Unauthorized access to maintenance plan.');
+        }
+
+        $parts = $maintenancePlan->parts()->with('part')->get();
+        return response()->json([
+            'success' => true,
+            'data' => $parts,
+        ]);
+    }
+
+    public function addParts(Request $request, MaintenancePlan $maintenancePlan)
+    {
+        if ($maintenancePlan->company_id !== auth()->user()->company_id) {
+            abort(403, 'Unauthorized access to maintenance plan.');
+        }
+
+        $validated = $request->validate([
+            'parts' => 'required|array|min:1',
+            'parts.*.part_id' => 'required|exists:inventory_parts,id',
+            'parts.*.default_qty' => 'nullable|numeric|min:0',
+            'parts.*.is_required' => 'nullable|boolean',
+        ]);
+
+        $created = [];
+        foreach ($validated['parts'] as $partData) {
+            $created[] = MaintenancePlanPart::create([
+                'maintenance_plan_id' => $maintenancePlan->id,
+                'part_id' => $partData['part_id'],
+                'default_qty' => $partData['default_qty'] ?? null,
+                'is_required' => $partData['is_required'] ?? true,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => MaintenancePlanPart::whereIn('id', collect($created)->pluck('id'))->with('part')->get(),
+        ], 201);
+    }
+
+    public function updatePart(Request $request, MaintenancePlan $maintenancePlan, MaintenancePlanPart $part)
+    {
+        if ($maintenancePlan->company_id !== auth()->user()->company_id) {
+            abort(403, 'Unauthorized access to maintenance plan.');
+        }
+
+        if ($part->maintenance_plan_id !== $maintenancePlan->id) {
+            abort(404, 'Part not found in this plan.');
+        }
+
+        $validated = $request->validate([
+            'default_qty' => 'nullable|numeric|min:0',
+            'is_required' => 'nullable|boolean',
+        ]);
+
+        $part->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'data' => $part->load('part'),
+        ]);
+    }
+
+    public function removePart(MaintenancePlan $maintenancePlan, MaintenancePlanPart $part)
+    {
+        if ($maintenancePlan->company_id !== auth()->user()->company_id) {
+            abort(403, 'Unauthorized access to maintenance plan.');
+        }
+
+        if ($part->maintenance_plan_id !== $maintenancePlan->id) {
+            abort(404, 'Part not found in this plan.');
+        }
+
+        $part->delete();
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
+
+    public function getAssetParts(Request $request)
+    {
+        // Handle array parameter (asset_ids[] or asset_ids)
+        $assetIds = $request->input('asset_ids', []);
+        if (!is_array($assetIds)) {
+            $assetIds = [$assetIds];
+        }
+
+        $validated = validator([
+            'asset_ids' => $assetIds
+        ], [
+            'asset_ids' => 'required|array|min:1',
+            'asset_ids.*' => 'required|exists:assets,id',
+        ])->validate();
+
+        $companyId = auth()->user()->company_id;
+        $assetIds = $validated['asset_ids'];
+
+        // Get all unique parts linked to these assets
+        $parts = DB::table('asset_inventory_part')
+            ->join('inventory_parts', 'asset_inventory_part.inventory_part_id', '=', 'inventory_parts.id')
+            ->whereIn('asset_inventory_part.asset_id', $assetIds)
+            ->where('inventory_parts.company_id', $companyId)
+            ->where('inventory_parts.is_archived', false)
+            ->select('inventory_parts.*')
+            ->distinct()
+            ->get()
+            ->map(function ($part) {
+                return (array) $part;
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $parts,
         ]);
     }
 }

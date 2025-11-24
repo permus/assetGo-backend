@@ -75,6 +75,8 @@ class Asset extends Model
         static::deleting(function ($asset) {
             // Detach tags
             $asset->tags()->detach();
+            // Detach inventory parts
+            $asset->inventoryParts()->detach();
             // Delete images
             foreach ($asset->images as $image) {
                 $image->delete();
@@ -83,6 +85,8 @@ class Asset extends Model
         static::forceDeleted(function ($asset) {
             // Detach tags (in case not already detached)
             $asset->tags()->detach();
+            // Detach inventory parts (in case not already detached)
+            $asset->inventoryParts()->detach();
             // Delete images (in case not already deleted)
             foreach ($asset->images as $image) {
                 $image->delete();
@@ -239,5 +243,10 @@ class Asset extends Model
     public function maintenanceSchedules()
     {
         return $this->hasMany(AssetMaintenanceSchedule::class);
+    }
+
+    public function inventoryParts()
+    {
+        return $this->belongsToMany(InventoryPart::class, 'asset_inventory_part', 'asset_id', 'inventory_part_id');
     }
 }

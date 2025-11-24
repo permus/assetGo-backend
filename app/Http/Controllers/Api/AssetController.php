@@ -148,7 +148,7 @@ class AssetController extends Controller
             }
         }
 
-        $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company', 'maintenanceSchedules', 'activities', 'parent', 'children']);
+        $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company', 'maintenanceSchedules', 'activities', 'parent', 'children', 'inventoryParts']);
 
         $assetArray = $asset->toArray();
         $assetArray['qr_code_url'] = $asset->qr_code_path ? \Storage::disk('public')->url($asset->qr_code_path) : null;
@@ -211,6 +211,11 @@ class AssetController extends Controller
                         $asset->images()->create(['image_path' => $filePath]);
                     }
                 }
+            }
+
+            // Handle inventory parts
+            if ($request->filled('inventory_part_ids')) {
+                $asset->inventoryParts()->sync($request->inventory_part_ids);
             }
 
             // Generate QR code (using QRCodeService)
@@ -355,6 +360,11 @@ class AssetController extends Controller
                 }
             }
 
+            // Handle inventory parts
+            if ($request->filled('inventory_part_ids')) {
+                $asset->inventoryParts()->sync($request->inventory_part_ids);
+            }
+
             // Log activity
             $asset->activities()->create([
                 'user_id' => $request->user()->id,
@@ -424,7 +434,7 @@ class AssetController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Asset updated successfully',
-                'data' => $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company'])
+                'data' => $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company', 'inventoryParts'])
             ]);
         } catch (\Exception $e) {
             \DB::rollBack();

@@ -21,6 +21,9 @@ class StoreScheduleMaintenanceRequest extends FormRequest
             'due_date' => 'prohibited',
             'status' => 'nullable|in:scheduled,in_progress,completed',
             'priority_id' => 'nullable|integer',
+            'assigned_user_id' => 'nullable|exists:users,id',
+            'assigned_role_id' => 'nullable|integer',
+            'assigned_team_id' => 'nullable|integer',
         ];
     }
 }

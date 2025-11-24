@@ -128,9 +128,10 @@ class PartController extends Controller
             'part_number' => 'required|string|max:255|unique:inventory_parts,part_number',
             'uom' => 'required|string|max:50',
             'unit_cost' => 'nullable|numeric|min:0',
+            'is_consumable' => 'nullable|boolean',
         ]);
 
-        $data = $request->only(['name','part_number','description','uom','unit_cost','category_id','reorder_point','reorder_qty','barcode']);
+        $data = $request->only(['name','part_number','description','uom','unit_cost','category_id','reorder_point','reorder_qty','barcode','status','abc_class','is_consumable']);
         $data['company_id'] = $request->user()->company_id;
         $data['user_id'] = $request->user()->id;
         $part = InventoryPart::create($data);
@@ -201,13 +202,14 @@ class PartController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'uom' => 'sometimes|required|string|max:50',
             'unit_cost' => 'nullable|numeric|min:0',
+            'is_consumable' => 'nullable|boolean',
         ];
         if ($request->filled('part_number') && $request->part_number !== $part->part_number) {
             $rules['part_number'] = 'string|max:255|unique:inventory_parts,part_number';
         }
         $data = $request->validate($rules);
         $originalData = $part->getOriginal();
-        $part->update(array_merge($request->only(['description','category_id','reorder_point','reorder_qty','barcode','status','abc_class']), $data));
+        $part->update(array_merge($request->only(['description','category_id','reorder_point','reorder_qty','barcode','status','abc_class','is_consumable']), $data));
 
         // Log the update
         $this->auditService->logPartUpdated(

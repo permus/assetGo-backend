@@ -10,6 +10,7 @@ use App\Models\MaintenancePlan;
 use App\Models\ScheduleMaintenance;
 use App\Models\Asset;
 use App\Services\Maintenance\DueDateService;
+use App\Services\Maintenance\WorkOrderGenerationService;
 use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -17,10 +18,15 @@ use Illuminate\Http\Request;
 class ScheduleMaintenanceController extends Controller
 {
     protected $notificationService;
+    protected $workOrderGenerationService;
 
-    public function __construct(private DueDateService $dueDateService, NotificationService $notificationService)
-    {
+    public function __construct(
+        private DueDateService $dueDateService,
+        NotificationService $notificationService,
+        WorkOrderGenerationService $workOrderGenerationService
+    ) {
         $this->notificationService = $notificationService;
+        $this->workOrderGenerationService = $workOrderGenerationService;
     }
 
     public function index(Request $request)
@@ -119,6 +125,18 @@ class ScheduleMaintenanceController extends Controller
             'due_date' => $dueDate?->toDateString(),
         ]));
 
+        // Auto-generate work orders from schedule
+        $generatedWorkOrderIds = [];
+        try {
+            $generatedWorkOrderIds = $this->workOrderGenerationService->generateWorkOrdersFromSchedule($schedule);
+        } catch (\Exception $e) {
+            \Log::error('Failed to generate work orders from schedule', [
+                'schedule_id' => $schedule->id,
+                'error' => $e->getMessage()
+            ]);
+            // Continue even if work order generation fails
+        }
+
         // Send notifications to admins and company owners
         $creator = auth()->user();
         try {
@@ -153,6 +171,8 @@ class ScheduleMaintenanceController extends Controller
         return response()->json([
             'success' => true,
             'data' => new ScheduleMaintenanceResource($schedule),
+            'generated_work_orders_count' => count($generatedWorkOrderIds),
+            'generated_work_order_ids' => $generatedWorkOrderIds,
         ], 201);
     }
 
@@ -167,6 +187,7 @@ class ScheduleMaintenanceController extends Controller
         // Load relationships - for assignees only load user and responses (not nested schedule/plan to avoid redundancy)
         $scheduleMaintenance->load([
             'plan.priority',
+            'plan.parts.part',
             'assignees.user',
             'assignees.responses'
         ]);

@@ -36,3 +36,4 @@ class PredictiveMaintenanceJob extends Model
     }
 }
 
+

@@ -43,6 +43,8 @@ class StoreAssetRequest extends FormRequest
             'images' => 'nullable|array',
             'images.*' => 'string',
             'meta' => 'nullable|array',
+            'inventory_part_ids' => 'nullable|array',
+            'inventory_part_ids.*' => 'exists:inventory_parts,id',
         ];
     }
 }

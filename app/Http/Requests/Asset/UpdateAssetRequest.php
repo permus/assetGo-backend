@@ -47,6 +47,8 @@ class UpdateAssetRequest extends FormRequest
             'images.*' => 'string',
             'remove_image_ids' => 'nullable|array',
             'meta' => 'nullable|array',
+            'inventory_part_ids' => 'nullable|array',
+            'inventory_part_ids.*' => 'exists:inventory_parts,id',
         ];
     }
 }

@@ -20,12 +20,17 @@ class ScheduleMaintenance extends Model
         'due_date',
         'status',
         'priority_id',
+        'assigned_user_id',
+        'assigned_role_id',
+        'assigned_team_id',
+        'auto_generated_wo_ids',
     ];
 
     protected $casts = [
         'asset_ids' => 'array',
         'start_date' => 'datetime',
         'due_date' => 'datetime',
+        'auto_generated_wo_ids' => 'array',
     ];
 
     public function plan(): BelongsTo
@@ -36,6 +41,11 @@ class ScheduleMaintenance extends Model
     public function assignees(): HasMany
     {
         return $this->hasMany(ScheduleMaintenanceAssigned::class, 'schedule_maintenance_id');
+    }
+
+    public function assignedUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_user_id');
     }
 }
 
