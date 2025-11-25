@@ -343,7 +343,7 @@ class AuthController extends Controller
                 $moduleAccess[$moduleKey] = $hasPermission;
             } else {
                 $moduleAccess[$moduleKey] = $hasPermission && $isEnabled;
-            }
+        }
         }
 
         return $moduleAccess;
@@ -397,7 +397,7 @@ class AuthController extends Controller
         // Ensure dashboard and settings are always true (system modules)
         $moduleAccess['dashboard'] = true;
         $moduleAccess['settings'] = true;
-        
+
         return $moduleAccess;
     }
 
