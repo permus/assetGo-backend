@@ -381,6 +381,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('plans', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'index'])
             ->middleware('throttle:60,1');
         Route::post('plans', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'store']);
+        
+        // IMPORTANT: asset-parts route must come BEFORE plans/{maintenancePlan} routes to avoid route conflict
+        Route::get('plans/asset-parts', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'getAssetParts']);
+        
         Route::get('plans/{maintenancePlan}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'show']);
         Route::put('plans/{maintenancePlan}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'update']);
         Route::delete('plans/{maintenancePlan}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'destroy']);
@@ -398,7 +402,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('plans/{maintenancePlan}/parts', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'addParts']);
         Route::put('plans/{maintenancePlan}/parts/{part}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'updatePart']);
         Route::delete('plans/{maintenancePlan}/parts/{part}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'removePart']);
-        Route::get('plans/asset-parts', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'getAssetParts']);
 
         // Schedules
         Route::get('schedules', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceController::class, 'index'])
@@ -502,16 +505,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Export routes
         Route::post('export', [ReportExportController::class, 'export'])
-            ->middleware('throttle:10,1'); // 10 requests per minute
+            ->middleware('throttle:160,1'); // 60 requests per minute (increased from 10)
         Route::get('runs/{id}', [ReportExportController::class, 'show'])
-            ->middleware('throttle:60,1'); // 60 requests per minute
+            ->middleware('throttle:160,1'); // 60 requests per minute
         Route::get('runs/{id}/download', [ReportExportController::class, 'download'])
             ->name('reports.download')
             ->withoutMiddleware(['auth:sanctum']);
         Route::get('history', [ReportExportController::class, 'history'])
-            ->middleware('throttle:60,1'); // 60 requests per minute
+            ->middleware('throttle:160,1'); // 60 requests per minute
         Route::delete('runs/{id}/cancel', [ReportExportController::class, 'cancel'])
-            ->middleware('throttle:30,1'); // 30 requests per minute
+            ->middleware('throttle:130,1'); // 30 requests per minute
     });
 });
 

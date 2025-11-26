@@ -101,6 +101,48 @@ class DashboardService
         $averageHealthScore = (float) round((float) (Asset::where('company_id', $companyId)->avg('health_score') ?? 0));
         $uncategorized = Asset::where('company_id', $companyId)->whereNull('category_id')->count();
 
+        // Recent work orders (5 most recent, including completed)
+        $recentWorkOrders = WorkOrder::where('company_id', $companyId)
+            ->whereNull('deleted_at')
+            ->with(['asset', 'assignedTo', 'priority', 'status'])
+            ->orderBy('created_at', 'DESC')
+            ->limit(5)
+            ->get()
+            ->map(function ($workOrder) {
+                $assignedToName = null;
+                if ($workOrder->assignedTo) {
+                    $firstName = $workOrder->assignedTo->first_name ?? '';
+                    $lastName = $workOrder->assignedTo->last_name ?? '';
+                    $assignedToName = trim($firstName . ' ' . $lastName);
+                    if (empty($assignedToName)) {
+                        $assignedToName = null;
+                    }
+                }
+                
+                return [
+                    'id' => $workOrder->id,
+                    'title' => $workOrder->title ?? '',
+                    'priority' => $workOrder->priority ? [
+                        'name' => $workOrder->priority->name ?? '',
+                        'slug' => $workOrder->priority->slug ?? '',
+                    ] : null,
+                    'asset' => $workOrder->asset ? [
+                        'id' => $workOrder->asset->id,
+                        'name' => $workOrder->asset->name ?? '',
+                    ] : null,
+                    'assigned_to' => $assignedToName ? [
+                        'id' => $workOrder->assignedTo->id,
+                        'name' => $assignedToName,
+                    ] : null,
+                    'due_date' => $workOrder->due_date ? $workOrder->due_date->toDateString() : null,
+                    'status' => $workOrder->status ? [
+                        'name' => $workOrder->status->name ?? '',
+                        'slug' => $workOrder->status->slug ?? '',
+                    ] : null,
+                ];
+            })
+            ->toArray();
+
         return [
             'total_assets' => $totalAssets,
             'active_assets' => $activeAssets,
@@ -125,6 +167,7 @@ class DashboardService
             ],
             'transfer_approvals' => $transferApprovals,
             'ai_insights' => 'AI Active',
+            'recent_work_orders' => $recentWorkOrders,
         ];
     }
 }

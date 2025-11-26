@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\Maintenance;
 use App\Http\Controllers\Controller;
 use App\Models\ScheduleMaintenance;
 use App\Models\Asset;
+use App\Models\WorkOrder;
+use App\Models\WorkOrderPart;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -37,29 +39,82 @@ class MaintenanceStatsController extends Controller
             ? round(($preventive / $totalActivities) * 100, 1) 
             : 0.0;
 
-        // Calculate total cost from assets in completed schedules
+        // Calculate total cost from work orders linked to completed schedules
         $totalCost = 0;
-        $assetIds = [];
+        $workOrderIds = [];
         foreach ($completedSchedules as $schedule) {
-            if (is_array($schedule->asset_ids) && !empty($schedule->asset_ids)) {
-                $assetIds = array_merge($assetIds, $schedule->asset_ids);
+            if (is_array($schedule->auto_generated_wo_ids) && !empty($schedule->auto_generated_wo_ids)) {
+                $workOrderIds = array_merge($workOrderIds, $schedule->auto_generated_wo_ids);
             }
         }
-        $assetIds = array_unique($assetIds);
+        $workOrderIds = array_unique($workOrderIds);
         
-        if (!empty($assetIds)) {
-            $totalCost = Asset::whereIn('id', $assetIds)
+        if (!empty($workOrderIds)) {
+            // Get work orders with assigned users
+            $workOrders = WorkOrder::whereIn('id', $workOrderIds)
                 ->where('company_id', $companyId)
-                ->sum('purchase_price') ?? 0;
+                ->with('assignedTo')
+                ->get();
+            
+            // Get all parts for these work orders in one query
+            $workOrderParts = WorkOrderPart::whereIn('work_order_id', $workOrderIds)
+                ->get()
+                ->groupBy('work_order_id');
+            
+            foreach ($workOrders as $wo) {
+                // Calculate labor cost (actual_hours * hourly_rate from assigned user)
+                $laborCost = 0;
+                if ($wo->actual_hours && $wo->assignedTo && $wo->assignedTo->hourly_rate) {
+                    $laborCost = (float) $wo->actual_hours * (float) $wo->assignedTo->hourly_rate;
+                }
+                
+                // Calculate parts cost
+                $partsCost = 0;
+                $parts = $workOrderParts->get($wo->id, collect());
+                foreach ($parts as $part) {
+                    $partsCost += (float) ($part->qty ?? 0) * (float) ($part->unit_cost ?? 0);
+                }
+                
+                $totalCost += $laborCost + $partsCost;
+            }
         }
 
-        // Calculate average duration from plans
+        // Calculate average duration from actual schedule duration (start_date to due_date)
+        // or use actual_hours from work orders if available
         $durations = [];
         foreach ($completedSchedules as $schedule) {
-            if ($schedule->plan && $schedule->plan->estimeted_duration) {
-                $durations[] = (float) $schedule->plan->estimeted_duration;
+            if ($schedule->start_date && $schedule->due_date) {
+                // Calculate duration in hours
+                $start = \Carbon\Carbon::parse($schedule->start_date);
+                $due = \Carbon\Carbon::parse($schedule->due_date);
+                $durationHours = $start->diffInHours($due);
+                if ($durationHours > 0) {
+                    $durations[] = (float) $durationHours;
+                }
             }
         }
+        
+        // If no durations from schedules, try to get from work orders
+        if (empty($durations) && !empty($workOrderIds)) {
+            $workOrders = WorkOrder::whereIn('id', $workOrderIds)
+                ->where('company_id', $companyId)
+                ->whereNotNull('actual_hours')
+                ->pluck('actual_hours')
+                ->filter()
+                ->toArray();
+            
+            $durations = array_map('floatval', $workOrders);
+        }
+        
+        // Fallback to estimated duration from plans if no actual durations available
+        if (empty($durations)) {
+            foreach ($completedSchedules as $schedule) {
+                if ($schedule->plan && $schedule->plan->estimeted_duration) {
+                    $durations[] = (float) $schedule->plan->estimeted_duration;
+                }
+            }
+        }
+        
         $avgDuration = count($durations) > 0 
             ? round(array_sum($durations) / count($durations), 1) 
             : 0.0;
