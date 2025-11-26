@@ -288,25 +288,49 @@ class NaturalLanguageService
 
     /**
      * Handle tool calls from OpenAI and make follow-up request.
+     * Supports recursive tool calls with max depth limit.
+     * 
+     * @param array $messages Conversation messages
+     * @param array $response OpenAI response with tool calls
+     * @param string $companyId Company ID for tenant scoping
+     * @param int $depth Current recursion depth (default: 0)
+     * @return array Response array with success, reply, and usage
      */
-    private function handleToolCalls(array $messages, array $response, string $companyId): array
+    private function handleToolCalls(array $messages, array $response, string $companyId, int $depth = 0): array
     {
-        $toolCalls = $response['tool_calls'] ?? [];
-        $toolResults = [];
-        
-        // Rate limiting: Maximum 10 tool calls per request
-        $maxToolCalls = 10;
-        if (count($toolCalls) > $maxToolCalls) {
-            Log::warning('Tool call limit exceeded', [
+        // Maximum depth limit to prevent infinite loops
+        $maxDepth = 3;
+        if ($depth >= $maxDepth) {
+            Log::warning('Tool call max depth exceeded', [
                 'company_id' => $companyId,
                 'user_id' => Auth::id(),
-                'requested' => count($toolCalls),
-                'limit' => $maxToolCalls,
+                'depth' => $depth,
+                'max_depth' => $maxDepth,
             ]);
-            $toolCalls = array_slice($toolCalls, 0, $maxToolCalls);
+            return [
+                'success' => false,
+                'error' => 'Maximum tool call depth exceeded. Please simplify your query.',
+                'usage' => [
+                    'prompt_tokens' => 0,
+                    'completion_tokens' => 0,
+                    'total_tokens' => 0
+                ]
+            ];
         }
 
+        $toolCalls = $response['tool_calls'] ?? [];
+        $toolResults = [];
+
         $requestId = uniqid('nlq_', true); // Correlation ID for this request
+
+        // Log tool call round
+        Log::info('Processing tool calls', [
+            'request_id' => $requestId,
+            'company_id' => $companyId,
+            'user_id' => Auth::id(),
+            'tool_calls_count' => count($toolCalls),
+            'depth' => $depth,
+        ]);
 
         // Execute each tool call
         foreach ($toolCalls as $toolCall) {
@@ -332,6 +356,7 @@ class NaturalLanguageService
                     'error' => $e->getMessage(),
                     'company_id' => $companyId,
                     'user_id' => Auth::id(),
+                    'depth' => $depth,
                 ]);
 
                 $toolResults[] = [
@@ -361,9 +386,36 @@ class NaturalLanguageService
             'tool_choice' => 'auto',
         ]);
 
+        // Check if there are more tool calls (recursive handling)
+        if (!empty($finalResponse['tool_calls'])) {
+            Log::info('Recursive tool calls detected', [
+                'request_id' => $requestId,
+                'company_id' => $companyId,
+                'user_id' => Auth::id(),
+                'new_tool_calls_count' => count($finalResponse['tool_calls']),
+                'depth' => $depth + 1,
+            ]);
+            
+            // Recursively handle more tool calls
+            return $this->handleToolCalls($messages, $finalResponse, $companyId, $depth + 1);
+        }
+
+        // Check for empty content (empty string or null)
+        $content = $finalResponse['content'] ?? '';
+        if (empty($content)) {
+            Log::warning('Empty content in final response', [
+                'request_id' => $requestId,
+                'company_id' => $companyId,
+                'user_id' => Auth::id(),
+                'depth' => $depth,
+                'has_tool_calls' => !empty($finalResponse['tool_calls']),
+            ]);
+            $content = 'I processed your request but could not generate a response. Please try rephrasing your question.';
+        }
+
         return [
             'success' => true,
-            'reply' => $finalResponse['content'] ?? 'I processed your request but could not generate a response.',
+            'reply' => $content,
             'usage' => $finalResponse['usage'] ?? [
                 'prompt_tokens' => 0,
                 'completion_tokens' => 0,
