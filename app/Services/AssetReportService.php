@@ -88,14 +88,28 @@ class AssetReportService extends ReportService
             $query = $this->buildQuery(Asset::class, $filters)
                 ->with(['location', 'category']);
 
-            $assets = $this->applyPagination($query, $params['page'] ?? 1, $params['page_size'] ?? 50);
+            // For PDF exports, fetch all data without pagination
+            $format = $params['format'] ?? 'json';
+            
+            if ($format === 'pdf' || !empty($params['all_data'])) {
+                // Fetch all assets for PDF export
+                $assets = $query->get();
+            } else {
+                $pageSize = $params['page_size'] ?? 50;
+                $assets = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
+            }
 
             // Calculate utilization metrics (placeholder - would need work order integration)
-            $utilizationData = $this->calculateUtilizationMetrics($assets->items());
+            $assetsItems = $assets instanceof \Illuminate\Pagination\LengthAwarePaginator
+                ? $assets->items()
+                : $assets->all();
+            $utilizationData = $this->calculateUtilizationMetrics($assetsItems);
 
             return $this->formatResponse([
                 'assets' => $utilizationData,
-                'pagination' => $this->getPaginationMeta($assets)
+                'pagination' => $assets instanceof \Illuminate\Pagination\LengthAwarePaginator 
+                    ? $this->getPaginationMeta($assets) 
+                    : null
             ]);
         });
     }
@@ -114,10 +128,22 @@ class AssetReportService extends ReportService
                 ->whereNotNull('depreciation_life')
                 ->with(['location', 'category']);
 
-            $assets = $this->applyPagination($query, $params['page'] ?? 1, $params['page_size'] ?? 50);
+            // For PDF exports, fetch all data without pagination
+            $format = $params['format'] ?? 'json';
+            
+            if ($format === 'pdf' || !empty($params['all_data'])) {
+                // Fetch all assets for PDF export
+                $assets = $query->get();
+            } else {
+                $pageSize = $params['page_size'] ?? 50;
+                $assets = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
+            }
 
             // Calculate depreciation for each asset
-            $depreciationData = $this->calculateDepreciationData($assets->items());
+            $assetsItems = $assets instanceof \Illuminate\Pagination\LengthAwarePaginator
+                ? $assets->items()
+                : $assets->all();
+            $depreciationData = $this->calculateDepreciationData($assetsItems);
 
             // Calculate totals
             $totals = $this->calculateDepreciationTotals($depreciationData);
@@ -125,7 +151,9 @@ class AssetReportService extends ReportService
             return $this->formatResponse([
                 'assets' => $depreciationData,
                 'totals' => $totals,
-                'pagination' => $this->getPaginationMeta($assets)
+                'pagination' => $assets instanceof \Illuminate\Pagination\LengthAwarePaginator 
+                    ? $this->getPaginationMeta($assets) 
+                    : null
             ]);
         });
     }
@@ -142,10 +170,22 @@ class AssetReportService extends ReportService
                 ->whereNotNull('warranty')
                 ->with(['location', 'category']);
 
-            $assets = $this->applyPagination($query, $params['page'] ?? 1, $params['page_size'] ?? 50);
+            // For PDF exports, fetch all data without pagination
+            $format = $params['format'] ?? 'json';
+            
+            if ($format === 'pdf' || !empty($params['all_data'])) {
+                // Fetch all assets for PDF export
+                $assets = $query->get();
+            } else {
+                $pageSize = $params['page_size'] ?? 50;
+                $assets = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
+            }
 
             // Calculate warranty status for each asset
-            $warrantyData = $this->calculateWarrantyData($assets->items());
+            $assetsItems = $assets instanceof \Illuminate\Pagination\LengthAwarePaginator
+                ? $assets->items()
+                : $assets->all();
+            $warrantyData = $this->calculateWarrantyData($assetsItems);
 
             // Get warranty summary
             $warrantySummary = $this->getWarrantySummary($warrantyData);
@@ -153,7 +193,9 @@ class AssetReportService extends ReportService
             return $this->formatResponse([
                 'assets' => $warrantyData,
                 'summary' => $warrantySummary,
-                'pagination' => $this->getPaginationMeta($assets)
+                'pagination' => $assets instanceof \Illuminate\Pagination\LengthAwarePaginator 
+                    ? $this->getPaginationMeta($assets) 
+                    : null
             ]);
         });
     }
@@ -169,14 +211,28 @@ class AssetReportService extends ReportService
             $query = $this->buildQuery(Asset::class, $filters)
                 ->with(['location', 'category']);
 
-            $assets = $this->applyPagination($query, $params['page'] ?? 1, $params['page_size'] ?? 50);
+            // For PDF exports, fetch all data without pagination
+            $format = $params['format'] ?? 'json';
+            
+            if ($format === 'pdf' || !empty($params['all_data'])) {
+                // Fetch all assets for PDF export
+                $assets = $query->get();
+            } else {
+                $pageSize = $params['page_size'] ?? 50;
+                $assets = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
+            }
 
             // Calculate compliance metrics (placeholder - would need compliance data)
-            $complianceData = $this->calculateComplianceData($assets->items());
+            $assetsItems = $assets instanceof \Illuminate\Pagination\LengthAwarePaginator
+                ? $assets->items()
+                : $assets->all();
+            $complianceData = $this->calculateComplianceData($assetsItems);
 
             return $this->formatResponse([
                 'assets' => $complianceData,
-                'pagination' => $this->getPaginationMeta($assets)
+                'pagination' => $assets instanceof \Illuminate\Pagination\LengthAwarePaginator 
+                    ? $this->getPaginationMeta($assets) 
+                    : null
             ]);
         });
     }

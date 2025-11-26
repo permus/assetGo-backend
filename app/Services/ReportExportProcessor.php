@@ -159,38 +159,6 @@ class ReportExportProcessor
         return $result['data'];
     }
     
-    /**
-     * Limit rows in report data for PDF exports
-     */
-    private function limitRowsForPdf(array $data, int $maxRows): array
-    {
-        // Limit assets array
-        if (isset($data['assets']) && is_array($data['assets']) && count($data['assets']) > $maxRows) {
-            $data['assets'] = array_slice($data['assets'], 0, $maxRows);
-        }
-        
-        // Limit work_orders array
-        if (isset($data['work_orders']) && is_array($data['work_orders']) && count($data['work_orders']) > $maxRows) {
-            $data['work_orders'] = array_slice($data['work_orders'], 0, $maxRows);
-        }
-        
-        // Limit technicians array
-        if (isset($data['technicians']) && is_array($data['technicians']) && count($data['technicians']) > $maxRows) {
-            $data['technicians'] = array_slice($data['technicians'], 0, $maxRows);
-        }
-        
-        // Limit stocks array
-        if (isset($data['stocks']) && is_array($data['stocks']) && count($data['stocks']) > $maxRows) {
-            $data['stocks'] = array_slice($data['stocks'], 0, $maxRows);
-        }
-        
-        // Limit items array
-        if (isset($data['items']) && is_array($data['items']) && count($data['items']) > $maxRows) {
-            $data['items'] = array_slice($data['items'], 0, $maxRows);
-        }
-        
-        return $data;
-    }
 
     /**
      * Export data to file based on format
