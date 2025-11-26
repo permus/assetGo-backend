@@ -1,55 +1,27 @@
 <?php
 
-namespace App\Jobs;
+namespace App\Services;
 
 use App\Models\ReportRun;
 use App\Services\AssetReportService;
 use App\Services\MaintenanceReportService;
-use App\Services\ReportExportService;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Exception;
 use Throwable;
 use Barryvdh\DomPDF\Facade\Pdf;
 
-/**
- * @deprecated This job class is deprecated. Use ReportExportProcessor service instead.
- * This class is kept for backward compatibility only.
- * 
- * The ReportExportProcessor service provides the same functionality without queue dependency,
- * processing exports synchronously for immediate completion.
- */
-class ExportReportJob implements ShouldQueue
+class ReportExportProcessor
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-    public $timeout = 300; // 5 minutes
-    public $tries = 3;
-
     /**
-     * Create a new job instance.
-     * 
-     * @deprecated Use ReportExportProcessor::processExport() instead
+     * Process report export synchronously
      */
-    public function __construct(
-        private int $runId
-    ) {}
-
-    /**
-     * Execute the job.
-     */
-    public function handle(): void
+    public function processExport(ReportRun $reportRun): void
     {
         $startTime = microtime(true);
-        $reportRun = ReportRun::findOrFail($this->runId);
         
-        Log::info('ExportReportJob started', [
-            'run_id' => $this->runId,
+        Log::info('ReportExportProcessor started', [
+            'run_id' => $reportRun->id,
             'report_key' => $reportRun->report_key,
             'format' => $reportRun->format,
             'company_id' => $reportRun->company_id,
@@ -64,40 +36,41 @@ class ExportReportJob implements ShouldQueue
                 'started_at' => now()
             ]);
 
-            Log::info('ExportReportJob status updated to running', [
-                'run_id' => $this->runId,
+            Log::info('ReportExportProcessor status updated to running', [
+                'run_id' => $reportRun->id,
                 'progress' => 10
             ]);
 
             // Generate report data
-            Log::info('ExportReportJob generating report data', [
-                'run_id' => $this->runId,
+            Log::info('ReportExportProcessor generating report data', [
+                'run_id' => $reportRun->id,
                 'report_key' => $reportRun->report_key
             ]);
             
             $reportRun->update(['progress' => 30]);
             $reportData = $this->generateReportData($reportRun);
             
-            Log::info('ExportReportJob report data generated', [
-                'run_id' => $this->runId,
+            Log::info('ReportExportProcessor report data generated', [
+                'run_id' => $reportRun->id,
                 'data_size' => count($reportData),
                 'row_count' => $this->getRowCount($reportData),
                 'progress' => 30
             ]);
             
             // Export to file
-            Log::info('ExportReportJob exporting to file', [
-                'run_id' => $this->runId,
+            Log::info('ReportExportProcessor exporting to file', [
+                'run_id' => $reportRun->id,
                 'format' => $reportRun->format
             ]);
             
             $reportRun->update(['progress' => 60]);
             $filePath = $this->exportToFile($reportRun, $reportData);
             $reportRun->update(['progress' => 90]);
-            Log::info('ExportReportJob file exported', [
-                'run_id' => $this->runId,
+            
+            Log::info('ReportExportProcessor file exported', [
+                'run_id' => $reportRun->id,
                 'file_path' => $filePath,
-                'file_exists' => \Storage::disk('local')->exists($filePath)
+                'file_exists' => Storage::disk('local')->exists($filePath)
             ]);
             
             // Calculate execution time
@@ -114,7 +87,7 @@ class ExportReportJob implements ShouldQueue
             ]);
 
             Log::info('Report export completed successfully', [
-                'run_id' => $this->runId,
+                'run_id' => $reportRun->id,
                 'report_key' => $reportRun->report_key,
                 'format' => $reportRun->format,
                 'file_path' => $filePath,
@@ -133,7 +106,7 @@ class ExportReportJob implements ShouldQueue
             ]);
 
             Log::error('Report export failed', [
-                'run_id' => $this->runId,
+                'run_id' => $reportRun->id,
                 'report_key' => $reportRun->report_key,
                 'format' => $reportRun->format,
                 'error' => $e->getMessage(),
@@ -366,10 +339,8 @@ class ExportReportJob implements ShouldQueue
         } elseif (isset($data['technicians']) && is_array($data['technicians'])) {
             return $this->flattenArray($data['technicians']);
         } elseif (isset($data['stocks']) && is_array($data['stocks'])) {
-            // Inventory Current Stock report
             return $this->flattenArray($data['stocks']);
         } elseif (isset($data['items']) && is_array($data['items'])) {
-            // Inventory ABC Analysis, Slow Moving, Reorder Analysis reports
             return $this->flattenArray($data['items']);
         } elseif (isset($data['cost_by_category'])) {
             // Financial Maintenance Cost Breakdown report
@@ -1228,25 +1199,5 @@ HTML;
         
         return now()->diffInMilliseconds($reportRun->started_at);
     }
-
-    /**
-     * Handle job failure
-     */
-    public function failed(Throwable $exception): void
-    {
-        $reportRun = ReportRun::find($this->runId);
-        
-        if ($reportRun) {
-            $reportRun->update([
-                'status' => 'failed',
-                'error_message' => $exception->getMessage(),
-                'completed_at' => now()
-            ]);
-        }
-
-        Log::error('ExportReportJob failed permanently', [
-            'run_id' => $this->runId,
-            'error' => $exception->getMessage()
-        ]);
-    }
 }
+

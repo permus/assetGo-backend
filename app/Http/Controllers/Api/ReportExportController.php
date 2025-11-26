@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\ReportExportService;
+use App\Services\ReportExportProcessor;
 use App\Services\NotificationService;
-use App\Jobs\ExportReportJob;
 use App\Models\ReportRun;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,8 +16,11 @@ class ReportExportController extends Controller
 {
     protected $notificationService;
 
-    public function __construct(private ReportExportService $exportService, NotificationService $notificationService)
-    {
+    public function __construct(
+        private ReportExportService $exportService,
+        private ReportExportProcessor $exportProcessor,
+        NotificationService $notificationService
+    ) {
         $this->notificationService = $notificationService;
     }
 
@@ -49,45 +52,29 @@ class ReportExportController extends Controller
                 'status' => 'queued'
             ]);
 
-            // Dispatch export job
-            Log::info('Dispatching export job', [
+            // Process export using service (synchronous, no queue dependency)
+            Log::info('Processing export using ReportExportProcessor', [
                 'run_id' => $reportRun->id,
                 'report_key' => $reportKey,
                 'format' => $format,
-                'queue_connection' => config('queue.default'),
                 'company_id' => $companyId,
                 'user_id' => Auth::id()
             ]);
 
-            // If queue connection is 'sync', process immediately; otherwise use queue
-            if (config('queue.default') === 'sync') {
-                // Process synchronously for development/testing
-                Log::info('Processing export job synchronously (sync driver)', [
-                    'run_id' => $reportRun->id
-                ]);
-                try {
-                    $job = new ExportReportJob($reportRun->id);
-                    $job->handle();
-                    Log::info('Export job completed synchronously', [
-                        'run_id' => $reportRun->id,
-                        'status' => $reportRun->fresh()->status
-                    ]);
-                } catch (\Exception $e) {
-                    Log::error('Failed to process export job synchronously', [
-                        'run_id' => $reportRun->id,
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
-                    ]);
-                    // Status will be updated by the job handler on error
-                    throw $e;
-                }
-            } else {
-                // Use queue for production
-                Log::info('Dispatching export job to queue', [
+            try {
+                $this->exportProcessor->processExport($reportRun);
+                Log::info('Export processing completed', [
                     'run_id' => $reportRun->id,
-                    'queue' => 'reports'
+                    'status' => $reportRun->fresh()->status
                 ]);
-                ExportReportJob::dispatch($reportRun->id)->onQueue('reports');
+            } catch (\Exception $e) {
+                Log::error('Failed to process export', [
+                    'run_id' => $reportRun->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                // Status will be updated by the processor on error
+                throw $e;
             }
 
             // Send notifications to admins and company owners
@@ -128,10 +115,10 @@ class ReportExportController extends Controller
                 'success' => true,
                 'data' => [
                     'run_id' => $reportRun->id,
-                    'status' => $reportRun->status, // Return actual status (may be 'success' if sync)
+                    'status' => $reportRun->status,
                     'message' => $reportRun->status === 'success' 
                         ? 'Export completed successfully' 
-                        : 'Export job queued successfully'
+                        : 'Export processing'
                 ]
             ]);
             
@@ -144,7 +131,7 @@ class ReportExportController extends Controller
             
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to queue export job: ' . $e->getMessage()
+                'error' => 'Failed to process export: ' . $e->getMessage()
             ], 500);
         }
     }
