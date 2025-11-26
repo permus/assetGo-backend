@@ -68,6 +68,9 @@ class OpenAIClient
                     $requestBody['response_format'] = $options['response_format'];
                 }
 
+                // Use custom timeout if provided, otherwise use default
+                $timeout = $options['timeout'] ?? $this->timeout;
+
                 // Log request metadata (without sensitive data)
                 $requestId = uniqid('openai_', true);
                 Log::info('OpenAI API Request', [
@@ -76,10 +79,13 @@ class OpenAIClient
                     'messages_count' => count($messages),
                     'has_tools' => !empty($tools),
                     'tools_count' => count($tools),
+                    'timeout' => $timeout,
                     'user_id' => \Illuminate\Support\Facades\Auth::id(),
                 ]);
 
-                $resp = $this->client->post($this->baseUrl, [
+                // Create client with custom timeout for this request
+                $client = new Client(['timeout' => $timeout]);
+                $resp = $client->post($this->baseUrl, [
                     'headers' => [
                         'Authorization' => 'Bearer ' . $this->apiKey,
                         'Content-Type' => 'application/json',

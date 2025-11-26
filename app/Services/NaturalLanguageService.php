@@ -152,12 +152,51 @@ class NaturalLanguageService
      */
     private function getCompanyContext(string $companyId): array
     {
-        return Cache::remember("nlq-company-context-{$companyId}", 3600, function () use ($companyId) {
-            $company = Company::find($companyId);
+        $startTime = microtime(true);
+        Log::info('Fetching company context', [
+            'company_id' => $companyId,
+            'user_id' => Auth::id(),
+        ]);
+        
+        try {
+            $context = Cache::remember("nlq-company-context-{$companyId}", 3600, function () use ($companyId) {
+                try {
+                    $company = Company::find($companyId);
+                    return [
+                        'name' => $company->name ?? 'your company'
+                    ];
+                } catch (\Exception $e) {
+                    Log::warning('Failed to fetch company from database', [
+                        'company_id' => $companyId,
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Return default if database query fails
+                    return [
+                        'name' => 'your company'
+                    ];
+                }
+            });
+            
+            $elapsedTime = round((microtime(true) - $startTime) * 1000, 2);
+            if ($elapsedTime > 5000) {
+                Log::warning('Slow company context fetch', [
+                    'company_id' => $companyId,
+                    'elapsed_time_ms' => $elapsedTime,
+                ]);
+            }
+            
+            return $context;
+        } catch (\Exception $e) {
+            Log::error('Failed to get company context', [
+                'company_id' => $companyId,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+            // Return default context if cache fails
             return [
-                'name' => $company->name ?? 'your company'
+                'name' => 'your company'
             ];
-        });
+        }
     }
 
     /**
@@ -170,6 +209,9 @@ class NaturalLanguageService
      */
     public function processChatQuery(array $messages, array $assetContext = null, array $companyContext = null, string $companyId = ''): array
     {
+        $requestStartTime = microtime(true);
+        $requestId = uniqid('nlq_', true);
+        
         try {
             // Get company ID from authenticated user if not provided
             if (empty($companyId)) {
@@ -180,9 +222,25 @@ class NaturalLanguageService
                 $companyId = (string) $user->company_id;
             }
 
+            Log::info('NLQ request started', [
+                'request_id' => $requestId,
+                'company_id' => $companyId,
+                'user_id' => Auth::id(),
+                'messages_count' => count($messages),
+            ]);
+
             // Check if the latest user message is a simple greeting (no tools or context needed)
             $latestUserMessage = $this->getLatestUserMessage($messages);
             $isSimpleGreeting = $this->isSimpleGreeting($latestUserMessage);
+            
+            if ($isSimpleGreeting) {
+                Log::info('Greeting detected', [
+                    'request_id' => $requestId,
+                    'company_id' => $companyId,
+                    'user_id' => Auth::id(),
+                    'message' => $latestUserMessage,
+                ]);
+            }
             
             // For simple greetings, skip fetching context to save database queries
             if (!$isSimpleGreeting) {
@@ -230,19 +288,57 @@ class NaturalLanguageService
 
             // For simple greetings, don't use tools - return direct response
             if ($isSimpleGreeting) {
-                $response = $this->openAIClient->chat($openAIMessages, [], [
-                    'tool_choice' => 'none', // Explicitly disable tools for greetings
+                $startTime = microtime(true);
+                Log::info('Processing greeting message', [
+                    'company_id' => $companyId,
+                    'user_id' => Auth::id(),
+                    'message' => $latestUserMessage,
                 ]);
                 
-                return [
-                    'success' => true,
-                    'reply' => $response['content'] ?? 'Hello! How can I help you with your assets today?',
-                    'usage' => $response['usage'] ?? [
-                        'prompt_tokens' => 0,
-                        'completion_tokens' => 0,
-                        'total_tokens' => 0
-                    ]
-                ];
+                try {
+                    // Use shorter timeout for greetings (15 seconds instead of 60)
+                    $response = $this->openAIClient->chat($openAIMessages, [], [
+                        'tool_choice' => 'none', // Explicitly disable tools for greetings
+                        'timeout' => 15, // 15 seconds timeout for greetings
+                    ]);
+                    
+                    $elapsedTime = round((microtime(true) - $startTime) * 1000, 2);
+                    Log::info('Greeting OpenAI call completed', [
+                        'company_id' => $companyId,
+                        'user_id' => Auth::id(),
+                        'elapsed_time_ms' => $elapsedTime,
+                        'has_content' => !empty($response['content']),
+                    ]);
+                    
+                    return [
+                        'success' => true,
+                        'reply' => $response['content'] ?? 'Hello! How can I help you with your assets today?',
+                        'usage' => $response['usage'] ?? [
+                            'prompt_tokens' => 0,
+                            'completion_tokens' => 0,
+                            'total_tokens' => 0
+                        ]
+                    ];
+                } catch (\Exception $e) {
+                    $elapsedTime = round((microtime(true) - $startTime) * 1000, 2);
+                    Log::warning('Greeting OpenAI call failed, using fallback', [
+                        'company_id' => $companyId,
+                        'user_id' => Auth::id(),
+                        'error' => $e->getMessage(),
+                        'elapsed_time_ms' => $elapsedTime,
+                    ]);
+                    
+                    // Return fallback greeting if API fails
+                    return [
+                        'success' => true,
+                        'reply' => 'Hello! How can I help you with your assets today?',
+                        'usage' => [
+                            'prompt_tokens' => 0,
+                            'completion_tokens' => 0,
+                            'total_tokens' => 0
+                        ]
+                    ];
+                }
             }
 
             // Get tool definitions for data queries
@@ -270,19 +366,34 @@ class NaturalLanguageService
             ];
 
         } catch (Exception $e) {
-            $requestId = uniqid('nlq_', true);
-            Log::error('OpenAI chat failed', [
-                'request_id' => $requestId,
-                'company_id' => $companyId,
+            $elapsedTime = round((microtime(true) - ($requestStartTime ?? microtime(true))) * 1000, 2);
+            Log::error('NLQ request failed', [
+                'request_id' => $requestId ?? uniqid('nlq_', true),
+                'company_id' => $companyId ?? 'unknown',
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
-                'messages_count' => count($messages)
+                'messages_count' => count($messages),
+                'elapsed_time_ms' => $elapsedTime,
+                'trace' => $e->getTraceAsString(),
             ]);
             
             return [
                 'success' => false,
                 'error' => 'AI processing failed: ' . $e->getMessage()
             ];
+        } finally {
+            // Log request completion time
+            if (isset($requestStartTime)) {
+                $totalTime = round((microtime(true) - $requestStartTime) * 1000, 2);
+                if ($totalTime > 5000) {
+                    Log::warning('Slow NLQ request', [
+                        'request_id' => $requestId ?? 'unknown',
+                        'company_id' => $companyId ?? 'unknown',
+                        'user_id' => Auth::id(),
+                        'total_time_ms' => $totalTime,
+                    ]);
+                }
+            }
         }
     }
 

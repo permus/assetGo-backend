@@ -43,6 +43,7 @@ class NaturalLanguageController extends Controller
      */
     public function chat(Request $request): JsonResponse
     {
+        $startTime = microtime(true);
         $companyId = Auth::user()->company_id;
         
         // Only validate messages - assetContext and companyContext are fetched automatically by backend
@@ -53,6 +54,12 @@ class NaturalLanguageController extends Controller
         ]);
 
         try {
+            Log::info('NLQ chat endpoint called', [
+                'company_id' => $companyId,
+                'user_id' => Auth::id(),
+                'messages_count' => count($request->input('messages', [])),
+            ]);
+
             // Backend automatically fetches assetContext and companyContext
             // Get from request if provided (for backward compatibility), otherwise null (will be auto-fetched)
             $assetContext = $request->has('assetContext') ? $request->input('assetContext') : null;
@@ -65,11 +72,22 @@ class NaturalLanguageController extends Controller
                 $companyId
             );
 
+            $elapsedTime = round((microtime(true) - $startTime) * 1000, 2);
+            Log::info('NLQ chat endpoint completed', [
+                'company_id' => $companyId,
+                'user_id' => Auth::id(),
+                'success' => $response['success'] ?? false,
+                'elapsed_time_ms' => $elapsedTime,
+            ]);
+
             return response()->json($response);
         } catch (Exception $e) {
+            $elapsedTime = round((microtime(true) - $startTime) * 1000, 2);
             Log::error('Failed to process NLQ chat', [
                 'company_id' => $companyId,
+                'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
+                'elapsed_time_ms' => $elapsedTime,
                 'trace' => $e->getTraceAsString()
             ]);
             return response()->json([
