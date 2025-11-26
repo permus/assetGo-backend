@@ -129,10 +129,10 @@ class ReportExportProcessor
         // Add format to params so services can optimize for PDF
         $params['format'] = $format;
         
-        // For PDF exports, limit page size and add max rows
+        // For PDF exports, fetch all data (no pagination limits)
         if ($format === 'pdf') {
-            $params['page_size'] = $params['page_size'] ?? 25;
-            $params['max_rows'] = 100;
+            $params['page_size'] = null; // No pagination limit
+            $params['all_data'] = true; // Flag to fetch all data
         }
 
         // Determine which service to use based on report key
@@ -155,13 +155,8 @@ class ReportExportProcessor
             throw new Exception('Failed to generate report data');
         }
 
-        // Limit rows for PDF exports
-        $data = $result['data'];
-        if ($format === 'pdf') {
-            $data = $this->limitRowsForPdf($data, 100);
-        }
-
-        return $data;
+        // No row limiting for PDF exports - show all data
+        return $result['data'];
     }
     
     /**

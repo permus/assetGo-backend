@@ -36,16 +36,15 @@ class AssetReportService extends ReportService
                     $query->where('category_id', $filters['category_id']);
                 }
 
-                // For PDF exports, use smaller page size and limit rows
+                // For PDF exports, fetch all data without pagination
                 $format = $params['format'] ?? 'json';
-                $pageSize = $format === 'pdf' ? 25 : ($params['page_size'] ?? 50);
-                $maxRows = $format === 'pdf' ? 100 : 1000; // Limit PDF to 100 rows max
                 
-                $assets = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
-                
-                // Limit rows for PDF exports
-                if ($format === 'pdf' && count($assets->items()) > $maxRows) {
-                    $assets->setCollection($assets->getCollection()->take($maxRows));
+                if ($format === 'pdf' || !empty($params['all_data'])) {
+                    // Fetch all assets for PDF export
+                    $assets = $query->get();
+                } else {
+                    $pageSize = $params['page_size'] ?? 50;
+                    $assets = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
                 }
 
                 // Calculate totals (clone query to avoid pagination affecting totals)
@@ -58,12 +57,19 @@ class AssetReportService extends ReportService
                 // Get category distribution
                 $categoryDistribution = $this->getCategoryDistribution($filters);
 
+                // Handle both paginated and non-paginated results
+                $assetsArray = $assets instanceof \Illuminate\Pagination\LengthAwarePaginator
+                    ? collect($assets->items())->map(fn($asset) => $asset->toArray())->all()
+                    : collect($assets)->map(fn($asset) => $asset->toArray())->all();
+                
                 return $this->formatResponse([
-                    'assets' => collect($assets->items())->map(fn($asset) => $asset->toArray())->all(),
+                    'assets' => $assetsArray,
                     'totals' => $totals,
                     'status_distribution' => $statusDistribution,
                     'category_distribution' => $categoryDistribution,
-                    'pagination' => $this->getPaginationMeta($assets)
+                    'pagination' => $assets instanceof \Illuminate\Pagination\LengthAwarePaginator 
+                        ? $this->getPaginationMeta($assets) 
+                        : null
                 ]);
             }, 300); // 5 minutes cache
         });

@@ -37,16 +37,15 @@ class MaintenanceReportService extends ReportService
                 $query->where('assigned_to', $filters['assigned_to']);
             }
 
-            // For PDF exports, use smaller page size and limit rows
+            // For PDF exports, fetch all data without pagination
             $format = $params['format'] ?? 'json';
-            $pageSize = $format === 'pdf' ? 25 : ($params['page_size'] ?? 50);
-            $maxRows = $format === 'pdf' ? 100 : 1000; // Limit PDF to 100 rows max
             
-            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
-            
-            // Limit rows for PDF exports
-            if ($format === 'pdf' && count($workOrders->items()) > $maxRows) {
-                $workOrders->setCollection($workOrders->getCollection()->take($maxRows));
+            if ($format === 'pdf' || !empty($params['all_data'])) {
+                // Fetch all work orders for PDF export
+                $workOrders = $query->get();
+            } else {
+                $pageSize = $params['page_size'] ?? 50;
+                $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
             }
 
             // Calculate KPIs
@@ -58,12 +57,19 @@ class MaintenanceReportService extends ReportService
             // Get priority distribution
             $priorityDistribution = $this->getPriorityDistribution($filters);
 
+            // Handle both paginated and non-paginated results
+            $workOrdersArray = $workOrders instanceof \Illuminate\Pagination\LengthAwarePaginator
+                ? collect($workOrders->items())->map(fn($workOrder) => $workOrder->toArray())->all()
+                : collect($workOrders)->map(fn($workOrder) => $workOrder->toArray())->all();
+
             return $this->formatResponse([
-                'work_orders' => collect($workOrders->items())->map(fn($workOrder) => $workOrder->toArray())->all(),
+                'work_orders' => $workOrdersArray,
                 'kpis' => $kpis,
                 'status_distribution' => $statusDistribution,
                 'priority_distribution' => $priorityDistribution,
-                'pagination' => $this->getPaginationMeta($workOrders)
+                'pagination' => $workOrders instanceof \Illuminate\Pagination\LengthAwarePaginator 
+                    ? $this->getPaginationMeta($workOrders) 
+                    : null
             ]);
         });
     }
@@ -81,24 +87,28 @@ class MaintenanceReportService extends ReportService
             $query = $this->buildQuery(WorkOrder::class, $filters)
                 ->with(['asset', 'location', 'category']);
 
-            // For PDF exports, use smaller page size and limit rows
+            // For PDF exports, fetch all data without pagination
             $format = $params['format'] ?? 'json';
-            $pageSize = $format === 'pdf' ? 25 : ($params['page_size'] ?? 50);
-            $maxRows = $format === 'pdf' ? 100 : 1000; // Limit PDF to 100 rows max
             
-            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
-            
-            // Limit rows for PDF exports
-            if ($format === 'pdf' && count($workOrders->items()) > $maxRows) {
-                $workOrders->setCollection($workOrders->getCollection()->take($maxRows));
+            if ($format === 'pdf' || !empty($params['all_data'])) {
+                // Fetch all work orders for PDF export
+                $workOrders = $query->get();
+            } else {
+                $pageSize = $params['page_size'] ?? 50;
+                $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
             }
 
             // Calculate compliance metrics
-            $complianceData = $this->calculateComplianceMetrics($workOrders->items());
+            $workOrdersItems = $workOrders instanceof \Illuminate\Pagination\LengthAwarePaginator
+                ? $workOrders->items()
+                : $workOrders->all();
+            $complianceData = $this->calculateComplianceMetrics($workOrdersItems);
 
             return $this->formatResponse([
                 'work_orders' => $complianceData,
-                'pagination' => $this->getPaginationMeta($workOrders)
+                'pagination' => $workOrders instanceof \Illuminate\Pagination\LengthAwarePaginator 
+                    ? $this->getPaginationMeta($workOrders) 
+                    : null
             ]);
         });
     }
@@ -114,20 +124,22 @@ class MaintenanceReportService extends ReportService
             $query = $this->buildQuery(WorkOrder::class, $filters)
                 ->with(['asset', 'location', 'category']);
 
-            // For PDF exports, use smaller page size and limit rows
+            // For PDF exports, fetch all data without pagination
             $format = $params['format'] ?? 'json';
-            $pageSize = $format === 'pdf' ? 25 : ($params['page_size'] ?? 50);
-            $maxRows = $format === 'pdf' ? 100 : 1000; // Limit PDF to 100 rows max
             
-            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
-            
-            // Limit rows for PDF exports
-            if ($format === 'pdf' && count($workOrders->items()) > $maxRows) {
-                $workOrders->setCollection($workOrders->getCollection()->take($maxRows));
+            if ($format === 'pdf' || !empty($params['all_data'])) {
+                // Fetch all work orders for PDF export
+                $workOrders = $query->get();
+            } else {
+                $pageSize = $params['page_size'] ?? 50;
+                $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
             }
 
             // Calculate cost metrics
-            $costData = $this->calculateCostMetrics($workOrders->items());
+            $workOrdersItems = $workOrders instanceof \Illuminate\Pagination\LengthAwarePaginator
+                ? $workOrders->items()
+                : $workOrders->all();
+            $costData = $this->calculateCostMetrics($workOrdersItems);
 
             // Get cost trends
             $costTrends = $this->getCostTrends($filters);
@@ -135,7 +147,9 @@ class MaintenanceReportService extends ReportService
             return $this->formatResponse([
                 'work_orders' => $costData,
                 'cost_trends' => $costTrends,
-                'pagination' => $this->getPaginationMeta($workOrders)
+                'pagination' => $workOrders instanceof \Illuminate\Pagination\LengthAwarePaginator 
+                    ? $this->getPaginationMeta($workOrders) 
+                    : null
             ]);
         });
     }
@@ -152,24 +166,28 @@ class MaintenanceReportService extends ReportService
                 ->with(['asset', 'location'])
                 ->whereNotNull('actual_hours');
 
-            // For PDF exports, use smaller page size and limit rows
+            // For PDF exports, fetch all data without pagination
             $format = $params['format'] ?? 'json';
-            $pageSize = $format === 'pdf' ? 25 : ($params['page_size'] ?? 50);
-            $maxRows = $format === 'pdf' ? 100 : 1000; // Limit PDF to 100 rows max
             
-            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
-            
-            // Limit rows for PDF exports
-            if ($format === 'pdf' && count($workOrders->items()) > $maxRows) {
-                $workOrders->setCollection($workOrders->getCollection()->take($maxRows));
+            if ($format === 'pdf' || !empty($params['all_data'])) {
+                // Fetch all work orders for PDF export
+                $workOrders = $query->get();
+            } else {
+                $pageSize = $params['page_size'] ?? 50;
+                $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
             }
 
             // Calculate downtime metrics
-            $downtimeData = $this->calculateDowntimeMetrics($workOrders->items());
+            $workOrdersItems = $workOrders instanceof \Illuminate\Pagination\LengthAwarePaginator
+                ? $workOrders->items()
+                : $workOrders->all();
+            $downtimeData = $this->calculateDowntimeMetrics($workOrdersItems);
 
             return $this->formatResponse([
                 'work_orders' => $downtimeData,
-                'pagination' => $this->getPaginationMeta($workOrders)
+                'pagination' => $workOrders instanceof \Illuminate\Pagination\LengthAwarePaginator 
+                    ? $this->getPaginationMeta($workOrders) 
+                    : null
             ]);
         });
     }
@@ -190,24 +208,28 @@ class MaintenanceReportService extends ReportService
                       ->whereIn('slug', ['high', 'critical']);
                 });
 
-            // For PDF exports, use smaller page size and limit rows
+            // For PDF exports, fetch all data without pagination
             $format = $params['format'] ?? 'json';
-            $pageSize = $format === 'pdf' ? 25 : ($params['page_size'] ?? 50);
-            $maxRows = $format === 'pdf' ? 100 : 1000; // Limit PDF to 100 rows max
             
-            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
-            
-            // Limit rows for PDF exports
-            if ($format === 'pdf' && count($workOrders->items()) > $maxRows) {
-                $workOrders->setCollection($workOrders->getCollection()->take($maxRows));
+            if ($format === 'pdf' || !empty($params['all_data'])) {
+                // Fetch all work orders for PDF export
+                $workOrders = $query->get();
+            } else {
+                $pageSize = $params['page_size'] ?? 50;
+                $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
             }
 
             // Analyze failure patterns
-            $failureData = $this->analyzeFailurePatterns($workOrders->items());
+            $workOrdersItems = $workOrders instanceof \Illuminate\Pagination\LengthAwarePaginator
+                ? $workOrders->items()
+                : $workOrders->all();
+            $failureData = $this->analyzeFailurePatterns($workOrdersItems);
 
             return $this->formatResponse([
                 'work_orders' => $failureData,
-                'pagination' => $this->getPaginationMeta($workOrders)
+                'pagination' => $workOrders instanceof \Illuminate\Pagination\LengthAwarePaginator 
+                    ? $this->getPaginationMeta($workOrders) 
+                    : null
             ]);
         });
     }
