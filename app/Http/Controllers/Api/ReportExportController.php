@@ -54,17 +54,15 @@ class ReportExportController extends Controller
             if (config('queue.default') === 'sync') {
                 // Process synchronously for development/testing
                 try {
-                    ExportReportJob::dispatchSync($reportRun->id);
+                    $job = new ExportReportJob($reportRun->id);
+                    $job->handle();
                 } catch (\Exception $e) {
                     Log::error('Failed to process export job synchronously', [
                         'run_id' => $reportRun->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
                     ]);
-                    $reportRun->update([
-                        'status' => 'failed',
-                        'error_message' => $e->getMessage(),
-                        'completed_at' => now()
-                    ]);
+                    // Status will be updated by the job handler on error
                     throw $e;
                 }
             } else {
