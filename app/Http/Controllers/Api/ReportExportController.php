@@ -50,7 +50,27 @@ class ReportExportController extends Controller
             ]);
 
             // Dispatch export job
-            ExportReportJob::dispatch($reportRun->id)->onQueue('reports');
+            // If queue connection is 'sync', process immediately; otherwise use queue
+            if (config('queue.default') === 'sync') {
+                // Process synchronously for development/testing
+                try {
+                    ExportReportJob::dispatchSync($reportRun->id);
+                } catch (\Exception $e) {
+                    Log::error('Failed to process export job synchronously', [
+                        'run_id' => $reportRun->id,
+                        'error' => $e->getMessage()
+                    ]);
+                    $reportRun->update([
+                        'status' => 'failed',
+                        'error_message' => $e->getMessage(),
+                        'completed_at' => now()
+                    ]);
+                    throw $e;
+                }
+            } else {
+                // Use queue for production
+                ExportReportJob::dispatch($reportRun->id)->onQueue('reports');
+            }
 
             // Send notifications to admins and company owners
             $creator = Auth::user();
