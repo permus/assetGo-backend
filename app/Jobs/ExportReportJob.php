@@ -142,6 +142,16 @@ class ExportReportJob implements ShouldQueue
     {
         $reportKey = $reportRun->report_key;
         $params = $reportRun->params ?? [];
+        $format = $reportRun->format ?? 'json';
+
+        // Add format to params so services can optimize for PDF
+        $params['format'] = $format;
+        
+        // For PDF exports, limit page size and add max rows
+        if ($format === 'pdf') {
+            $params['page_size'] = $params['page_size'] ?? 25;
+            $params['max_rows'] = 100;
+        }
 
         // Determine which service to use based on report key
         if (str_starts_with($reportKey, 'assets.')) {
@@ -163,7 +173,46 @@ class ExportReportJob implements ShouldQueue
             throw new Exception('Failed to generate report data');
         }
 
-        return $result['data'];
+        // Limit rows for PDF exports
+        $data = $result['data'];
+        if ($format === 'pdf') {
+            $data = $this->limitRowsForPdf($data, 100);
+        }
+
+        return $data;
+    }
+    
+    /**
+     * Limit rows in report data for PDF exports
+     */
+    private function limitRowsForPdf(array $data, int $maxRows): array
+    {
+        // Limit assets array
+        if (isset($data['assets']) && is_array($data['assets']) && count($data['assets']) > $maxRows) {
+            $data['assets'] = array_slice($data['assets'], 0, $maxRows);
+        }
+        
+        // Limit work_orders array
+        if (isset($data['work_orders']) && is_array($data['work_orders']) && count($data['work_orders']) > $maxRows) {
+            $data['work_orders'] = array_slice($data['work_orders'], 0, $maxRows);
+        }
+        
+        // Limit technicians array
+        if (isset($data['technicians']) && is_array($data['technicians']) && count($data['technicians']) > $maxRows) {
+            $data['technicians'] = array_slice($data['technicians'], 0, $maxRows);
+        }
+        
+        // Limit stocks array
+        if (isset($data['stocks']) && is_array($data['stocks']) && count($data['stocks']) > $maxRows) {
+            $data['stocks'] = array_slice($data['stocks'], 0, $maxRows);
+        }
+        
+        // Limit items array
+        if (isset($data['items']) && is_array($data['items']) && count($data['items']) > $maxRows) {
+            $data['items'] = array_slice($data['items'], 0, $maxRows);
+        }
+        
+        return $data;
     }
 
     /**
@@ -408,7 +457,13 @@ class ExportReportJob implements ShouldQueue
     {
         $html = $this->buildPdfHtml($data);
         $pdfBinary = Pdf::loadHTML($html)
-            ->setPaper('a4')
+            ->setPaper('a4', 'landscape') // Use landscape for wide tables
+            ->setOption('margin-top', 10)
+            ->setOption('margin-bottom', 10)
+            ->setOption('margin-left', 5)
+            ->setOption('margin-right', 5)
+            ->setOption('enable-local-file-access', false)
+            ->setOption('dpi', 96) // Lower DPI for smaller file size
             ->output();
 
         Storage::disk('local')->put($filePath, $pdfBinary);
@@ -703,43 +758,46 @@ class ExportReportJob implements ShouldQueue
         body { 
             font-family: DejaVu Sans, Helvetica, Arial, sans-serif; 
             color: #111; 
-            padding: 20px;
-            font-size: 10px;
+            padding: 5px;
+            font-size: 8px;
+            margin: 0;
         }
         h1 { 
-            font-size: 20px; 
-            margin: 0 0 5px 0; 
+            font-size: 14px; 
+            margin: 0 0 3px 0; 
             color: #4F46E5;
-            border-bottom: 2px solid #4F46E5;
-            padding-bottom: 8px;
+            border-bottom: 1px solid #4F46E5;
+            padding-bottom: 4px;
         }
         h2 { 
-            font-size: 14px; 
-            margin: 16px 0 8px 0; 
+            font-size: 10px; 
+            margin: 8px 0 4px 0; 
             color: #4F46E5;
         }
         .subtitle { 
             color: #666; 
-            font-size: 10px; 
-            margin-bottom: 20px; 
+            font-size: 7px; 
+            margin-bottom: 8px; 
         }
         table { 
             width: 100%; 
             border-collapse: collapse; 
-            margin-top: 8px;
-            margin-bottom: 16px;
-            font-size: 9px;
+            margin-top: 4px;
+            margin-bottom: 8px;
+            font-size: 7px;
         }
         th { 
             background: #4F46E5; 
             color: white;
-            padding: 8px 6px;
+            padding: 4px 3px;
             text-align: left;
             font-weight: bold;
+            font-size: 7px;
         }
         td { 
             border: 1px solid #E5E7EB; 
-            padding: 6px; 
+            padding: 3px; 
+            font-size: 7px;
         }
         tr:nth-child(even) { 
             background: #F9FAFB; 
@@ -748,7 +806,8 @@ class ExportReportJob implements ShouldQueue
             width: 50%;
         }
         .summary-table td {
-            padding: 6px 10px;
+            padding: 3px 5px;
+            font-size: 7px;
         }
         .summary-table td:first-child {
             font-weight: bold;
@@ -756,9 +815,9 @@ class ExportReportJob implements ShouldQueue
         }
         .badge {
             display: inline-block;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 8px;
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-size: 6px;
             font-weight: bold;
         }
         .badge-success { background: #D1FAE5; color: #065F46; }
@@ -767,8 +826,8 @@ class ExportReportJob implements ShouldQueue
         .badge-info { background: #DBEAFE; color: #1E40AF; }
         .total-row td { 
             background: #f3f4f6; 
-            font-size: 11px; 
-            padding: 10px 8px;
+            font-size: 8px; 
+            padding: 4px 3px;
         }
         .over-budget { 
             background: #fee2e2; 
@@ -790,7 +849,7 @@ HTML;
     }
     
     /**
-     * Build asset data table
+     * Build asset data table (optimized for PDF - limited columns)
      */
     private function buildAssetTable(array $assets): string
     {
@@ -808,22 +867,43 @@ HTML;
             }, $assets);
         }
         
-        $headers = array_keys($assets[0]);
+        // Only show essential columns for PDF
+        $essentialColumns = ['id', 'name', 'status', 'location', 'purchase_price', 'purchase_date'];
+        
+        // Get available columns from first asset
+        $availableColumns = array_keys($assets[0]);
+        $columns = array_intersect($essentialColumns, $availableColumns);
+        
+        // If essential columns not found, use first 6 columns
+        if (empty($columns)) {
+            $columns = array_slice($availableColumns, 0, 6);
+        }
+        
         $html = '<table><thead><tr>';
         
-        foreach ($headers as $header) {
+        foreach ($columns as $header) {
             $html .= '<th>' . ucwords(str_replace('_', ' ', $header)) . '</th>';
         }
         $html .= '</tr></thead><tbody>';
         
         foreach ($assets as $asset) {
             $html .= '<tr>';
-            foreach ($asset as $value) {
+            foreach ($columns as $column) {
+                $value = $asset[$column] ?? '';
+                
+                // Handle nested arrays/objects (like location, status)
                 if (is_array($value) || is_object($value)) {
-                    $html .= '<td>' . htmlspecialchars(json_encode($value)) . '</td>';
-                } else {
-                    $html .= '<td>' . htmlspecialchars($value ?? '') . '</td>';
+                    if (isset($value['name'])) {
+                        $value = $value['name'];
+                    } else {
+                        $value = json_encode($value);
+                    }
                 }
+                
+                // Truncate long text to 50 characters
+                $value = is_string($value) ? $this->truncateText($value, 50) : $value;
+                
+                $html .= '<td>' . htmlspecialchars($value ?? '') . '</td>';
             }
             $html .= '</tr>';
         }
@@ -833,7 +913,18 @@ HTML;
     }
     
     /**
-     * Build work order data table
+     * Truncate text to specified length
+     */
+    private function truncateText(string $text, int $maxLength = 50): string
+    {
+        if (strlen($text) <= $maxLength) {
+            return $text;
+        }
+        return substr($text, 0, $maxLength) . '...';
+    }
+    
+    /**
+     * Build work order data table (optimized for PDF - limited columns)
      */
     private function buildWorkOrderTable(array $workOrders): string
     {
@@ -851,22 +942,45 @@ HTML;
             }, $workOrders);
         }
         
-        $headers = array_keys($workOrders[0]);
+        // Only show essential columns for PDF
+        $essentialColumns = ['id', 'title', 'asset', 'status', 'due_date', 'priority'];
+        
+        // Get available columns from first work order
+        $availableColumns = array_keys($workOrders[0]);
+        $columns = array_intersect($essentialColumns, $availableColumns);
+        
+        // If essential columns not found, use first 6 columns
+        if (empty($columns)) {
+            $columns = array_slice($availableColumns, 0, 6);
+        }
+        
         $html = '<table><thead><tr>';
         
-        foreach ($headers as $header) {
+        foreach ($columns as $header) {
             $html .= '<th>' . ucwords(str_replace('_', ' ', $header)) . '</th>';
         }
         $html .= '</tr></thead><tbody>';
         
         foreach ($workOrders as $wo) {
             $html .= '<tr>';
-            foreach ($wo as $value) {
+            foreach ($columns as $column) {
+                $value = $wo[$column] ?? '';
+                
+                // Handle nested arrays/objects (like asset, status)
                 if (is_array($value) || is_object($value)) {
-                    $html .= '<td>' . htmlspecialchars(json_encode($value)) . '</td>';
-                } else {
-                    $html .= '<td>' . htmlspecialchars($value ?? '') . '</td>';
+                    if (isset($value['name'])) {
+                        $value = $value['name'];
+                    } elseif (isset($value['title'])) {
+                        $value = $value['title'];
+                    } else {
+                        $value = json_encode($value);
+                    }
                 }
+                
+                // Truncate long text to 50 characters
+                $value = is_string($value) ? $this->truncateText($value, 50) : $value;
+                
+                $html .= '<td>' . htmlspecialchars($value ?? '') . '</td>';
             }
             $html .= '</tr>';
         }
@@ -896,7 +1010,7 @@ HTML;
         
         foreach ($technicians as $tech) {
             $html .= '<tr>';
-            $html .= '<td>' . htmlspecialchars($tech['name'] ?? '') . '</td>';
+            $html .= '<td>' . htmlspecialchars($this->truncateText($tech['name'] ?? '', 50)) . '</td>';
             $html .= '<td>' . ($tech['total_work_orders'] ?? 0) . '</td>';
             $html .= '<td>' . ($tech['completed_work_orders'] ?? 0) . '</td>';
             $html .= '<td>' . number_format($tech['completion_rate'] ?? 0, 1) . '%</td>';
@@ -933,9 +1047,9 @@ HTML;
         
         foreach ($stocks as $stock) {
             $html .= '<tr>';
-            $html .= '<td>' . htmlspecialchars($stock['part_number'] ?? '') . '</td>';
-            $html .= '<td>' . htmlspecialchars($stock['part_name'] ?? '') . '</td>';
-            $html .= '<td>' . htmlspecialchars($stock['location'] ?? '') . '</td>';
+            $html .= '<td>' . htmlspecialchars($this->truncateText($stock['part_number'] ?? '', 50)) . '</td>';
+            $html .= '<td>' . htmlspecialchars($this->truncateText($stock['part_name'] ?? '', 50)) . '</td>';
+            $html .= '<td>' . htmlspecialchars($this->truncateText($stock['location'] ?? '', 50)) . '</td>';
             $html .= '<td>' . number_format($stock['on_hand'] ?? 0) . '</td>';
             $html .= '<td>' . number_format($stock['reserved'] ?? 0) . '</td>';
             $html .= '<td>' . number_format($stock['available'] ?? 0) . '</td>';
@@ -998,15 +1112,15 @@ HTML;
             
             if (isset($item['class'])) {
                 // ABC Analysis rows
-                $html .= '<td>' . ($item['part_id'] ?? '') . '</td>';
-                $html .= '<td>' . htmlspecialchars($item['name'] ?? '') . '</td>';
+                $html .= '<td>' . htmlspecialchars($this->truncateText($item['part_id'] ?? '', 50)) . '</td>';
+                $html .= '<td>' . htmlspecialchars($this->truncateText($item['name'] ?? '', 50)) . '</td>';
                 $html .= '<td>$' . number_format($item['value'] ?? 0, 2) . '</td>';
                 $html .= '<td>' . number_format(($item['cumulative'] ?? 0) * 100, 2) . '%</td>';
                 $html .= '<td><strong>' . ($item['class'] ?? '') . '</strong></td>';
             } elseif (isset($item['transaction_count'])) {
                 // Slow Moving rows
-                $html .= '<td>' . htmlspecialchars($item['part_number'] ?? '') . '</td>';
-                $html .= '<td>' . htmlspecialchars($item['name'] ?? '') . '</td>';
+                $html .= '<td>' . htmlspecialchars($this->truncateText($item['part_number'] ?? '', 50)) . '</td>';
+                $html .= '<td>' . htmlspecialchars($this->truncateText($item['name'] ?? '', 50)) . '</td>';
                 $html .= '<td>' . number_format($item['total_on_hand'] ?? 0) . '</td>';
                 $html .= '<td>$' . number_format($item['total_value'] ?? 0, 2) . '</td>';
                 $html .= '<td>' . ($item['last_transaction_date'] ?? 'Never') . '</td>';
@@ -1014,9 +1128,9 @@ HTML;
                 $html .= '<td>' . ($item['days_since_last_transaction'] ?? 'N/A') . '</td>';
             } elseif (isset($item['reorder_point'])) {
                 // Reorder Analysis rows
-                $html .= '<td>' . htmlspecialchars($item['part_number'] ?? '') . '</td>';
-                $html .= '<td>' . htmlspecialchars($item['name'] ?? '') . '</td>';
-                $html .= '<td>' . htmlspecialchars($item['location'] ?? '') . '</td>';
+                $html .= '<td>' . htmlspecialchars($this->truncateText($item['part_number'] ?? '', 50)) . '</td>';
+                $html .= '<td>' . htmlspecialchars($this->truncateText($item['name'] ?? '', 50)) . '</td>';
+                $html .= '<td>' . htmlspecialchars($this->truncateText($item['location'] ?? '', 50)) . '</td>';
                 $html .= '<td>' . number_format($item['available'] ?? 0) . '</td>';
                 $html .= '<td>' . number_format($item['reorder_point'] ?? 0) . '</td>';
                 $html .= '<td>' . number_format($item['reorder_qty'] ?? 0) . '</td>';
@@ -1050,7 +1164,7 @@ HTML;
         
         foreach ($categories as $cat) {
             $html .= '<tr>';
-            $html .= '<td>' . htmlspecialchars($cat['category'] ?? 'Unknown') . '</td>';
+            $html .= '<td>' . htmlspecialchars($this->truncateText($cat['category'] ?? 'Unknown', 50)) . '</td>';
             $html .= '<td>$' . number_format($cat['total'] ?? 0, 2) . '</td>';
             $html .= '</tr>';
         }

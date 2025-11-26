@@ -505,16 +505,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Export routes
         Route::post('export', [ReportExportController::class, 'export'])
-            ->middleware('throttle:160,1'); // 60 requests per minute (increased from 10)
+            ->middleware('throttle:500,1'); // 500 requests per minute (increased from 160)
         Route::get('runs/{id}', [ReportExportController::class, 'show'])
-            ->middleware('throttle:160,1'); // 60 requests per minute
+            ->middleware('throttle:500,1'); // 500 requests per minute (increased from 160)
         Route::get('runs/{id}/download', [ReportExportController::class, 'download'])
             ->name('reports.download')
             ->withoutMiddleware(['auth:sanctum']);
         Route::get('history', [ReportExportController::class, 'history'])
-            ->middleware('throttle:160,1'); // 60 requests per minute
+            ->middleware('throttle:500,1'); // 500 requests per minute (increased from 160)
         Route::delete('runs/{id}/cancel', [ReportExportController::class, 'cancel'])
-            ->middleware('throttle:130,1'); // 30 requests per minute
+            ->middleware('throttle:500,1'); // 500 requests per minute (increased from 130)
     });
 });
 

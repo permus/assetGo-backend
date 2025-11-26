@@ -36,7 +36,17 @@ class AssetReportService extends ReportService
                     $query->where('category_id', $filters['category_id']);
                 }
 
-                $assets = $this->applyPagination($query, $params['page'] ?? 1, $params['page_size'] ?? 50);
+                // For PDF exports, use smaller page size and limit rows
+                $format = $params['format'] ?? 'json';
+                $pageSize = $format === 'pdf' ? 25 : ($params['page_size'] ?? 50);
+                $maxRows = $format === 'pdf' ? 100 : 1000; // Limit PDF to 100 rows max
+                
+                $assets = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
+                
+                // Limit rows for PDF exports
+                if ($format === 'pdf' && count($assets->items()) > $maxRows) {
+                    $assets->setCollection($assets->getCollection()->take($maxRows));
+                }
 
                 // Calculate totals (clone query to avoid pagination affecting totals)
                 $totalsQuery = clone $query;

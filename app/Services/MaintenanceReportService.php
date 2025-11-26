@@ -37,7 +37,17 @@ class MaintenanceReportService extends ReportService
                 $query->where('assigned_to', $filters['assigned_to']);
             }
 
-            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $params['page_size'] ?? 50);
+            // For PDF exports, use smaller page size and limit rows
+            $format = $params['format'] ?? 'json';
+            $pageSize = $format === 'pdf' ? 25 : ($params['page_size'] ?? 50);
+            $maxRows = $format === 'pdf' ? 100 : 1000; // Limit PDF to 100 rows max
+            
+            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
+            
+            // Limit rows for PDF exports
+            if ($format === 'pdf' && count($workOrders->items()) > $maxRows) {
+                $workOrders->setCollection($workOrders->getCollection()->take($maxRows));
+            }
 
             // Calculate KPIs
             $kpis = $this->calculateMaintenanceKPIs($filters);
@@ -71,7 +81,17 @@ class MaintenanceReportService extends ReportService
             $query = $this->buildQuery(WorkOrder::class, $filters)
                 ->with(['asset', 'location', 'category']);
 
-            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $params['page_size'] ?? 50);
+            // For PDF exports, use smaller page size and limit rows
+            $format = $params['format'] ?? 'json';
+            $pageSize = $format === 'pdf' ? 25 : ($params['page_size'] ?? 50);
+            $maxRows = $format === 'pdf' ? 100 : 1000; // Limit PDF to 100 rows max
+            
+            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
+            
+            // Limit rows for PDF exports
+            if ($format === 'pdf' && count($workOrders->items()) > $maxRows) {
+                $workOrders->setCollection($workOrders->getCollection()->take($maxRows));
+            }
 
             // Calculate compliance metrics
             $complianceData = $this->calculateComplianceMetrics($workOrders->items());
@@ -94,7 +114,17 @@ class MaintenanceReportService extends ReportService
             $query = $this->buildQuery(WorkOrder::class, $filters)
                 ->with(['asset', 'location', 'category']);
 
-            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $params['page_size'] ?? 50);
+            // For PDF exports, use smaller page size and limit rows
+            $format = $params['format'] ?? 'json';
+            $pageSize = $format === 'pdf' ? 25 : ($params['page_size'] ?? 50);
+            $maxRows = $format === 'pdf' ? 100 : 1000; // Limit PDF to 100 rows max
+            
+            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
+            
+            // Limit rows for PDF exports
+            if ($format === 'pdf' && count($workOrders->items()) > $maxRows) {
+                $workOrders->setCollection($workOrders->getCollection()->take($maxRows));
+            }
 
             // Calculate cost metrics
             $costData = $this->calculateCostMetrics($workOrders->items());
@@ -122,7 +152,17 @@ class MaintenanceReportService extends ReportService
                 ->with(['asset', 'location'])
                 ->whereNotNull('actual_hours');
 
-            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $params['page_size'] ?? 50);
+            // For PDF exports, use smaller page size and limit rows
+            $format = $params['format'] ?? 'json';
+            $pageSize = $format === 'pdf' ? 25 : ($params['page_size'] ?? 50);
+            $maxRows = $format === 'pdf' ? 100 : 1000; // Limit PDF to 100 rows max
+            
+            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
+            
+            // Limit rows for PDF exports
+            if ($format === 'pdf' && count($workOrders->items()) > $maxRows) {
+                $workOrders->setCollection($workOrders->getCollection()->take($maxRows));
+            }
 
             // Calculate downtime metrics
             $downtimeData = $this->calculateDowntimeMetrics($workOrders->items());
@@ -150,7 +190,17 @@ class MaintenanceReportService extends ReportService
                       ->whereIn('slug', ['high', 'critical']);
                 });
 
-            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $params['page_size'] ?? 50);
+            // For PDF exports, use smaller page size and limit rows
+            $format = $params['format'] ?? 'json';
+            $pageSize = $format === 'pdf' ? 25 : ($params['page_size'] ?? 50);
+            $maxRows = $format === 'pdf' ? 100 : 1000; // Limit PDF to 100 rows max
+            
+            $workOrders = $this->applyPagination($query, $params['page'] ?? 1, $pageSize);
+            
+            // Limit rows for PDF exports
+            if ($format === 'pdf' && count($workOrders->items()) > $maxRows) {
+                $workOrders->setCollection($workOrders->getCollection()->take($maxRows));
+            }
 
             // Analyze failure patterns
             $failureData = $this->analyzeFailurePatterns($workOrders->items());
