@@ -45,19 +45,23 @@ class NaturalLanguageController extends Controller
     {
         $companyId = Auth::user()->company_id;
         
+        // Only validate messages - assetContext and companyContext are fetched automatically by backend
         $request->validate([
             'messages' => 'required|array|max:20',
             'messages.*.role' => 'required|in:system,user,assistant',
             'messages.*.content' => 'required|string|max:5000',
-            'assetContext' => 'required|array',
-            'companyContext' => 'sometimes|array'
         ]);
 
         try {
+            // Backend automatically fetches assetContext and companyContext
+            // Get from request if provided (for backward compatibility), otherwise null (will be auto-fetched)
+            $assetContext = $request->has('assetContext') ? $request->input('assetContext') : null;
+            $companyContext = $request->has('companyContext') ? $request->input('companyContext') : null;
+            
             $response = $this->nlService->processChatQuery(
                 $request->input('messages'),
-                $request->input('assetContext'),
-                $request->input('companyContext', []),
+                $assetContext, // Will be auto-fetched by backend if null/empty
+                $companyContext, // Will be auto-fetched by backend if null/empty
                 $companyId
             );
 
