@@ -19,6 +19,7 @@ class ReportRun extends Model
         'filters',
         'format',
         'status',
+        'progress',
         'row_count',
         'file_path',
         'error_message',

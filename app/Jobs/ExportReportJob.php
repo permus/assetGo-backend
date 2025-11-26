@@ -36,35 +36,82 @@ class ExportReportJob implements ShouldQueue
      */
     public function handle(): void
     {
+        $startTime = microtime(true);
         $reportRun = ReportRun::findOrFail($this->runId);
+        
+        Log::info('ExportReportJob started', [
+            'run_id' => $this->runId,
+            'report_key' => $reportRun->report_key,
+            'format' => $reportRun->format,
+            'company_id' => $reportRun->company_id,
+            'user_id' => $reportRun->user_id
+        ]);
         
         try {
             // Update status to running
             $reportRun->update([
                 'status' => 'running',
+                'progress' => 10,
                 'started_at' => now()
             ]);
 
+            Log::info('ExportReportJob status updated to running', [
+                'run_id' => $this->runId,
+                'progress' => 10
+            ]);
+
             // Generate report data
+            Log::info('ExportReportJob generating report data', [
+                'run_id' => $this->runId,
+                'report_key' => $reportRun->report_key
+            ]);
+            
+            $reportRun->update(['progress' => 30]);
             $reportData = $this->generateReportData($reportRun);
             
+            Log::info('ExportReportJob report data generated', [
+                'run_id' => $this->runId,
+                'data_size' => count($reportData),
+                'row_count' => $this->getRowCount($reportData),
+                'progress' => 30
+            ]);
+            
             // Export to file
+            Log::info('ExportReportJob exporting to file', [
+                'run_id' => $this->runId,
+                'format' => $reportRun->format
+            ]);
+            
+            $reportRun->update(['progress' => 60]);
             $filePath = $this->exportToFile($reportRun, $reportData);
+            $reportRun->update(['progress' => 90]);
+            Log::info('ExportReportJob file exported', [
+                'run_id' => $this->runId,
+                'file_path' => $filePath,
+                'file_exists' => \Storage::disk('local')->exists($filePath)
+            ]);
+            
+            // Calculate execution time
+            $executionTime = (int)((microtime(true) - $startTime) * 1000);
             
             // Update status to success
             $reportRun->update([
                 'status' => 'success',
+                'progress' => 100,
                 'file_path' => $filePath,
                 'row_count' => $this->getRowCount($reportData),
                 'completed_at' => now(),
-                'execution_time_ms' => $this->calculateExecutionTime($reportRun)
+                'execution_time_ms' => $executionTime
             ]);
 
             Log::info('Report export completed successfully', [
                 'run_id' => $this->runId,
                 'report_key' => $reportRun->report_key,
                 'format' => $reportRun->format,
-                'file_path' => $filePath
+                'file_path' => $filePath,
+                'row_count' => $reportRun->row_count,
+                'execution_time_ms' => $executionTime,
+                'download_url' => $reportRun->download_url
             ]);
 
         } catch (Throwable $e) {

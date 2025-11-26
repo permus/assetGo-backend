@@ -50,12 +50,28 @@ class ReportExportController extends Controller
             ]);
 
             // Dispatch export job
+            Log::info('Dispatching export job', [
+                'run_id' => $reportRun->id,
+                'report_key' => $reportKey,
+                'format' => $format,
+                'queue_connection' => config('queue.default'),
+                'company_id' => $companyId,
+                'user_id' => Auth::id()
+            ]);
+
             // If queue connection is 'sync', process immediately; otherwise use queue
             if (config('queue.default') === 'sync') {
                 // Process synchronously for development/testing
+                Log::info('Processing export job synchronously (sync driver)', [
+                    'run_id' => $reportRun->id
+                ]);
                 try {
                     $job = new ExportReportJob($reportRun->id);
                     $job->handle();
+                    Log::info('Export job completed synchronously', [
+                        'run_id' => $reportRun->id,
+                        'status' => $reportRun->fresh()->status
+                    ]);
                 } catch (\Exception $e) {
                     Log::error('Failed to process export job synchronously', [
                         'run_id' => $reportRun->id,
@@ -67,6 +83,10 @@ class ReportExportController extends Controller
                 }
             } else {
                 // Use queue for production
+                Log::info('Dispatching export job to queue', [
+                    'run_id' => $reportRun->id,
+                    'queue' => 'reports'
+                ]);
                 ExportReportJob::dispatch($reportRun->id)->onQueue('reports');
             }
 
@@ -101,12 +121,17 @@ class ReportExportController extends Controller
                 ]);
             }
 
+            // Refresh the model to get updated status (in case sync processing completed)
+            $reportRun->refresh();
+            
             return response()->json([
                 'success' => true,
                 'data' => [
                     'run_id' => $reportRun->id,
-                    'status' => 'queued',
-                    'message' => 'Export job queued successfully'
+                    'status' => $reportRun->status, // Return actual status (may be 'success' if sync)
+                    'message' => $reportRun->status === 'success' 
+                        ? 'Export completed successfully' 
+                        : 'Export job queued successfully'
                 ]
             ]);
             
@@ -140,6 +165,7 @@ class ReportExportController extends Controller
                 'format' => $reportRun->format,
                 'status' => $reportRun->status,
                 'status_label' => $reportRun->status_label,
+                'progress' => $reportRun->progress ?? 0,
                 'row_count' => $reportRun->row_count,
                 'execution_time_ms' => $reportRun->execution_time_ms,
                 'execution_time_formatted' => $reportRun->execution_time_formatted,

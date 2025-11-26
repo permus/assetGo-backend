@@ -20,36 +20,42 @@ class AssetReportService extends ReportService
             $filters = $this->extractFilters($params);
             $this->validateDateRange($filters['date_from'] ?? null, $filters['date_to'] ?? null);
 
-            $query = $this->buildQuery(Asset::class, $filters)
-                ->with(['location', 'category', 'assetStatus']);
+            // Use caching for read-only report data (5 minutes TTL)
+            $cacheKey = $this->buildCacheKey('assets.summary', $params);
+            
+            return $this->getCachedData($cacheKey, function() use ($filters, $params) {
+                $query = $this->buildQuery(Asset::class, $filters)
+                    ->with(['location:id,name', 'category:id,name', 'assetStatus:id,name']); // Eager load with specific columns
 
-            // Apply additional asset-specific filters
-            if (!empty($filters['status'])) {
-                $query->where('status', $filters['status']);
-            }
+                // Apply additional asset-specific filters
+                if (!empty($filters['status'])) {
+                    $query->where('status', $filters['status']);
+                }
 
-            if (!empty($filters['category_id'])) {
-                $query->where('category_id', $filters['category_id']);
-            }
+                if (!empty($filters['category_id'])) {
+                    $query->where('category_id', $filters['category_id']);
+                }
 
-            $assets = $this->applyPagination($query, $params['page'] ?? 1, $params['page_size'] ?? 50);
+                $assets = $this->applyPagination($query, $params['page'] ?? 1, $params['page_size'] ?? 50);
 
-            // Calculate totals
-            $totals = $this->calculateAssetTotals($query);
+                // Calculate totals (clone query to avoid pagination affecting totals)
+                $totalsQuery = clone $query;
+                $totals = $this->calculateAssetTotals($totalsQuery);
 
-            // Get status distribution
-            $statusDistribution = $this->getStatusDistribution($filters);
+                // Get status distribution
+                $statusDistribution = $this->getStatusDistribution($filters);
 
-            // Get category distribution
-            $categoryDistribution = $this->getCategoryDistribution($filters);
+                // Get category distribution
+                $categoryDistribution = $this->getCategoryDistribution($filters);
 
-            return $this->formatResponse([
-                'assets' => collect($assets->items())->map(fn($asset) => $asset->toArray())->all(),
-                'totals' => $totals,
-                'status_distribution' => $statusDistribution,
-                'category_distribution' => $categoryDistribution,
-                'pagination' => $this->getPaginationMeta($assets)
-            ]);
+                return $this->formatResponse([
+                    'assets' => collect($assets->items())->map(fn($asset) => $asset->toArray())->all(),
+                    'totals' => $totals,
+                    'status_distribution' => $statusDistribution,
+                    'category_distribution' => $categoryDistribution,
+                    'pagination' => $this->getPaginationMeta($assets)
+                ]);
+            }, 300); // 5 minutes cache
         });
     }
 
