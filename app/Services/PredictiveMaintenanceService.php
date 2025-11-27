@@ -179,6 +179,11 @@ class PredictiveMaintenanceService
     {
         $prompt = $this->buildPredictionPrompt($assetData);
         
+        Log::info('Calling OpenAI for predictions', [
+            'asset_count' => count($assetData),
+            'prompt_length' => strlen($prompt)
+        ]);
+        
         try {
             $response = $this->openAI->chat([
                 [
@@ -189,8 +194,21 @@ class PredictiveMaintenanceService
                 'response_format' => ['type' => 'json_object'] // Helps ensure JSON response
             ]);
             
+            Log::debug('OpenAI response received', [
+                'response_type' => gettype($response),
+                'is_array' => is_array($response),
+                'response_keys' => is_array($response) ? array_keys($response) : null
+            ]);
+            
             // Extract content from response array
-            $content = is_array($response) ? $response['content'] : $response;
+            $content = is_array($response) ? ($response['content'] ?? $response) : $response;
+            
+            if (empty($content)) {
+                Log::error('Empty response from OpenAI', [
+                    'response' => $response
+                ]);
+                throw new \Exception('OpenAI returned an empty response');
+            }
             
             // Extract JSON from response (handle markdown code blocks)
             $predictions = $this->extractJsonFromResponse($content);
@@ -198,25 +216,97 @@ class PredictiveMaintenanceService
             // Validate predictions structure
             $this->validateAIResponse($predictions);
             
+            Log::info('Successfully extracted and validated predictions', [
+                'prediction_count' => count($predictions)
+            ]);
+            
             return $predictions;
         } catch (\Exception $e) {
-            Log::error('OpenAI prediction generation failed', [
-                'error' => $e->getMessage(),
-                'asset_count' => count($assetData)
-            ]);
-            throw new \Exception('Failed to generate predictions: ' . $e->getMessage());
+            $errorMessage = $e->getMessage();
+            $errorContext = [
+                'error' => $errorMessage,
+                'error_type' => get_class($e),
+                'asset_count' => count($assetData),
+                'trace' => $e->getTraceAsString()
+            ];
+            
+            // Add more context if it's a validation error
+            if (strpos($errorMessage, 'Prediction at index') !== false || 
+                strpos($errorMessage, 'not an array') !== false ||
+                strpos($errorMessage, 'not a valid array') !== false) {
+                $errorContext['likely_cause'] = 'AI returned JSON object instead of array, or response structure mismatch';
+                $errorContext['suggestion'] = 'Check OpenAI response format. Consider updating prompt or response_format parameter.';
+            }
+            
+            Log::error('OpenAI prediction generation failed', $errorContext);
+            
+            // Re-throw with a more user-friendly message if it's a known issue
+            if (strpos($errorMessage, 'AI returned an error') !== false) {
+                throw new \Exception($errorMessage);
+            }
+            
+            throw new \Exception('Failed to generate predictions: ' . $errorMessage);
         }
     }
 
     /**
-     * Extract JSON from AI response, handling markdown code blocks.
+     * Extract JSON from AI response, handling markdown code blocks and JSON objects.
      */
     private function extractJsonFromResponse(string $response): array
     {
+        Log::debug('Extracting JSON from AI response', [
+            'response_length' => strlen($response),
+            'response_preview' => substr($response, 0, 500)
+        ]);
+
         // Try to decode as-is first
         $decoded = json_decode($response, true);
-        if (is_array($decoded)) {
-            return $decoded;
+        
+        // Handle JSON decode errors
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            Log::warning('JSON decode error', [
+                'error' => json_last_error_msg(),
+                'response_preview' => substr($response, 0, 500)
+            ]);
+        }
+
+        if ($decoded !== null) {
+            // Check if it's a JSON object with a "predictions" key
+            if (is_array($decoded) && isset($decoded['predictions']) && is_array($decoded['predictions'])) {
+                Log::debug('Found predictions array in JSON object');
+                return $decoded['predictions'];
+            }
+            
+            // Check if it's a JSON object with an "error" key
+            if (is_array($decoded) && isset($decoded['error'])) {
+                $errorMessage = is_string($decoded['error']) ? $decoded['error'] : json_encode($decoded['error']);
+                Log::error('AI returned error in response', [
+                    'error' => $errorMessage,
+                    'full_response' => $decoded
+                ]);
+                throw new \Exception('AI returned an error: ' . $errorMessage);
+            }
+            
+            // Check if it's already a numeric array (list of predictions)
+            if (is_array($decoded) && $this->isNumericArray($decoded)) {
+                Log::debug('Found numeric array (direct predictions list)');
+                return $decoded;
+            }
+            
+            // If it's an associative array but not what we expect, log it
+            if (is_array($decoded) && !empty($decoded)) {
+                Log::warning('Unexpected JSON structure from AI', [
+                    'keys' => array_keys($decoded),
+                    'structure' => $decoded
+                ]);
+                // Try to find a predictions key with different casing
+                foreach (['predictions', 'Predictions', 'PREDICTIONS', 'data', 'Data', 'results', 'Results'] as $key) {
+                    if (isset($decoded[$key]) && is_array($decoded[$key])) {
+                        Log::debug("Found predictions array under key: {$key}");
+                        return $decoded[$key];
+                    }
+                }
+            }
         }
 
         // Try to extract JSON from markdown code blocks
@@ -224,20 +314,45 @@ class PredictiveMaintenanceService
         if (preg_match('/```(?:json)?\s*([\s\S]*?)```/', $response, $matches)) {
             $jsonContent = trim($matches[1]);
             $decoded = json_decode($jsonContent, true);
-            if (is_array($decoded)) {
-                return $decoded;
+            if ($decoded !== null && is_array($decoded)) {
+                // Handle same cases as above
+                if (isset($decoded['predictions']) && is_array($decoded['predictions'])) {
+                    return $decoded['predictions'];
+                }
+                if (isset($decoded['error'])) {
+                    $errorMessage = is_string($decoded['error']) ? $decoded['error'] : json_encode($decoded['error']);
+                    throw new \Exception('AI returned an error: ' . $errorMessage);
+                }
+                if ($this->isNumericArray($decoded)) {
+                    return $decoded;
+                }
             }
         }
 
         // Try to find JSON array in the response
         if (preg_match('/\[\s*\{[\s\S]*\}\s*\]/', $response, $matches)) {
             $decoded = json_decode($matches[0], true);
-            if (is_array($decoded)) {
+            if (is_array($decoded) && $this->isNumericArray($decoded)) {
                 return $decoded;
             }
         }
 
-        throw new \Exception('Invalid response format from AI: Could not extract valid JSON');
+        Log::error('Failed to extract valid JSON from AI response', [
+            'response' => $response,
+            'json_error' => json_last_error_msg()
+        ]);
+        throw new \Exception('Invalid response format from AI: Could not extract valid JSON array. Response: ' . substr($response, 0, 200));
+    }
+
+    /**
+     * Check if array is numeric (list) vs associative (object).
+     */
+    private function isNumericArray(array $array): bool
+    {
+        if (empty($array)) {
+            return true; // Empty array is considered numeric
+        }
+        return array_keys($array) === range(0, count($array) - 1);
     }
 
     /**
@@ -249,37 +364,67 @@ class PredictiveMaintenanceService
             throw new \Exception('AI returned empty predictions array');
         }
 
+        // Ensure predictions is a numeric array (list), not an associative array (object)
+        if (!$this->isNumericArray($predictions)) {
+            Log::error('Predictions is not a numeric array', [
+                'keys' => array_keys($predictions),
+                'sample' => array_slice($predictions, 0, 2, true)
+            ]);
+            throw new \Exception('AI response is not a valid array of predictions. Expected a JSON array, but got an object with keys: ' . implode(', ', array_keys($predictions)));
+        }
+
+        Log::debug('Validating predictions', [
+            'count' => count($predictions)
+        ]);
+
         $requiredFields = ['assetId', 'assetName', 'riskLevel', 'confidence'];
         $validRiskLevels = ['high', 'medium', 'low'];
 
         foreach ($predictions as $index => $prediction) {
+            // Validate that each prediction is an array
             if (!is_array($prediction)) {
-                throw new \Exception("Prediction at index {$index} is not an array");
+                Log::error('Prediction is not an array', [
+                    'index' => $index,
+                    'type' => gettype($prediction),
+                    'value' => is_string($prediction) ? substr($prediction, 0, 100) : $prediction
+                ]);
+                throw new \Exception("Prediction at index {$index} is not an array. Got type: " . gettype($prediction) . (is_string($prediction) ? " with value: " . substr($prediction, 0, 100) : ""));
             }
 
             // Validate required fields
             foreach ($requiredFields as $field) {
                 if (!isset($prediction[$field])) {
-                    throw new \Exception("Missing required field '{$field}' in prediction at index {$index}");
+                    Log::warning('Missing required field in prediction', [
+                        'index' => $index,
+                        'field' => $field,
+                        'available_fields' => array_keys($prediction)
+                    ]);
+                    throw new \Exception("Missing required field '{$field}' in prediction at index {$index}. Available fields: " . implode(', ', array_keys($prediction)));
                 }
             }
 
             // Validate risk level
-            if (!in_array(strtolower($prediction['riskLevel']), $validRiskLevels)) {
-                throw new \Exception("Invalid risk level '{$prediction['riskLevel']}' in prediction at index {$index}. Must be: " . implode(', ', $validRiskLevels));
+            $riskLevel = strtolower($prediction['riskLevel'] ?? '');
+            if (!in_array($riskLevel, $validRiskLevels)) {
+                throw new \Exception("Invalid risk level '{$prediction['riskLevel']}' in prediction at index {$index}. Must be one of: " . implode(', ', $validRiskLevels));
             }
 
             // Validate confidence (0-100)
             $confidence = $prediction['confidence'];
-            if (!is_numeric($confidence) || $confidence < 0 || $confidence > 100) {
+            if (!is_numeric($confidence)) {
+                throw new \Exception("Invalid confidence value '{$confidence}' in prediction at index {$index}. Must be a number between 0 and 100");
+            }
+            $confidence = (float) $confidence;
+            if ($confidence < 0 || $confidence > 100) {
                 throw new \Exception("Invalid confidence value '{$confidence}' in prediction at index {$index}. Must be between 0 and 100");
             }
 
             // Validate predicted failure date format (if provided)
             if (isset($prediction['predictedFailureDate']) && !empty($prediction['predictedFailureDate'])) {
-                $date = \DateTime::createFromFormat('Y-m-d', $prediction['predictedFailureDate']);
-                if (!$date || $date->format('Y-m-d') !== $prediction['predictedFailureDate']) {
-                    throw new \Exception("Invalid date format '{$prediction['predictedFailureDate']}' in prediction at index {$index}. Expected YYYY-MM-DD");
+                $dateStr = $prediction['predictedFailureDate'];
+                $date = \DateTime::createFromFormat('Y-m-d', $dateStr);
+                if (!$date || $date->format('Y-m-d') !== $dateStr) {
+                    throw new \Exception("Invalid date format '{$dateStr}' in prediction at index {$index}. Expected YYYY-MM-DD format");
                 }
             }
 
@@ -287,10 +432,14 @@ class PredictiveMaintenanceService
             $numericFields = ['estimatedCost', 'preventiveCost', 'savings'];
             foreach ($numericFields as $field) {
                 if (isset($prediction[$field]) && !is_numeric($prediction[$field])) {
-                    throw new \Exception("Invalid numeric value for '{$field}' in prediction at index {$index}");
+                    throw new \Exception("Invalid numeric value for '{$field}' in prediction at index {$index}. Got: " . gettype($prediction[$field]) . " with value: " . $prediction[$field]);
                 }
             }
         }
+
+        Log::debug('All predictions validated successfully', [
+            'count' => count($predictions)
+        ]);
     }
 
     /**
