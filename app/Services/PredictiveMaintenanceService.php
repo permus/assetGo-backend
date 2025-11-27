@@ -42,8 +42,32 @@ class PredictiveMaintenanceService
             throw new \Exception('No assets found for analysis');
         }
 
+        // Filter out assets with invalid purchase dates (future dates or null) - ignore them silently
+        $validAssets = $assets->filter(function ($asset) {
+            if (!$asset->purchase_date) {
+                return false;
+            }
+            // Ignore assets with future purchase dates
+            return $asset->purchase_date <= now();
+        });
+
+        // Only throw error if ALL assets are invalid
+        if ($validAssets->isEmpty()) {
+            throw new \Exception('No assets with valid purchase dates found. All assets must have purchase dates in the past for predictive maintenance analysis.');
+        }
+
+        // Log if some assets were filtered out (but continue processing)
+        if ($validAssets->count() < $assets->count()) {
+            $filteredCount = $assets->count() - $validAssets->count();
+            Log::info('Ignored assets with future or invalid purchase dates', [
+                'total_assets' => $assets->count(),
+                'valid_assets' => $validAssets->count(),
+                'ignored_count' => $filteredCount
+            ]);
+        }
+
         // Prepare asset data for AI analysis
-        $assetData = $this->prepareAssetDataForAI($assets);
+        $assetData = $this->prepareAssetDataForAI($validAssets);
 
         // Call OpenAI to generate predictions
         $predictions = $this->callOpenAIForPredictions($assetData);
@@ -152,8 +176,14 @@ class PredictiveMaintenanceService
                 ->limit(5)
                 ->get(['action', 'comment', 'created_at']);
 
-            // Calculate asset age
-            $age = $asset->purchase_date ? now()->diffInYears($asset->purchase_date) : 0;
+            // Skip assets with invalid purchase dates (should already be filtered, but double-check)
+            if (!$asset->purchase_date || $asset->purchase_date > now()) {
+                // Silently ignore - already filtered out in generatePredictions
+                return null;
+            }
+
+            // Calculate asset age (in years)
+            $age = now()->diffInYears($asset->purchase_date);
 
             return [
                 'id' => $asset->id,
@@ -163,13 +193,16 @@ class PredictiveMaintenanceService
                 'model' => $asset->model,
                 'age' => $age,
                 'condition' => $asset->condition ?? 'Unknown',
-                'purchase_date' => $asset->purchase_date?->format('Y-m-d'),
+                'purchase_date' => $asset->purchase_date->format('Y-m-d'),
                 'last_maintenance' => $maintenanceHistory->first()?->created_at?->format('Y-m-d'),
                 'maintenance_count' => $maintenanceHistory->count(),
                 'purchase_price' => $asset->purchase_price ?? 0,
                 'current_value' => $asset->current_value ?? $asset->purchase_price ?? 0,
             ];
-        })->toArray();
+        })->filter(function ($item) {
+            // Remove any null items (from invalid assets)
+            return $item !== null;
+        })->values()->toArray();
     }
 
     /**

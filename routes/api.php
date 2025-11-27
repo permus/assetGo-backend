@@ -119,8 +119,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
             ->middleware('throttle:60,1'); // 60 requests per minute
         Route::post('generate', [PredictiveMaintenanceController::class, 'generate'])
             ->middleware('throttle:5,1'); // 5 requests per minute (AI intensive, allows testing)
-        Route::get('job-status/{jobId}', [PredictiveMaintenanceController::class, 'jobStatus'])
-            ->middleware('throttle:60,1'); // 60 requests per minute
         Route::get('export', [PredictiveMaintenanceController::class, 'export'])
             ->middleware('throttle:10,1'); // 10 requests per minute
         Route::get('summary', [PredictiveMaintenanceController::class, 'summary'])
