@@ -116,15 +116,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // AI Predictive Maintenance routes
     Route::prefix('ai/predictive-maintenance')->group(function () {
         Route::get('/', [PredictiveMaintenanceController::class, 'index'])
-            ->middleware('throttle:60,1'); // 60 requests per minute
+            ->middleware('throttle:610,1'); // 60 requests per minute
         Route::post('generate', [PredictiveMaintenanceController::class, 'generate'])
-            ->middleware('throttle:5,1'); // 5 requests per minute (AI intensive, allows testing)
+            ->middleware('throttle:15,1'); // 5 requests per minute (AI intensive, allows testing)
         Route::get('export', [PredictiveMaintenanceController::class, 'export'])
-            ->middleware('throttle:10,1'); // 10 requests per minute
+            ->middleware('throttle:110,1'); // 10 requests per minute
         Route::get('summary', [PredictiveMaintenanceController::class, 'summary'])
-            ->middleware('throttle:60,1'); // 60 requests per minute
+            ->middleware('throttle:160,1'); // 60 requests per minute
         Route::delete('clear', [PredictiveMaintenanceController::class, 'clear'])
-            ->middleware('throttle:5,1'); // 5 requests per minute
+            ->middleware('throttle:105,1'); // 5 requests per minute
     });
 
     // AI Natural Language routes
@@ -379,10 +379,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('plans', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'index'])
             ->middleware('throttle:60,1');
         Route::post('plans', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'store']);
-        
+
         // IMPORTANT: asset-parts route must come BEFORE plans/{maintenancePlan} routes to avoid route conflict
         Route::get('plans/asset-parts', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'getAssetParts']);
-        
+
         Route::get('plans/{maintenancePlan}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'show']);
         Route::put('plans/{maintenancePlan}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'update']);
         Route::delete('plans/{maintenancePlan}', [\App\Http\Controllers\Api\Maintenance\MaintenancePlansController::class, 'destroy']);
@@ -418,11 +418,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // My Assignments - Get current user's assigned maintenance
         Route::get('my-assignments', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'myAssignments']);
-        
+
         // Assignment Management
         Route::get('assignable-users', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'getAssignableUsers']);
         Route::get('schedules/{id}/assignments', [\App\Http\Controllers\Api\Maintenance\ScheduleMaintenanceAssignedController::class, 'getScheduleAssignments']);
-        
+
         // Checklist Responses
         Route::get('checklist-responses', [\App\Http\Controllers\Api\Maintenance\MaintenanceChecklistResponseController::class, 'index']);
         Route::post('checklist-responses', [\App\Http\Controllers\Api\Maintenance\MaintenanceChecklistResponseController::class, 'store']);
@@ -435,7 +435,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('stats/analytics', [\App\Http\Controllers\Api\Maintenance\MaintenanceStatsController::class, 'analytics']);
     });
 
-    
+
 
     // AI Recommendations routes
     Route::prefix('ai/recommendations')->group(function () {
@@ -546,15 +546,15 @@ Route::prefix('admin')->group(function () {
     // Public admin routes
     Route::post('/login', [\App\Http\Controllers\Admin\AdminAuthController::class, 'login'])
         ->middleware('throttle:5,1');
-    
+
     // Protected admin routes (AdminGuard handles authentication)
     Route::middleware([\App\Http\Middleware\AdminGuard::class])->group(function () {
         Route::post('/logout', [\App\Http\Controllers\Admin\AdminAuthController::class, 'logout']);
         Route::get('/profile', [\App\Http\Controllers\Admin\AdminAuthController::class, 'profile']);
-        
+
         // Admin management
         Route::apiResource('admins', \App\Http\Controllers\Admin\AdminController::class);
-        
+
         // Users management
         Route::get('/users', [\App\Http\Controllers\Admin\AdminUsersController::class, 'index']);
         Route::post('/users', [\App\Http\Controllers\Admin\AdminUsersController::class, 'store']);
