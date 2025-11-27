@@ -256,7 +256,8 @@ class PredictiveMaintenanceService
     {
         Log::debug('Extracting JSON from AI response', [
             'response_length' => strlen($response),
-            'response_preview' => substr($response, 0, 500)
+            'response_preview' => substr($response, 0, 500),
+            'has_markdown' => preg_match('/```/', $response) > 0
         ]);
 
         // Try to decode as-is first
@@ -266,14 +267,33 @@ class PredictiveMaintenanceService
         if (json_last_error() !== JSON_ERROR_NONE) {
             Log::warning('JSON decode error', [
                 'error' => json_last_error_msg(),
+                'error_code' => json_last_error(),
                 'response_preview' => substr($response, 0, 500)
+            ]);
+        } else {
+            Log::debug('JSON decoded successfully', [
+                'is_array' => is_array($decoded),
+                'is_null' => is_null($decoded),
+                'type' => gettype($decoded),
+                'is_numeric_array' => is_array($decoded) ? $this->isNumericArray($decoded) : false,
+                'keys' => is_array($decoded) ? array_keys($decoded) : null
             ]);
         }
 
         if ($decoded !== null) {
+            Log::debug('Processing decoded JSON', [
+                'is_array' => is_array($decoded),
+                'is_numeric_array' => is_array($decoded) ? $this->isNumericArray($decoded) : false,
+                'has_predictions_key' => is_array($decoded) && isset($decoded['predictions']),
+                'has_error_key' => is_array($decoded) && isset($decoded['error']),
+                'keys' => is_array($decoded) ? array_keys($decoded) : null
+            ]);
+            
             // Check if it's a JSON object with a "predictions" key
             if (is_array($decoded) && isset($decoded['predictions']) && is_array($decoded['predictions'])) {
-                Log::debug('Found predictions array in JSON object');
+                Log::info('Found predictions array in JSON object', [
+                    'predictions_count' => count($decoded['predictions'])
+                ]);
                 return $decoded['predictions'];
             }
             
@@ -289,28 +309,46 @@ class PredictiveMaintenanceService
             
             // Check if it's already a numeric array (list of predictions)
             if (is_array($decoded) && $this->isNumericArray($decoded)) {
-                Log::debug('Found numeric array (direct predictions list)');
+                Log::info('Found numeric array (direct predictions list)', [
+                    'count' => count($decoded)
+                ]);
                 return $decoded;
             }
             
             // If it's an associative array but not what we expect, check if it's a single prediction object
             if (is_array($decoded) && !empty($decoded) && !$this->isNumericArray($decoded)) {
-                // Check if it looks like a single prediction object (has required prediction fields)
-                // This handles cases where OpenAI returns a single object instead of an array
-                $predictionFields = ['assetId', 'assetName', 'riskLevel', 'confidence', 'recommendedAction'];
                 $keys = array_keys($decoded);
+                
+                // FIRST: Check for assetId or assetName (most reliable indicators) - check this FIRST
+                // This is the most common case and should be caught immediately
+                if (isset($decoded['assetId']) || isset($decoded['assetName'])) {
+                    // Check for wrapper keys that would indicate it's NOT a single prediction
+                    $wrapperKeys = ['predictions', 'error', 'data', 'results', 'status', 'message'];
+                    $hasWrapperKeys = !empty(array_intersect($keys, $wrapperKeys));
+                    
+                    // If no wrapper keys, definitely a single prediction
+                    if (!$hasWrapperKeys) {
+                        Log::info('Found assetId/assetName in object (no wrapper keys), treating as single prediction', [
+                            'keys' => $keys,
+                            'has_assetId' => isset($decoded['assetId']),
+                            'has_assetName' => isset($decoded['assetName'])
+                        ]);
+                        return [$decoded];
+                    }
+                }
+                
+                // SECOND: Check if it looks like a single prediction object (has required prediction fields)
+                // This handles cases where OpenAI returns a single object instead of an array
+                $predictionFields = ['assetId', 'assetName', 'riskLevel', 'confidence', 'recommendedAction', 'predictedFailureDate'];
                 $matchingFields = array_intersect($keys, $predictionFields);
                 
-                // If it has prediction fields, it's likely a single prediction object
                 // Check for common wrapper keys that would indicate it's NOT a single prediction
                 $wrapperKeys = ['predictions', 'error', 'data', 'results', 'status', 'message'];
                 $hasWrapperKeys = !empty(array_intersect($keys, $wrapperKeys));
                 
-                // If it has at least one prediction field (like assetId or assetName) and no wrapper keys,
-                // treat it as a single prediction object
+                // If it has at least one prediction field and no wrapper keys, treat as single prediction
                 if (count($matchingFields) >= 1 && !$hasWrapperKeys) {
-                    // It's a single prediction object, wrap it in an array
-                    Log::info('Found single prediction object, wrapping in array', [
+                    Log::info('Found single prediction object (matching fields), wrapping in array', [
                         'keys' => $keys,
                         'matching_fields' => $matchingFields,
                         'has_wrapper_keys' => $hasWrapperKeys
@@ -318,10 +356,12 @@ class PredictiveMaintenanceService
                     return [$decoded];
                 }
                 
-                // Also check if it has assetId or assetName (most common fields) - be more lenient
-                if (isset($decoded['assetId']) || isset($decoded['assetName'])) {
-                    Log::info('Found assetId or assetName in object, treating as single prediction', [
-                        'keys' => $keys
+                // THIRD: Even if wrapper keys exist, if it has multiple prediction fields, it might still be a single prediction
+                // (Some AI responses might include extra metadata)
+                if (count($matchingFields) >= 3) {
+                    Log::info('Found object with multiple prediction fields, treating as single prediction', [
+                        'keys' => $keys,
+                        'matching_fields' => $matchingFields
                     ]);
                     return [$decoded];
                 }
@@ -361,11 +401,42 @@ class PredictiveMaintenanceService
                     return $decoded;
                 }
                 
-                // Check if it's a single prediction object
-                $predictionFields = ['assetId', 'assetName', 'riskLevel', 'confidence'];
-                $hasPredictionFields = count(array_intersect(array_keys($decoded), $predictionFields)) >= 2;
-                if ($hasPredictionFields && !$this->isNumericArray($decoded)) {
-                    Log::debug('Found single prediction object in markdown, wrapping in array');
+                // Check if it's a single prediction object (apply same logic as main extraction)
+                $keys = array_keys($decoded);
+                
+                // FIRST: Check for assetId or assetName (most reliable)
+                if (isset($decoded['assetId']) || isset($decoded['assetName'])) {
+                    $wrapperKeys = ['predictions', 'error', 'data', 'results', 'status', 'message'];
+                    $hasWrapperKeys = !empty(array_intersect($keys, $wrapperKeys));
+                    
+                    if (!$hasWrapperKeys) {
+                        Log::info('Found assetId/assetName in markdown object, treating as single prediction', [
+                            'keys' => $keys
+                        ]);
+                        return [$decoded];
+                    }
+                }
+                
+                // SECOND: Check for prediction fields
+                $predictionFields = ['assetId', 'assetName', 'riskLevel', 'confidence', 'recommendedAction', 'predictedFailureDate'];
+                $matchingFields = array_intersect($keys, $predictionFields);
+                $wrapperKeys = ['predictions', 'error', 'data', 'results', 'status', 'message'];
+                $hasWrapperKeys = !empty(array_intersect($keys, $wrapperKeys));
+                
+                if (count($matchingFields) >= 1 && !$hasWrapperKeys) {
+                    Log::info('Found single prediction object in markdown (matching fields), wrapping in array', [
+                        'keys' => $keys,
+                        'matching_fields' => $matchingFields
+                    ]);
+                    return [$decoded];
+                }
+                
+                // THIRD: Even with wrapper keys, if multiple prediction fields exist, treat as single prediction
+                if (count($matchingFields) >= 3) {
+                    Log::info('Found object with multiple prediction fields in markdown, treating as single prediction', [
+                        'keys' => $keys,
+                        'matching_fields' => $matchingFields
+                    ]);
                     return [$decoded];
                 }
             }
@@ -379,9 +450,28 @@ class PredictiveMaintenanceService
             }
         }
 
+        // FINAL SAFETY CHECK: Before throwing error, check if we have a decoded result that might be a single prediction
+        // This catches any edge cases where single objects weren't detected earlier
+        if (isset($decoded) && $decoded !== null && is_array($decoded) && !$this->isNumericArray($decoded)) {
+            $keys = array_keys($decoded);
+            $predictionFields = ['assetId', 'assetName', 'riskLevel', 'confidence', 'recommendedAction', 'predictedFailureDate'];
+            $hasPredictionFields = !empty(array_intersect($keys, $predictionFields));
+            
+            // If it has any prediction-like fields, wrap it as a single prediction
+            if ($hasPredictionFields || isset($decoded['assetId']) || isset($decoded['assetName'])) {
+                Log::warning('Final safety check: Found single prediction object, wrapping in array', [
+                    'keys' => $keys,
+                    'has_prediction_fields' => $hasPredictionFields
+                ]);
+                return [$decoded];
+            }
+        }
+
         Log::error('Failed to extract valid JSON from AI response', [
             'response' => $response,
-            'json_error' => json_last_error_msg()
+            'json_error' => json_last_error_msg(),
+            'decoded_type' => isset($decoded) ? gettype($decoded) : 'null',
+            'decoded_keys' => (isset($decoded) && is_array($decoded)) ? array_keys($decoded) : null
         ]);
         throw new \Exception('Invalid response format from AI: Could not extract valid JSON array. Response: ' . substr($response, 0, 200));
     }
