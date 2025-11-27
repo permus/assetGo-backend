@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Exception;
 
 class PredictiveMaintenanceController extends Controller
 {
@@ -39,7 +40,7 @@ class PredictiveMaintenanceController extends Controller
                 ]
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to fetch predictive maintenance data', [
                 'user_id' => $request->user()->id,
                 'company_id' => $request->user()->company_id,
@@ -48,7 +49,7 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => config('app.debug') 
+                'error' => config('app.debug')
                     ? 'Failed to fetch predictions: ' . $e->getMessage()
                     : 'Failed to fetch predictions. Please try again later.'
             ], 500);
@@ -104,7 +105,7 @@ class PredictiveMaintenanceController extends Controller
                 ]
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to queue predictive maintenance job', [
                 'user_id' => $request->user()->id,
                 'company_id' => $request->user()->company_id,
@@ -113,7 +114,7 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => config('app.debug') 
+                'error' => config('app.debug')
                     ? 'Failed to start predictions generation: ' . $e->getMessage()
                     : 'Failed to start predictions generation. Please try again later.'
             ], 500);
@@ -132,8 +133,8 @@ class PredictiveMaintenanceController extends Controller
                 
             if (!$job) {
                 return response()->json([
-                    'success' => false, 
-                    'message' => 'Job not found'
+                    'success' => false,
+                    'error' => 'Job not found'
                 ], 404);
             }
             
@@ -149,7 +150,7 @@ class PredictiveMaintenanceController extends Controller
                     'completed_at' => $job->completed_at?->toISOString()
                 ]
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to fetch job status', [
                 'job_id' => $jobId,
                 'error' => $e->getMessage()
@@ -157,7 +158,7 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => config('app.debug') 
+                'error' => config('app.debug')
                     ? 'Failed to fetch job status: ' . $e->getMessage()
                     : 'Failed to fetch job status. Please try again later.'
             ], 500);
@@ -198,10 +199,10 @@ class PredictiveMaintenanceController extends Controller
             // For Excel export, you would implement similar logic
             return response()->json([
                 'success' => false,
-                'message' => 'Excel export not yet implemented'
+                'error' => 'Excel export not yet implemented'
             ], 501);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to export predictive maintenance data', [
                 'user_id' => $request->user()->id,
                 'company_id' => $request->user()->company_id,
@@ -210,7 +211,7 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => config('app.debug') 
+                'error' => config('app.debug')
                     ? 'Failed to export data: ' . $e->getMessage()
                     : 'Failed to export data. Please try again later.'
             ], 500);
@@ -232,7 +233,7 @@ class PredictiveMaintenanceController extends Controller
                 'data' => new PredictiveMaintenanceSummaryResource($summary)
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to fetch predictive maintenance summary', [
                 'user_id' => $request->user()->id,
                 'company_id' => $request->user()->company_id,
@@ -241,7 +242,7 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => config('app.debug') 
+                'error' => config('app.debug')
                     ? 'Failed to fetch summary: ' . $e->getMessage()
                     : 'Failed to fetch summary. Please try again later.'
             ], 500);
@@ -265,10 +266,12 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'All predictions have been cleared'
+                'data' => [
+                    'message' => 'All predictions have been cleared'
+                ]
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to clear predictive maintenance predictions', [
                 'user_id' => $request->user()->id,
                 'company_id' => $request->user()->company_id,
@@ -277,7 +280,7 @@ class PredictiveMaintenanceController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => config('app.debug') 
+                'error' => config('app.debug')
                     ? 'Failed to clear predictions: ' . $e->getMessage()
                     : 'Failed to clear predictions. Please try again later.'
             ], 500);
