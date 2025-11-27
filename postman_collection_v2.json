@@ -1,9 +1,10 @@
 {
 	"info": {
-		"_postman_id": "assetgo-api-collection",
-		"name": "AssetGo API Collection",
-		"description": "Complete API collection for AssetGo Enterprise Asset Management System",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+		"_postman_id": "assetgo-api-collection-v2",
+		"name": "AssetGo API Collection v2",
+		"description": "Complete API collection for AssetGo Enterprise Asset Management System - Updated with synchronous Predictive Maintenance endpoints (no job queue)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"version": "2.0.0"
 	},
 	"auth": {
 		"type": "bearer",
