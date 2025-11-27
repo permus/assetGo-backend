@@ -16,6 +16,10 @@ use App\Models\User;
 use App\Models\InventoryPart;
 use App\Models\WorkOrderPriority;
 use App\Models\WorkOrderCategory;
+use App\Models\AssetCategory;
+use App\Models\AssetStatus;
+use App\Models\Location;
+use App\Models\Department;
 use Illuminate\Support\Str;
 
 class MaintenanceSeeder extends Seeder
@@ -37,6 +41,13 @@ class MaintenanceSeeder extends Seeder
             
             // Get company-specific data
             $assets = Asset::where('company_id', $company->id)->get();
+            
+            // If no assets found, create some
+            if ($assets->isEmpty()) {
+                $this->command->info("No assets found for company {$company->name}. Creating assets...");
+                $assets = $this->createAssetsForCompany($company);
+            }
+            
             $teamMembers = User::where('company_id', $company->id)
                 ->where('user_type', 'team')
                 ->where('active', true)
@@ -46,11 +57,6 @@ class MaintenanceSeeder extends Seeder
                 ->get();
             $priorities = WorkOrderPriority::forCompany($company->id)->get();
             $categories = WorkOrderCategory::forCompany($company->id)->get();
-
-            if ($assets->isEmpty()) {
-                $this->command->warn("Skipping company {$company->name} - no assets found.");
-                continue;
-            }
 
             // Seed maintenance plans
             $plans = $this->seedMaintenancePlans($company, $assets, $priorities, $categories, $teamMembers);
@@ -85,6 +91,88 @@ class MaintenanceSeeder extends Seeder
         }
 
         $this->command->info('Maintenance module seeded successfully!');
+    }
+
+    /**
+     * Create assets for a company if they don't exist
+     */
+    private function createAssetsForCompany($company)
+    {
+        $locations = Location::where('company_id', $company->id)->get();
+        $departments = Department::where('company_id', $company->id)->get();
+        $assetCategories = AssetCategory::all();
+        $users = User::where('company_id', $company->id)->get();
+        
+        // Get the "Active" asset status ID
+        $activeStatus = AssetStatus::where('name', 'Active')->first();
+        $activeStatusId = $activeStatus ? $activeStatus->id : 1;
+        
+        $assetTemplates = [
+            ['name' => 'Industrial Compressor', 'manufacturer' => 'Atlas Copco', 'model' => 'GA 37'],
+            ['name' => 'HVAC System', 'manufacturer' => 'Carrier', 'model' => 'Infinity 19VS'],
+            ['name' => 'Production Machine', 'manufacturer' => 'CNC Master', 'model' => 'CM-5000'],
+            ['name' => 'Generator Set', 'manufacturer' => 'Cummins', 'model' => 'QSK60'],
+            ['name' => 'Hydraulic Press', 'manufacturer' => 'Bosch Rexroth', 'model' => 'HP-200'],
+            ['name' => 'Conveyor Belt System', 'manufacturer' => 'Flexco', 'model' => 'CB-300'],
+            ['name' => 'Pump System', 'manufacturer' => 'Grundfos', 'model' => 'CR 32'],
+            ['name' => 'Electric Motor', 'manufacturer' => 'Siemens', 'model' => '1LE1001'],
+            ['name' => 'Control Panel', 'manufacturer' => 'ABB', 'model' => 'CP-400'],
+            ['name' => 'Boiler System', 'manufacturer' => 'Cleaver-Brooks', 'model' => 'CB-500'],
+            ['name' => 'Chiller Unit', 'manufacturer' => 'Trane', 'model' => 'RTAC 200'],
+            ['name' => 'Forklift', 'manufacturer' => 'Toyota', 'model' => '8FGCU25'],
+            ['name' => 'Welding Machine', 'manufacturer' => 'Lincoln Electric', 'model' => 'Power Mig 210'],
+            ['name' => 'Drill Press', 'manufacturer' => 'Jet', 'model' => 'JDP-17MF'],
+            ['name' => 'Lathe Machine', 'manufacturer' => 'Haas', 'model' => 'ST-20'],
+        ];
+        
+        $createdAssets = [];
+        
+        // Get the highest asset_id number for this company
+        $maxAssetId = Asset::where('company_id', $company->id)
+            ->whereNotNull('asset_id')
+            ->get()
+            ->map(function($asset) {
+                // Extract number from asset_id (e.g., "AST-000001" -> 1)
+                preg_match('/AST-(\d+)/', $asset->asset_id, $matches);
+                return isset($matches[1]) ? (int)$matches[1] : 0;
+            })
+            ->max() ?? 0;
+        
+        // Create 20-30 assets per company
+        $assetCount = rand(20, 30);
+        
+        for ($i = 0; $i < $assetCount; $i++) {
+            $template = $assetTemplates[array_rand($assetTemplates)];
+            $assetNumber = $maxAssetId + $i + 1;
+            
+            $asset = Asset::create([
+                'asset_id' => 'AST-' . str_pad($assetNumber, 6, '0', STR_PAD_LEFT),
+                'name' => $template['name'] . ' ' . ($i + 1),
+                'description' => fake()->sentence(10),
+                'category_id' => $assetCategories->isNotEmpty() ? $assetCategories->random()->id : null,
+                'serial_number' => strtoupper(fake()->bothify('SN-????-####')),
+                'model' => $template['model'],
+                'manufacturer' => $template['manufacturer'],
+                'brand' => $template['manufacturer'],
+                'purchase_date' => fake()->dateTimeBetween('-2 years', '-1 month'),
+                'purchase_price' => fake()->randomFloat(2, 1000, 50000),
+                'depreciation' => fake()->randomFloat(2, 100, 5000),
+                'depreciation_life' => 36,
+                'location_id' => $locations->isNotEmpty() ? $locations->random()->id : null,
+                'department_id' => $departments->isNotEmpty() ? $departments->random()->id : null,
+                'user_id' => $users->isNotEmpty() ? $users->random()->id : null,
+                'company_id' => $company->id,
+                'warranty' => fake()->randomElement(['1 Year', '2 Years', '3 Years', '5 Years']),
+                'health_score' => fake()->randomFloat(2, 60, 100),
+                'status' => $activeStatusId,
+                'is_active' => 1,
+            ]);
+            
+            $createdAssets[] = $asset;
+        }
+        
+        $this->command->info("Created {$assetCount} assets for company {$company->name}");
+        return collect($createdAssets);
     }
 
     /**
