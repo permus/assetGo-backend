@@ -345,7 +345,7 @@ class PredictiveMaintenanceService
                 Log::info('Found numeric array (direct predictions list)', [
                     'count' => count($decoded)
                 ]);
-                return $decoded;
+            return $decoded;
             }
             
             // If it's an associative array but not what we expect, check if it's a single prediction object
@@ -431,7 +431,7 @@ class PredictiveMaintenanceService
                     throw new \Exception('AI returned an error: ' . $errorMessage);
                 }
                 if ($this->isNumericArray($decoded)) {
-                    return $decoded;
+                return $decoded;
                 }
                 
                 // Check if it's a single prediction object (apply same logic as main extraction)

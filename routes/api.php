@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\AssetReportController;
 use App\Http\Controllers\Api\MaintenanceReportController;
 use App\Http\Controllers\Api\ReportExportController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\Sla\SlaDefinitionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -116,15 +117,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // AI Predictive Maintenance routes
     Route::prefix('ai/predictive-maintenance')->group(function () {
         Route::get('/', [PredictiveMaintenanceController::class, 'index'])
-            ->middleware('throttle:610,1'); // 60 requests per minute
+            ->middleware('throttle:610,1');
         Route::post('generate', [PredictiveMaintenanceController::class, 'generate'])
-            ->middleware('throttle:15,1'); // 5 requests per minute (AI intensive, allows testing)
+            ->middleware('throttle:150,1');
         Route::get('export', [PredictiveMaintenanceController::class, 'export'])
-            ->middleware('throttle:110,1'); // 10 requests per minute
+            ->middleware('throttle:110,1');
         Route::get('summary', [PredictiveMaintenanceController::class, 'summary'])
-            ->middleware('throttle:160,1'); // 60 requests per minute
+            ->middleware('throttle:160,1');
         Route::delete('clear', [PredictiveMaintenanceController::class, 'clear'])
-            ->middleware('throttle:105,1'); // 5 requests per minute
+            ->middleware('throttle:105,1');
     });
 
     // AI Natural Language routes
@@ -435,7 +436,18 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('stats/analytics', [\App\Http\Controllers\Api\Maintenance\MaintenanceStatsController::class, 'analytics']);
     });
 
-
+    // SLA module routes
+    Route::middleware('module:sla')->group(function () {
+        Route::prefix('sla')->group(function () {
+            Route::get('definitions', [SlaDefinitionController::class, 'index'])
+                ->middleware('throttle:260,1');
+            Route::post('definitions', [SlaDefinitionController::class, 'store']);
+            Route::get('definitions/{slaDefinition}', [SlaDefinitionController::class, 'show']);
+            Route::put('definitions/{slaDefinition}', [SlaDefinitionController::class, 'update']);
+            Route::delete('definitions/{slaDefinition}', [SlaDefinitionController::class, 'destroy']);
+            Route::patch('definitions/{slaDefinition}/toggle-active', [SlaDefinitionController::class, 'toggleActive']);
+        });
+    });
 
     // AI Recommendations routes
     Route::prefix('ai/recommendations')->group(function () {

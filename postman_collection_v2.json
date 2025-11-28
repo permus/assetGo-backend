@@ -805,6 +805,104 @@
 					}
 				},
 				{
+					"name": "List Asset Maintenance Schedules",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/:asset/maintenance-schedules",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":asset", "maintenance-schedules"],
+							"variable": [
+								{
+									"key": "asset",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Add Asset Maintenance Schedule",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"maintenance_plan_id\": 1,\n    \"scheduled_date\": \"2024-12-31\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/assets/:asset/maintenance-schedules",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":asset", "maintenance-schedules"],
+							"variable": [
+								{
+									"key": "asset",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Asset Maintenance Schedule",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"scheduled_date\": \"2025-01-15\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/assets/:asset/maintenance-schedules/:scheduleId",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":asset", "maintenance-schedules", ":scheduleId"],
+							"variable": [
+								{
+									"key": "asset",
+									"value": "1"
+								},
+								{
+									"key": "scheduleId",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Asset Maintenance Schedule",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/assets/:asset/maintenance-schedules/:scheduleId",
+							"host": ["{{base_url}}"],
+							"path": ["assets", ":asset", "maintenance-schedules", ":scheduleId"],
+							"variable": [
+								{
+									"key": "asset",
+									"value": "1"
+								},
+								{
+									"key": "scheduleId",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
 					"name": "Export Assets to Excel",
 					"request": {
 						"method": "GET",
@@ -2143,7 +2241,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"name\": \"Monthly HVAC Check\",\n    \"description\": \"Regular HVAC maintenance\",\n    \"frequency\": \"monthly\",\n    \"is_active\": true\n}",
+									"raw": "{\n    \"name\": \"Monthly HVAC Check\",\n    \"descriptions\": \"Regular HVAC maintenance\",\n    \"frequency_type\": \"time\",\n    \"frequency_value\": 30,\n    \"frequency_unit\": \"days\",\n    \"plan_type\": \"preventive\",\n    \"is_active\": true,\n    \"checklist_items\": [\n        {\n            \"title\": \"Check filters\",\n            \"type\": \"checkbox\",\n            \"description\": \"Inspect and clean filters\",\n            \"is_required\": true,\n            \"order\": 1\n        }\n    ]\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -2154,6 +2252,69 @@
 									"raw": "{{base_url}}/maintenance/plans",
 									"host": ["{{base_url}}"],
 									"path": ["maintenance", "plans"]
+								}
+							}
+						},
+						{
+							"name": "Get Maintenance Plan",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans/:maintenancePlan",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans", ":maintenancePlan"],
+									"variable": [
+										{
+											"key": "maintenancePlan",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Maintenance Plan",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Updated Plan Name\",\n    \"descriptions\": \"Updated description\",\n    \"is_active\": false\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans/:maintenancePlan",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans", ":maintenancePlan"],
+									"variable": [
+										{
+											"key": "maintenancePlan",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Maintenance Plan",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans/:maintenancePlan",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans", ":maintenancePlan"],
+									"variable": [
+										{
+											"key": "maintenancePlan",
+											"value": "1"
+										}
+									]
 								}
 							}
 						},
@@ -2169,6 +2330,217 @@
 									"variable": [
 										{
 											"key": "maintenancePlan",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Asset Parts",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans/asset-parts",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans", "asset-parts"]
+								}
+							}
+						},
+						{
+							"name": "Get Plan Parts",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans/:maintenancePlan/parts",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans", ":maintenancePlan", "parts"],
+									"variable": [
+										{
+											"key": "maintenancePlan",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Add Parts to Plan",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"part_id\": 1,\n    \"quantity\": 2,\n    \"is_required\": true\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans/:maintenancePlan/parts",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans", ":maintenancePlan", "parts"],
+									"variable": [
+										{
+											"key": "maintenancePlan",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Plan Part",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"quantity\": 3,\n    \"is_required\": false\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans/:maintenancePlan/parts/:part",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans", ":maintenancePlan", "parts", ":part"],
+									"variable": [
+										{
+											"key": "maintenancePlan",
+											"value": "1"
+										},
+										{
+											"key": "part",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Remove Plan Part",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans/:maintenancePlan/parts/:part",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans", ":maintenancePlan", "parts", ":part"],
+									"variable": [
+										{
+											"key": "maintenancePlan",
+											"value": "1"
+										},
+										{
+											"key": "part",
+											"value": "1"
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Plans Checklists",
+					"item": [
+						{
+							"name": "List Plans Checklists",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans-checklists",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans-checklists"]
+								}
+							}
+						},
+						{
+							"name": "Create Plans Checklist",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"maintenance_plan_id\": 1,\n    \"title\": \"Check oil level\",\n    \"type\": \"measurements\",\n    \"description\": \"Measure and record oil level\",\n    \"is_required\": true,\n    \"is_safety_critical\": false,\n    \"order\": 1\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans-checklists",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans-checklists"]
+								}
+							}
+						},
+						{
+							"name": "Get Plans Checklist",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans-checklists/:maintenancePlanChecklist",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans-checklists", ":maintenancePlanChecklist"],
+									"variable": [
+										{
+											"key": "maintenancePlanChecklist",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Plans Checklist",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"title\": \"Updated checklist item\",\n    \"is_required\": false\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans-checklists/:maintenancePlanChecklist",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans-checklists", ":maintenancePlanChecklist"],
+									"variable": [
+										{
+											"key": "maintenancePlanChecklist",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Plans Checklist",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/plans-checklists/:maintenancePlanChecklist",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "plans-checklists", ":maintenancePlanChecklist"],
+									"variable": [
+										{
+											"key": "maintenancePlanChecklist",
 											"value": "1"
 										}
 									]
@@ -2199,7 +2571,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"maintenance_plan_id\": 1,\n    \"asset_id\": 1,\n    \"scheduled_date\": \"2024-12-31\"\n}",
+									"raw": "{\n    \"maintenance_plan_id\": 1,\n    \"asset_ids\": [1, 2],\n    \"start_date\": \"2024-12-31\",\n    \"status\": \"scheduled\"\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -2210,6 +2582,349 @@
 									"raw": "{{base_url}}/maintenance/schedules",
 									"host": ["{{base_url}}"],
 									"path": ["maintenance", "schedules"]
+								}
+							}
+						},
+						{
+							"name": "Get Maintenance Schedule",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/schedules/:scheduleMaintenance",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "schedules", ":scheduleMaintenance"],
+									"variable": [
+										{
+											"key": "scheduleMaintenance",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Maintenance Schedule",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"status\": \"in_progress\",\n    \"assigned_user_id\": 2\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance/schedules/:scheduleMaintenance",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "schedules", ":scheduleMaintenance"],
+									"variable": [
+										{
+											"key": "scheduleMaintenance",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Maintenance Schedule",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/schedules/:scheduleMaintenance",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "schedules", ":scheduleMaintenance"],
+									"variable": [
+										{
+											"key": "scheduleMaintenance",
+											"value": "1"
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Assignments",
+					"item": [
+						{
+							"name": "List Schedule Assignments",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/schedule-assignments",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "schedule-assignments"]
+								}
+							}
+						},
+						{
+							"name": "Create Schedule Assignment",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"schedule_maintenance_id\": 1,\n    \"team_id\": 2\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance/schedule-assignments",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "schedule-assignments"]
+								}
+							}
+						},
+						{
+							"name": "Get Schedule Assignment",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/schedule-assignments/:scheduleMaintenanceAssigned",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "schedule-assignments", ":scheduleMaintenanceAssigned"],
+									"variable": [
+										{
+											"key": "scheduleMaintenanceAssigned",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Schedule Assignment",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"team_id\": 3\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance/schedule-assignments/:scheduleMaintenanceAssigned",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "schedule-assignments", ":scheduleMaintenanceAssigned"],
+									"variable": [
+										{
+											"key": "scheduleMaintenanceAssigned",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Schedule Assignment",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/schedule-assignments/:scheduleMaintenanceAssigned",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "schedule-assignments", ":scheduleMaintenanceAssigned"],
+									"variable": [
+										{
+											"key": "scheduleMaintenanceAssigned",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get My Assignments",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/my-assignments",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "my-assignments"]
+								}
+							}
+						},
+						{
+							"name": "Get Assignable Users",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/assignable-users",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "assignable-users"]
+								}
+							}
+						},
+						{
+							"name": "Get Schedule Assignments",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/schedules/:id/assignments",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "schedules", ":id", "assignments"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1"
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Checklist Responses",
+					"item": [
+						{
+							"name": "List Checklist Responses",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/checklist-responses?schedule_maintenance_assigned_id=1",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "checklist-responses"],
+									"query": [
+										{
+											"key": "schedule_maintenance_assigned_id",
+											"value": "1",
+											"description": "Required: ID of the assigned maintenance"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Create Checklist Response",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"schedule_maintenance_assigned_id\": 1,\n    \"checklist_item_id\": 1,\n    \"response_type\": \"checkbox\",\n    \"response_value\": true\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance/checklist-responses",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "checklist-responses"]
+								}
+							}
+						},
+						{
+							"name": "Get Checklist Response",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/checklist-responses/:id",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "checklist-responses", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Checklist Response",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"response_value\": false\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance/checklist-responses/:id",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "checklist-responses", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Checklist Response",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/checklist-responses/:id",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "checklist-responses", ":id"],
+									"variable": [
+										{
+											"key": "id",
+											"value": "1"
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Stats",
+					"item": [
+						{
+							"name": "Get Maintenance History",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/stats/history",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "stats", "history"]
+								}
+							}
+						},
+						{
+							"name": "Get Maintenance Analytics",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/maintenance/stats/analytics",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance", "stats", "analytics"]
 								}
 							}
 						}
@@ -2649,6 +3364,18 @@
 							}
 						},
 						{
+							"name": "Get Maintenance Compliance Report",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/reports/maintenance/compliance",
+									"host": ["{{base_url}}"],
+									"path": ["reports", "maintenance", "compliance"]
+								}
+							}
+						},
+						{
 							"name": "Get Maintenance Costs Report",
 							"request": {
 								"method": "GET",
@@ -2669,6 +3396,42 @@
 									"raw": "{{base_url}}/reports/maintenance/downtime",
 									"host": ["{{base_url}}"],
 									"path": ["reports", "maintenance", "downtime"]
+								}
+							}
+						},
+						{
+							"name": "Get Failure Analysis Report",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/reports/maintenance/failure-analysis",
+									"host": ["{{base_url}}"],
+									"path": ["reports", "maintenance", "failure-analysis"]
+								}
+							}
+						},
+						{
+							"name": "Get Technician Performance Report",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/reports/maintenance/technician-performance",
+									"host": ["{{base_url}}"],
+									"path": ["reports", "maintenance", "technician-performance"]
+								}
+							}
+						},
+						{
+							"name": "Get Available Report",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/reports/maintenance/available",
+									"host": ["{{base_url}}"],
+									"path": ["reports", "maintenance", "available"]
 								}
 							}
 						}

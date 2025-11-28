@@ -1,0 +1,221 @@
+{
+	"info": {
+		"_postman_id": "sla-api-collection",
+		"name": "SLA API Collection",
+		"description": "Service Level Agreement (SLA) module API endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"version": "1.0.0"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{auth_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000/api",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "SLA",
+			"item": [
+				{
+					"name": "Definitions",
+					"item": [
+						{
+							"name": "List SLA Definitions",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/sla/definitions?per_page=15&applies_to=work_orders&is_active=true&priority_level=critical",
+									"host": ["{{base_url}}"],
+									"path": ["sla", "definitions"],
+									"query": [
+										{
+											"key": "per_page",
+											"value": "15",
+											"description": "Items per page (max 100)"
+										},
+										{
+											"key": "applies_to",
+											"value": "work_orders",
+											"description": "Filter by applies_to: work_orders, maintenance, both",
+											"disabled": true
+										},
+										{
+											"key": "is_active",
+											"value": "true",
+											"description": "Filter by active status",
+											"disabled": true
+										},
+										{
+											"key": "priority_level",
+											"value": "critical",
+											"description": "Filter by priority: low, medium, high, critical, ppm",
+											"disabled": true
+										},
+										{
+											"key": "search",
+											"value": "",
+											"description": "Search by name, description, or category",
+											"disabled": true
+										},
+										{
+											"key": "sort_by",
+											"value": "created_at",
+											"description": "Sort field",
+											"disabled": true
+										},
+										{
+											"key": "sort_dir",
+											"value": "desc",
+											"description": "Sort direction: asc, desc",
+											"disabled": true
+										}
+									]
+								},
+								"description": "Get a list of SLA definitions with optional filtering and pagination"
+							}
+						},
+						{
+							"name": "Create SLA Definition",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Emergency SLA\",\n    \"description\": \"Emergency SLA for critical work orders\",\n    \"applies_to\": \"work_orders\",\n    \"priority_level\": \"critical\",\n    \"category\": \"HVAC\",\n    \"response_time_hours\": 2,\n    \"containment_time_hours\": 4,\n    \"completion_time_hours\": 6,\n    \"business_hours_only\": false,\n    \"working_days\": [\"monday\", \"tuesday\", \"wednesday\", \"thursday\", \"friday\", \"saturday\", \"sunday\"],\n    \"is_active\": true\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/sla/definitions",
+									"host": ["{{base_url}}"],
+									"path": ["sla", "definitions"]
+								},
+								"description": "Create a new SLA definition. Required fields: name, applies_to, response_time_hours, completion_time_hours, working_days"
+							}
+						},
+						{
+							"name": "Get SLA Definition",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/sla/definitions/:slaDefinition",
+									"host": ["{{base_url}}"],
+									"path": ["sla", "definitions", ":slaDefinition"],
+									"variable": [
+										{
+											"key": "slaDefinition",
+											"value": "1",
+											"description": "SLA Definition ID"
+										}
+									]
+								},
+								"description": "Get a single SLA definition by ID"
+							}
+						},
+						{
+							"name": "Update SLA Definition",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Emergency SLA Updated\",\n    \"description\": \"Updated description\",\n    \"response_time_hours\": 1.5,\n    \"completion_time_hours\": 5,\n    \"is_active\": true\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/sla/definitions/:slaDefinition",
+									"host": ["{{base_url}}"],
+									"path": ["sla", "definitions", ":slaDefinition"],
+									"variable": [
+										{
+											"key": "slaDefinition",
+											"value": "1",
+											"description": "SLA Definition ID"
+										}
+									]
+								},
+								"description": "Update an existing SLA definition. All fields are optional (use 'sometimes' validation)"
+							}
+						},
+						{
+							"name": "Delete SLA Definition",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/sla/definitions/:slaDefinition",
+									"host": ["{{base_url}}"],
+									"path": ["sla", "definitions", ":slaDefinition"],
+									"variable": [
+										{
+											"key": "slaDefinition",
+											"value": "1",
+											"description": "SLA Definition ID"
+										}
+									]
+								},
+								"description": "Soft delete an SLA definition"
+							}
+						},
+						{
+							"name": "Toggle SLA Definition Active Status",
+							"request": {
+								"method": "PATCH",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/sla/definitions/:slaDefinition/toggle-active",
+									"host": ["{{base_url}}"],
+									"path": ["sla", "definitions", ":slaDefinition", "toggle-active"],
+									"variable": [
+										{
+											"key": "slaDefinition",
+											"value": "1",
+											"description": "SLA Definition ID"
+										}
+									]
+								},
+								"description": "Toggle the active/inactive status of an SLA definition"
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}
+

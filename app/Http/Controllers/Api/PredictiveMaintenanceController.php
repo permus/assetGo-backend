@@ -206,7 +206,7 @@ class PredictiveMaintenanceController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'message' => 'All predictions have been cleared'
+                'message' => 'All predictions have been cleared'
                 ]
             ]);
 
