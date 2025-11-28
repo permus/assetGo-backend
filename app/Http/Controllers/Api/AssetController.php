@@ -1757,6 +1757,7 @@ class AssetController extends Controller
 
         $assetData = [
             'id' => $asset->id,
+            'asset_id' => $asset->asset_id,
             'name' => $asset->name,
             'serial_number' => $asset->serial_number,
             'description' => $asset->description,
