@@ -35,6 +35,7 @@ class Asset extends Model
         'warranty',
         'insurance',
         'health_score',
+        'criticality_level',
         'status',
         'qr_code_path',
         'parent_id',
@@ -47,6 +48,7 @@ class Asset extends Model
         'depreciation' => 'decimal:2',
         'depreciation_life' => 'integer',
         'health_score' => 'decimal:2',
+        'criticality_level' => 'string',
         'is_active' => 'integer',
     ];
 
@@ -81,6 +83,10 @@ class Asset extends Model
             foreach ($asset->images as $image) {
                 $image->delete();
             }
+            // Delete documents
+            foreach ($asset->documents as $document) {
+                $document->delete();
+            }
         });
         static::forceDeleted(function ($asset) {
             // Detach tags (in case not already detached)
@@ -90,6 +96,10 @@ class Asset extends Model
             // Delete images (in case not already deleted)
             foreach ($asset->images as $image) {
                 $image->delete();
+            }
+            // Delete documents (in case not already deleted)
+            foreach ($asset->documents as $document) {
+                $document->delete();
             }
         });
     }
@@ -247,6 +257,13 @@ class Asset extends Model
 
     public function inventoryParts()
     {
-        return $this->belongsToMany(InventoryPart::class, 'asset_inventory_part', 'asset_id', 'inventory_part_id');
+        return $this->belongsToMany(InventoryPart::class, 'asset_inventory_part', 'asset_id', 'inventory_part_id')
+            ->withPivot('qty')
+            ->withTimestamps();
+    }
+
+    public function documents()
+    {
+        return $this->hasMany(AssetDocument::class);
     }
 }

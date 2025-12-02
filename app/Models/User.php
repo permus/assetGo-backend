@@ -33,6 +33,7 @@ class User extends Authenticatable
         'active',
         'permissions',
         'preferences',
+        'teams_allowed_count',
     ];
 
     /**
@@ -57,6 +58,7 @@ class User extends Authenticatable
         'active' => 'boolean',
         'permissions' => 'array',
         'preferences' => 'array',
+        'teams_allowed_count' => 'integer',
     ];
 
     /**

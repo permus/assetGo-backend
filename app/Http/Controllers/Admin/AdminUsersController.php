@@ -55,10 +55,19 @@ class AdminUsersController extends Controller
         $perPage = min($request->get('per_page', 15), 100);
         $users = $query->paginate($perPage);
 
+        // Add team member count for each user
+        $userItems = collect($users->items())->map(function ($user) {
+            $teamCount = User::where('created_by', $user->id)
+                ->where('user_type', 'team')
+                ->count();
+            $user->setAttribute('created_teams_count', $teamCount);
+            return $user;
+        });
+
         return response()->json([
             'success' => true,
             'data' => [
-                'users' => $users->items(),
+                'users' => $userItems->all(),
                 'pagination' => [
                     'current_page' => $users->currentPage(),
                     'last_page' => $users->lastPage(),
@@ -105,6 +114,12 @@ class AdminUsersController extends Controller
                 $user->setAttribute('created_by_name', 'Administrator');
             }
         }
+        
+        // Add team member count
+        $teamCount = User::where('created_by', $user->id)
+            ->where('user_type', 'team')
+            ->count();
+        $user->setAttribute('created_teams_count', $teamCount);
         
         return response()->json([
             'success' => true,
@@ -162,11 +177,12 @@ class AdminUsersController extends Controller
             'password' => 'sometimes|string|min:8',
             'active' => 'sometimes|boolean',
             'user_type' => 'sometimes|string',
+            'teams_allowed_count' => 'sometimes|nullable|integer|min:0',
         ]);
 
         // Store original active status to detect suspension
         $wasActive = $user->active;
-        $data = $request->only(['first_name', 'last_name', 'email', 'active', 'user_type']);
+        $data = $request->only(['first_name', 'last_name', 'email', 'active', 'user_type', 'teams_allowed_count']);
         
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
@@ -235,6 +251,7 @@ class AdminUsersController extends Controller
                 'created_by' => $request->user()->id, // Admin creating the user
                 'email_verified_at' => now(),
                 'active' => true,
+                'teams_allowed_count' => $request->filled('teams_allowed_count') ? (int)$request->teams_allowed_count : null,
                 'preferences' => [
                     'email_notifications' => true,
                     'push_notifications' => true,

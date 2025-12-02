@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -19,7 +20,7 @@ class CompanyFactory extends Factory
         return [
             'name' => fake()->company(),
             'slug' => fake()->unique()->slug(),
-            'owner_id' => fake()->uuid(),
+            'owner_id' => User::factory(),
             'subscription_status' => 'trial',
             'subscription_expires_at' => fake()->dateTimeBetween('now', '+30 days'),
             'business_type' => fake()->randomElement(['LLC', 'Corporation', 'Partnership', 'Sole Proprietorship']),

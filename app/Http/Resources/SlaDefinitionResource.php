@@ -21,12 +21,21 @@ class SlaDefinitionResource extends JsonResource
             'description' => $this->description,
             'appliesTo' => $this->applies_to,
             'priorityLevel' => $this->priority_level,
-            'category' => $this->category,
+            'categoryId' => $this->category_id,
+            'category' => $this->whenLoaded('category', function () {
+                // Check if category is a model instance (relationship loaded)
+                if ($this->category && is_object($this->category) && isset($this->category->id)) {
+                    return [
+                        'id' => $this->category->id,
+                        'name' => $this->category->name,
+                        'slug' => $this->category->slug,
+                    ];
+                }
+                return null;
+            }),
             'responseTimeHours' => (float) $this->response_time_hours,
             'containmentTimeHours' => $this->containment_time_hours ? (float) $this->containment_time_hours : null,
             'completionTimeHours' => (float) $this->completion_time_hours,
-            'businessHoursOnly' => (bool) $this->business_hours_only,
-            'workingDays' => $this->working_days ?? [],
             'isActive' => (bool) $this->is_active,
             'createdBy' => $this->created_by,
             'creator' => $this->whenLoaded('creator', function () {

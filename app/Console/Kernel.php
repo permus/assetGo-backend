@@ -16,6 +16,9 @@ class Kernel extends ConsoleKernel
         
         // Extend maintenance work orders daily at 2 AM to maintain 12-month rolling window
         $schedule->command('maintenance:extend-work-orders')->dailyAt('02:00');
+        
+        // Check for SLA violations hourly
+        $schedule->command('sla:check-violations')->hourly();
     }
 
     /**

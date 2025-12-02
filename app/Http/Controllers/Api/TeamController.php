@@ -187,6 +187,17 @@ class TeamController extends Controller
     {
         $user = $request->user();
 
+        // Check team limit if teams_allowed_count is set
+        if ($user->teams_allowed_count !== null) {
+            $currentTeamCount = $user->createdTeams()->count();
+            if ($currentTeamCount >= $user->teams_allowed_count) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "You have reached your team limit of {$user->teams_allowed_count} team member(s). Please contact your administrator to increase your limit."
+                ], 422);
+            }
+        }
+
         // Validate that the role belongs to the user's company and load permissions
         $role = $user->company->roles()->with('permissions')->find($request->role_id);
         if (!$role) {

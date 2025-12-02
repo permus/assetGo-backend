@@ -21,7 +21,7 @@ class WorkOrderPartController extends Controller
     public function index(Request $request, WorkOrder $workOrder)
     {
         $this->authorizeCompany($request, $workOrder);
-        $items = WorkOrderPart::with('part')
+        $items = WorkOrderPart::with(['part.stocks.location', 'location'])
             ->where('work_order_id', $workOrder->id)
             ->orderByDesc('id')
             ->get();

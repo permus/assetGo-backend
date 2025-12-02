@@ -43,6 +43,7 @@ class StoreUserRequest extends FormRequest
             'company_phone' => 'nullable|string|max:255',
             'company_address' => 'nullable|string|max:500',
             'logo' => 'nullable|image|mimes:jpeg,png,webp|max:5120', // 5MB max
+            'teams_allowed_count' => 'nullable|integer|min:0',
         ];
     }
 

@@ -94,7 +94,8 @@ class PartController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%$search%")
-                  ->orWhere('part_number', 'like', "%$search%");
+                  ->orWhere('part_number', 'like', "%$search%")
+                  ->orWhere('maintenance_category', 'like', "%$search%");
             });
         }
 
@@ -114,10 +115,45 @@ class PartController extends Controller
             }
         }
 
+        // Eager load stocks with location for stock information
+        $query->with(['stocks.location']);
+
         $perPage = min($request->get('per_page', 15), 100);
+        $parts = $query->orderBy('name')->paginate($perPage);
+
+        // Enhance each part with aggregated stock data
+        $parts->getCollection()->transform(function ($part) {
+            // Calculate total available stock across all locations
+            $totalAvailable = $part->stocks->sum('available');
+            $totalOnHand = $part->stocks->sum('on_hand');
+            
+            // Get primary location (location with highest available stock, or first location)
+            $primaryStock = $part->stocks->sortByDesc('available')->first();
+            $primaryLocation = $primaryStock ? $primaryStock->location : null;
+            
+            // Add stock information to part
+            $part->total_available_stock = $totalAvailable;
+            $part->total_on_hand_stock = $totalOnHand;
+            $part->primary_location = $primaryLocation ? [
+                'id' => $primaryLocation->id,
+                'name' => $primaryLocation->name
+            ] : null;
+            $part->stocks_summary = $part->stocks->map(function ($stock) {
+                return [
+                    'location_id' => $stock->location_id,
+                    'location_name' => $stock->location ? $stock->location->name : null,
+                    'available' => $stock->available,
+                    'on_hand' => $stock->on_hand,
+                    'reserved' => $stock->reserved
+                ];
+            });
+
+            return $part;
+        });
+
         return response()->json([
             'success' => true,
-            'data' => $query->orderBy('name')->paginate($perPage)
+            'data' => $parts
         ]);
     }
 

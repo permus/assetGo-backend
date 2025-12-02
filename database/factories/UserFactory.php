@@ -32,7 +32,6 @@ class UserFactory extends Factory
             'password' => static::$password ??= Hash::make('password'),
             'company_id' => null,
             'created_by' => 0,
-            'permissions' => json_encode(['read', 'write']),
             'remember_token' => Str::random(10),
         ];
     }

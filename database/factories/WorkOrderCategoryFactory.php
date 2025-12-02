@@ -24,12 +24,12 @@ class WorkOrderCategoryFactory extends Factory
             'Mechanical', 'HVAC', 'Plumbing', 'Safety'
         ];
         
-        $name = fake()->randomElement($categories);
+        $name = fake()->unique()->randomElement($categories);
 
         return [
             'company_id' => null,
             'name' => $name,
-            'slug' => Str::slug($name),
+            'slug' => Str::slug($name) . '-' . fake()->unique()->numberBetween(1000, 9999),
             'sort' => fake()->numberBetween(1, 100),
         ];
     }

@@ -185,6 +185,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('assets/{asset}/duplicate', [AssetController::class, 'duplicate']);
     Route::post('assets/{asset}/transfer', [AssetController::class, 'transfer']);
     Route::post('assets/{asset}/restore', [AssetController::class, 'restore']);
+    // Asset parts management
+    Route::get('assets/{asset}/parts', [\App\Http\Controllers\Api\AssetPartController::class, 'index']);
+    Route::post('assets/{asset}/parts', [\App\Http\Controllers\Api\AssetPartController::class, 'store']);
+    Route::put('assets/{asset}/parts/{part}', [\App\Http\Controllers\Api\AssetPartController::class, 'update']);
+    Route::delete('assets/{asset}/parts/{part}', [\App\Http\Controllers\Api\AssetPartController::class, 'destroy']);
+    // Asset documents management
+    Route::get('assets/{asset}/documents', [\App\Http\Controllers\Api\AssetDocumentController::class, 'index']);
+    Route::post('assets/{asset}/documents', [\App\Http\Controllers\Api\AssetDocumentController::class, 'store']);
+    Route::put('assets/{asset}/documents/{document}', [\App\Http\Controllers\Api\AssetDocumentController::class, 'update']);
+    Route::delete('assets/{asset}/documents/{document}', [\App\Http\Controllers\Api\AssetDocumentController::class, 'destroy']);
     Route::post('assets/bulk-restore', [AssetController::class, 'bulkRestore'])
         ->middleware('throttle:20,1'); // 20 bulk restores per minute
     Route::get('assets/{asset}/qr-code', [AssetController::class, 'qrCode']);

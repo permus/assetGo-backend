@@ -34,6 +34,11 @@ class WorkOrderPart extends Model
     {
         return $this->belongsTo(\App\Models\InventoryPart::class, 'part_id');
     }
+
+    public function location()
+    {
+        return $this->belongsTo(Location::class, 'location_id');
+    }
 }
 
 

@@ -34,13 +34,10 @@ class StoreSlaDefinitionRequest extends FormRequest
             'description' => 'nullable|string',
             'applies_to' => 'required|in:work_orders,maintenance,both',
             'priority_level' => 'nullable|in:low,medium,high,critical,ppm',
-            'category' => 'nullable|string|max:255',
+            'category_id' => 'nullable|exists:work_order_categories,id',
             'response_time_hours' => 'required|numeric|min:0.01',
             'containment_time_hours' => 'nullable|numeric|min:0.01',
             'completion_time_hours' => 'required|numeric|min:0.01',
-            'business_hours_only' => 'nullable|boolean',
-            'working_days' => 'required|array|min:1',
-            'working_days.*' => 'required|string|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
             'is_active' => 'nullable|boolean',
         ];
     }
@@ -61,9 +58,7 @@ class StoreSlaDefinitionRequest extends FormRequest
             'completion_time_hours.required' => 'Completion time is required',
             'completion_time_hours.numeric' => 'Completion time must be a number',
             'completion_time_hours.min' => 'Completion time must be greater than 0',
-            'working_days.required' => 'At least one working day must be selected',
-            'working_days.array' => 'Working days must be an array',
-            'working_days.min' => 'At least one working day must be selected',
+            'category_id.exists' => 'Selected category does not exist',
         ];
     }
 }

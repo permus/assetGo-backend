@@ -19,7 +19,7 @@ class SlaDefinitionController extends Controller
     {
         $companyId = $request->user()->company_id;
         $query = SlaDefinition::where('company_id', $companyId)
-            ->with('creator');
+            ->with(['creator', 'category']);
 
         // Filters
         if ($appliesTo = $request->get('applies_to')) {
@@ -47,7 +47,9 @@ class SlaDefinitionController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhere('category', 'like', "%{$search}%");
+                  ->orWhereHas('category', function ($categoryQuery) use ($search) {
+                      $categoryQuery->where('name', 'like', "%{$search}%");
+                  });
             });
         }
 
@@ -87,7 +89,7 @@ class SlaDefinitionController extends Controller
         $validated['is_active'] = $validated['is_active'] ?? true;
 
         $definition = SlaDefinition::create($validated);
-        $definition->load('creator');
+        $definition->load(['creator', 'category']);
 
         return response()->json([
             'success' => true,
@@ -108,7 +110,7 @@ class SlaDefinitionController extends Controller
             ], 403);
         }
 
-        $slaDefinition->load('creator');
+        $slaDefinition->load(['creator', 'category']);
 
         return response()->json([
             'success' => true,
@@ -131,7 +133,7 @@ class SlaDefinitionController extends Controller
 
         $validated = $request->validated();
         $slaDefinition->update($validated);
-        $slaDefinition->load('creator');
+        $slaDefinition->load(['creator', 'category']);
 
         return response()->json([
             'success' => true,
@@ -175,7 +177,7 @@ class SlaDefinitionController extends Controller
 
         $slaDefinition->is_active = !$slaDefinition->is_active;
         $slaDefinition->save();
-        $slaDefinition->load('creator');
+        $slaDefinition->load(['creator', 'category']);
 
         return response()->json([
             'success' => true,

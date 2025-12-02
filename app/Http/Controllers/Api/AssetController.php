@@ -148,7 +148,7 @@ class AssetController extends Controller
             }
         }
 
-        $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company', 'maintenanceSchedules', 'activities', 'parent', 'children', 'inventoryParts']);
+        $asset->load(['category', 'assetType', 'assetStatus', 'department', 'tags', 'images', 'location', 'user', 'company', 'maintenanceSchedules', 'activities', 'parent', 'children', 'inventoryParts', 'documents']);
 
         $assetArray = $asset->toArray();
         $assetArray['qr_code_url'] = $asset->qr_code_path ? \Storage::disk('public')->url($asset->qr_code_path) : null;
@@ -169,7 +169,15 @@ class AssetController extends Controller
         \DB::beginTransaction();
         try {
             // Use provided asset_id or generate unique asset ID
-            $assetId = $request->input('asset_id') ?? 'AST-' . strtoupper(uniqid());
+            $assetId = $request->input('asset_id');
+            if (empty($assetId)) {
+                // Generate unique asset ID
+                $assetId = 'AST-' . strtoupper(substr(uniqid(), -8));
+                // Ensure uniqueness within the company
+                while (Asset::where('asset_id', $assetId)->where('company_id', $request->user()->company_id)->exists()) {
+                    $assetId = 'AST-' . strtoupper(substr(uniqid(), -8));
+                }
+            }
 
             // Remove company_id from validated data if present
             $data = $request->validated();
@@ -196,7 +204,10 @@ class AssetController extends Controller
 
             // Handle images (base64)
             if ($request->filled('images')) {
-                foreach ($request->images as $base64Image) {
+                $images = $request->images;
+                $captions = $request->input('images_captions', []);
+                
+                foreach ($images as $index => $base64Image) {
                     if (preg_match('/^data:image\/(\w+);base64,/', $base64Image, $type)) {
                         $base64Image = substr($base64Image, strpos($base64Image, ',') + 1);
                         $type = strtolower($type[1]); // jpg, png, gif
@@ -208,14 +219,33 @@ class AssetController extends Controller
                         $filePath = 'assets/images/' . $fileName;
                         \Storage::disk('public')->put($filePath, $imageData);
 
-                        $asset->images()->create(['image_path' => $filePath]);
+                        $caption = isset($captions[$index]) && !empty($captions[$index]) ? $captions[$index] : null;
+                        $asset->images()->create([
+                            'image_path' => $filePath,
+                            'caption' => $caption
+                        ]);
                     }
                 }
             }
 
-            // Handle inventory parts
-            if ($request->filled('inventory_part_ids')) {
-                $asset->inventoryParts()->sync($request->inventory_part_ids);
+            // Handle inventory parts with quantity
+            if ($request->filled('inventory_parts') && is_array($request->inventory_parts)) {
+                $pivotData = [];
+                foreach ($request->inventory_parts as $partData) {
+                    if (isset($partData['part_id']) && isset($partData['qty'])) {
+                        $pivotData[$partData['part_id']] = ['qty' => $partData['qty']];
+                    }
+                }
+                if (!empty($pivotData)) {
+                    $asset->inventoryParts()->sync($pivotData);
+                }
+            } elseif ($request->filled('inventory_part_ids')) {
+                // Backward compatibility: if old format is used, set qty to 1
+                $pivotData = [];
+                foreach ($request->inventory_part_ids as $partId) {
+                    $pivotData[$partId] = ['qty' => 1];
+                }
+                $asset->inventoryParts()->sync($pivotData);
             }
 
             // Generate QR code (using QRCodeService)
@@ -322,7 +352,26 @@ class AssetController extends Controller
             }
 
             $before = $asset->toArray();
-            $asset->update($request->validated());
+            $data = $request->validated();
+            
+            // Handle asset_id override if provided
+            if ($request->filled('asset_id') && $request->input('asset_id') !== $asset->asset_id) {
+                $newAssetId = $request->input('asset_id');
+                // Check uniqueness within company
+                $exists = Asset::where('asset_id', $newAssetId)
+                    ->where('company_id', $request->user()->company_id)
+                    ->where('id', '!=', $asset->id)
+                    ->exists();
+                if ($exists) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Asset ID already exists in your company'
+                    ], 422);
+                }
+                $data['asset_id'] = $newAssetId;
+            }
+            
+            $asset->update($data);
 
             // Handle tags
             if ($request->filled('tags')) {
@@ -343,7 +392,10 @@ class AssetController extends Controller
 
             // Handle images (base64)
             if ($request->filled('images')) {
-                foreach ($request->images as $base64Image) {
+                $images = $request->images;
+                $captions = $request->input('images_captions', []);
+                
+                foreach ($images as $index => $base64Image) {
                     if (preg_match('/^data:image\/(\w+);base64,/', $base64Image, $type)) {
                         $base64Image = substr($base64Image, strpos($base64Image, ',') + 1);
                         $type = strtolower($type[1]); // jpg, png, gif
@@ -355,14 +407,33 @@ class AssetController extends Controller
                         $filePath = 'assets/images/' . $fileName;
                         \Storage::disk('public')->put($filePath, $imageData);
 
-                        $asset->images()->create(['image_path' => $filePath]);
+                        $caption = isset($captions[$index]) && !empty($captions[$index]) ? $captions[$index] : null;
+                        $asset->images()->create([
+                            'image_path' => $filePath,
+                            'caption' => $caption
+                        ]);
                     }
                 }
             }
 
-            // Handle inventory parts
-            if ($request->filled('inventory_part_ids')) {
-                $asset->inventoryParts()->sync($request->inventory_part_ids);
+            // Handle inventory parts with quantity
+            if ($request->filled('inventory_parts') && is_array($request->inventory_parts)) {
+                $pivotData = [];
+                foreach ($request->inventory_parts as $partData) {
+                    if (isset($partData['part_id']) && isset($partData['qty'])) {
+                        $pivotData[$partData['part_id']] = ['qty' => $partData['qty']];
+                    }
+                }
+                if (!empty($pivotData)) {
+                    $asset->inventoryParts()->sync($pivotData);
+                }
+            } elseif ($request->filled('inventory_part_ids')) {
+                // Backward compatibility: if old format is used, set qty to 1
+                $pivotData = [];
+                foreach ($request->inventory_part_ids as $partId) {
+                    $pivotData[$partId] = ['qty' => 1];
+                }
+                $asset->inventoryParts()->sync($pivotData);
             }
 
             // Log activity
