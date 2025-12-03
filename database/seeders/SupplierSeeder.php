@@ -23,7 +23,7 @@ class SupplierSeeder extends Seeder
                 'last_name' => 'User',
                 'email' => 'admin@defaultcompany.com',
                 'password' => bcrypt('password'),
-                'user_type' => 'company',
+                'user_type' => 'admin',
             ]);
             
             $company = Company::create([

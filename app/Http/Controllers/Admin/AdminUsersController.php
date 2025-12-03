@@ -175,7 +175,7 @@ class AdminUsersController extends Controller
             'email' => 'sometimes|email|unique:users,email,' . $user->id,
             'password' => 'sometimes|string|min:8',
             'active' => 'sometimes|boolean',
-            'user_type' => 'sometimes|string',
+            'user_type' => 'sometimes|string|in:admin,user',
             'teams_allowed_count' => 'sometimes|nullable|integer|min:0',
         ]);
 

@@ -21,6 +21,11 @@ return new class extends Migration
         DB::table('users')
             ->where('user_type', 'owner')
             ->update(['user_type' => 'admin']);
+        
+        // Convert all 'company' user_type to 'admin'
+        DB::table('users')
+            ->where('user_type', 'company')
+            ->update(['user_type' => 'admin']);
     }
 
     /**
@@ -28,7 +33,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Note: We can't reliably reverse this as we don't know which users were originally 'manager' or 'owner'
+        // Note: We can't reliably reverse this as we don't know which users were originally 'manager', 'owner', or 'company'
         // This migration is one-way
     }
 };

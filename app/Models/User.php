@@ -102,6 +102,24 @@ class User extends Authenticatable
     }
 
     /**
+     * Normalize user_type to ensure only 'admin' or 'user' are stored
+     */
+    public function setUserTypeAttribute($value)
+    {
+        // Normalize legacy user types
+        if (in_array($value, ['owner', 'company', 'super_admin', 'company_admin'])) {
+            $this->attributes['user_type'] = 'admin';
+        } elseif (in_array($value, ['manager', 'team'])) {
+            $this->attributes['user_type'] = 'user';
+        } elseif (in_array($value, ['admin', 'user'])) {
+            $this->attributes['user_type'] = $value;
+        } else {
+            // Default to 'user' for any unknown type
+            $this->attributes['user_type'] = 'user';
+        }
+    }
+
+    /**
      * Check if user has a specific permission through any of their roles
      */
     public function hasPermission($module, $action)
@@ -110,7 +128,7 @@ class User extends Authenticatable
         $userType = $this->user_type;
         if ($userType === 'manager') {
             $userType = 'user';
-        } elseif ($userType === 'owner') {
+        } elseif (in_array($userType, ['owner', 'company'])) {
             $userType = 'admin';
         }
         
