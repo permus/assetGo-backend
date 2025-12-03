@@ -130,6 +130,10 @@ class ProjectDataSeeder extends Seeder
         // Phase 9: AI & Analytics
         $this->command->info('Phase 9: Seeding AI and analytics data...');
         $this->seedAIAndAnalytics();
+        
+        // Phase 10: Notifications
+        $this->command->info('Phase 10: Seeding notifications...');
+        $this->seedNotifications();
 
         $this->command->info('========================================');
         $this->command->info('Project data seeding completed!');
@@ -530,8 +534,10 @@ class ProjectDataSeeder extends Seeder
         $this->seedAssets();
         $this->call(AssetTagSeeder::class);
         $this->call(AssetImageSeeder::class);
-        $this->call(InventoryPartSeeder::class);
-        $this->call(InventoryStockSeeder::class);
+        
+        // Seed inventory directly for target company to ensure proper scoping
+        $this->seedInventoryParts();
+        $this->seedInventoryStocks();
     }
 
     /**
@@ -602,6 +608,317 @@ class ProjectDataSeeder extends Seeder
     }
 
     /**
+     * Seed inventory parts for the target company
+     */
+    protected function seedInventoryParts(): void
+    {
+        $existingCount = \App\Models\InventoryPart::where('company_id', $this->targetCompany->id)->count();
+        
+        if ($existingCount >= 20) {
+            $this->command->info('Inventory parts already exist for company. Skipping.');
+            return;
+        }
+
+        $this->command->info('Seeding inventory parts for company...');
+
+        $faker = \Faker\Factory::create();
+        $categories = \App\Models\InventoryCategory::where('company_id', $this->targetCompany->id)->get();
+        $users = User::where('company_id', $this->targetCompany->id)->get();
+        $suppliers = \App\Models\Supplier::where('company_id', $this->targetCompany->id)->get();
+
+        // Create comprehensive inventory parts
+        $partTemplates = [
+            ['name' => 'Oil Filter', 'manufacturer' => 'Fram', 'maintenance_category' => 'Mechanical', 'uom' => 'PCS', 'unit_cost' => 15.99],
+            ['name' => 'Air Filter', 'manufacturer' => 'K&N', 'maintenance_category' => 'Mechanical', 'uom' => 'PCS', 'unit_cost' => 25.50],
+            ['name' => 'Hydraulic Fluid', 'manufacturer' => 'Mobil', 'maintenance_category' => 'Hydraulic', 'uom' => 'L', 'unit_cost' => 45.00],
+            ['name' => 'Motor Bearing', 'manufacturer' => 'SKF', 'maintenance_category' => 'Mechanical', 'uom' => 'PCS', 'unit_cost' => 125.00],
+            ['name' => 'Electrical Wire', 'manufacturer' => 'Belden', 'maintenance_category' => 'Electrical', 'uom' => 'M', 'unit_cost' => 8.50],
+            ['name' => 'Circuit Breaker', 'manufacturer' => 'Siemens', 'maintenance_category' => 'Electrical', 'uom' => 'PCS', 'unit_cost' => 85.00],
+            ['name' => 'Pressure Sensor', 'manufacturer' => 'Honeywell', 'maintenance_category' => 'Pneumatic', 'uom' => 'PCS', 'unit_cost' => 150.00],
+            ['name' => 'Pneumatic Cylinder', 'manufacturer' => 'Festo', 'maintenance_category' => 'Pneumatic', 'uom' => 'PCS', 'unit_cost' => 350.00],
+            ['name' => 'Belt Drive', 'manufacturer' => 'Gates', 'maintenance_category' => 'Mechanical', 'uom' => 'PCS', 'unit_cost' => 75.00],
+            ['name' => 'Lubricating Oil', 'manufacturer' => 'Shell', 'maintenance_category' => 'Mechanical', 'uom' => 'L', 'unit_cost' => 35.00],
+            ['name' => 'Control Relay', 'manufacturer' => 'Omron', 'maintenance_category' => 'Electronics', 'uom' => 'PCS', 'unit_cost' => 45.00],
+            ['name' => 'Temperature Sensor', 'manufacturer' => 'PT100', 'maintenance_category' => 'Electronics', 'uom' => 'PCS', 'unit_cost' => 95.00],
+            ['name' => 'Seal Kit', 'manufacturer' => 'Parker', 'maintenance_category' => 'Hydraulic', 'uom' => 'SET', 'unit_cost' => 180.00],
+            ['name' => 'Gasket Set', 'manufacturer' => 'Victor Reinz', 'maintenance_category' => 'Mechanical', 'uom' => 'SET', 'unit_cost' => 65.00],
+            ['name' => 'Fuse Set', 'manufacturer' => 'Bussmann', 'maintenance_category' => 'Electrical', 'uom' => 'BOX', 'unit_cost' => 25.00],
+            ['name' => 'V-Belt', 'manufacturer' => 'Gates', 'maintenance_category' => 'Mechanical', 'uom' => 'PCS', 'unit_cost' => 42.00],
+            ['name' => 'Chain Drive', 'manufacturer' => 'Renold', 'maintenance_category' => 'Mechanical', 'uom' => 'M', 'unit_cost' => 55.00],
+            ['name' => 'Solenoid Valve', 'manufacturer' => 'ASCO', 'maintenance_category' => 'Pneumatic', 'uom' => 'PCS', 'unit_cost' => 220.00],
+            ['name' => 'Proximity Sensor', 'manufacturer' => 'Pepperl+Fuchs', 'maintenance_category' => 'Electronics', 'uom' => 'PCS', 'unit_cost' => 110.00],
+            ['name' => 'Coolant Fluid', 'manufacturer' => 'Castrol', 'maintenance_category' => 'Mechanical', 'uom' => 'L', 'unit_cost' => 28.00],
+        ];
+
+        $partNumberCounter = 1;
+        foreach ($partTemplates as $template) {
+            // Generate unique part number
+            $partNumber = 'PART-' . str_pad($partNumberCounter, 6, '0', STR_PAD_LEFT);
+            
+            // Check if part number already exists
+            while (\App\Models\InventoryPart::where('part_number', $partNumber)->exists()) {
+                $partNumberCounter++;
+                $partNumber = 'PART-' . str_pad($partNumberCounter, 6, '0', STR_PAD_LEFT);
+            }
+
+            \App\Models\InventoryPart::create([
+                'company_id' => $this->targetCompany->id,
+                'user_id' => $users->isNotEmpty() ? $users->random()->id : $this->targetUser->id,
+                'part_number' => $partNumber,
+                'name' => $template['name'],
+                'description' => $faker->sentence(8),
+                'manufacturer' => $template['manufacturer'],
+                'maintenance_category' => $template['maintenance_category'],
+                'uom' => $template['uom'],
+                'unit_cost' => $template['unit_cost'],
+                'category_id' => $categories->isNotEmpty() ? $categories->random()->id : null,
+                'reorder_point' => rand(5, 20),
+                'reorder_qty' => rand(20, 100),
+                'minimum_stock' => rand(5, 15),
+                'maximum_stock' => rand(100, 500),
+                'is_consumable' => in_array($template['maintenance_category'], ['Mechanical', 'Hydraulic']),
+                'usage_tracking' => true,
+                'status' => 'active',
+                'is_archived' => false,
+                'abc_class' => $faker->randomElement(['A', 'B', 'C']),
+                'preferred_supplier_id' => $suppliers->isNotEmpty() ? $suppliers->random()->id : null,
+            ]);
+
+            $partNumberCounter++;
+        }
+
+        $this->command->info('Created inventory parts for company.');
+    }
+
+    /**
+     * Seed inventory stocks for the target company
+     */
+    protected function seedInventoryStocks(): void
+    {
+        $existingCount = \App\Models\InventoryStock::where('company_id', $this->targetCompany->id)->count();
+        
+        if ($existingCount > 0) {
+            $this->command->info('Inventory stocks already exist for company. Skipping.');
+            return;
+        }
+
+        $this->command->info('Seeding inventory stocks for company...');
+
+        $parts = \App\Models\InventoryPart::where('company_id', $this->targetCompany->id)->get();
+        $locations = \App\Models\InventoryLocation::where('company_id', $this->targetCompany->id)->get();
+        $users = User::where('company_id', $this->targetCompany->id)->get();
+
+        if ($parts->isEmpty() || $locations->isEmpty()) {
+            $this->command->warn('Cannot seed inventory stocks: missing parts or locations.');
+            return;
+        }
+
+        foreach ($parts as $part) {
+            // Create stock entries for multiple locations (distribute stock)
+            $locationsToUse = $locations->random(rand(1, min(3, $locations->count())));
+            $totalOnHand = rand(50, 500);
+            $stockPerLocation = (int)($totalOnHand / $locationsToUse->count());
+            $remainingStock = $totalOnHand - ($stockPerLocation * $locationsToUse->count());
+
+            foreach ($locationsToUse as $index => $location) {
+                $onHand = $stockPerLocation + ($index === 0 ? $remainingStock : 0);
+                $reserved = rand(0, min(10, (int)($onHand * 0.1)));
+                
+                \App\Models\InventoryStock::create([
+                    'company_id' => $this->targetCompany->id,
+                    'part_id' => $part->id,
+                    'location_id' => $location->id,
+                    'on_hand' => $onHand,
+                    'reserved' => $reserved,
+                    'available' => $onHand - $reserved,
+                    'average_cost' => $part->unit_cost,
+                    'last_counted_at' => now()->subDays(rand(1, 30)),
+                    'last_counted_by' => $users->isNotEmpty() ? $users->random()->id : null,
+                    'bin_location' => 'BIN-' . strtoupper(\Illuminate\Support\Str::random(4)),
+                ]);
+            }
+        }
+
+        $this->command->info('Created inventory stocks for company.');
+    }
+
+    /**
+     * Seed location activities for the target company
+     */
+    protected function seedLocationActivities(): void
+    {
+        $existingCount = \App\Models\LocationActivity::whereHas('location', function($query) {
+            $query->where('company_id', $this->targetCompany->id);
+        })->count();
+        
+        if ($existingCount >= 20) {
+            $this->command->info('Location activities already exist for company. Skipping.');
+            return;
+        }
+
+        $this->command->info('Seeding location activities for company...');
+
+        $locations = \App\Models\Location::where('company_id', $this->targetCompany->id)->get();
+        $users = User::where('company_id', $this->targetCompany->id)->get();
+
+        if ($locations->isEmpty() || $users->isEmpty()) {
+            $this->command->warn('Cannot seed location activities: missing locations or users.');
+            return;
+        }
+
+        $actions = ['created', 'updated', 'deleted', 'moved', 'renamed', 'assigned', 'unassigned'];
+        
+        // Create 15-20 location activities
+        $activityCount = rand(15, 20);
+        for ($i = 0; $i < $activityCount; $i++) {
+            $location = $locations->random();
+            $user = $users->random();
+            $action = $actions[array_rand($actions)];
+            
+            \App\Models\LocationActivity::create([
+                'location_id' => $location->id,
+                'user_id' => $user->id,
+                'action' => $action,
+                'before' => $action === 'created' ? null : [
+                    'name' => $location->name . ' (old)',
+                    'address' => $location->address ?? 'Old address',
+                ],
+                'after' => [
+                    'name' => $location->name,
+                    'address' => $location->address ?? 'New address',
+                ],
+                'comment' => \Faker\Factory::create()->sentence(8),
+            ]);
+        }
+
+        $this->command->info('Created location activities for company.');
+    }
+
+    /**
+     * Seed asset documents for the target company
+     */
+    protected function seedAssetDocuments(): void
+    {
+        $existingCount = \App\Models\AssetDocument::whereHas('asset', function($query) {
+            $query->where('company_id', $this->targetCompany->id);
+        })->count();
+        
+        if ($existingCount >= 15) {
+            $this->command->info('Asset documents already exist for company. Skipping.');
+            return;
+        }
+
+        $this->command->info('Seeding asset documents for company...');
+
+        $assets = \App\Models\Asset::where('company_id', $this->targetCompany->id)->get();
+
+        if ($assets->isEmpty()) {
+            $this->command->warn('Cannot seed asset documents: missing assets.');
+            return;
+        }
+
+        $documentTypes = ['manual', 'certificate', 'warranty', 'other'];
+        $documentNames = [
+            'User Manual',
+            'Installation Guide',
+            'Warranty Certificate',
+            'Service Manual',
+            'Safety Certificate',
+            'Inspection Report',
+            'Maintenance Log',
+            'Purchase Receipt',
+            'Technical Specification',
+            'Compliance Certificate',
+        ];
+
+        // Create 2-3 documents per asset (up to 15 total)
+        $documentsCreated = 0;
+        $maxDocuments = 15;
+        
+        foreach ($assets as $asset) {
+            if ($documentsCreated >= $maxDocuments) {
+                break;
+            }
+            
+            $docCount = rand(1, 3);
+            for ($i = 0; $i < $docCount && $documentsCreated < $maxDocuments; $i++) {
+                $docType = $documentTypes[array_rand($documentTypes)];
+                $docName = $documentNames[array_rand($documentNames)] . ' - ' . $asset->name;
+                
+                \App\Models\AssetDocument::create([
+                    'asset_id' => $asset->id,
+                    'document_path' => '/storage/documents/asset-' . $asset->id . '/' . \Illuminate\Support\Str::random(10) . '.pdf',
+                    'document_name' => $docName,
+                    'document_type' => $docType,
+                    'file_size' => rand(100000, 5000000), // 100KB to 5MB
+                    'mime_type' => 'application/pdf',
+                ]);
+                
+                $documentsCreated++;
+            }
+        }
+
+        $this->command->info("Created {$documentsCreated} asset documents for company.");
+    }
+
+    /**
+     * Seed SLA violations for the target company
+     */
+    protected function seedSlaViolations(): void
+    {
+        $existingCount = \App\Models\WorkOrderSlaViolation::whereHas('workOrder', function($query) {
+            $query->where('company_id', $this->targetCompany->id);
+        })->count();
+        
+        if ($existingCount >= 10) {
+            $this->command->info('SLA violations already exist for company. Skipping.');
+            return;
+        }
+
+        $this->command->info('Seeding SLA violations for company...');
+
+        $workOrders = \App\Models\WorkOrder::where('company_id', $this->targetCompany->id)
+            ->whereNotIn('status_id', function($subQuery) {
+                $subQuery->select('id')
+                        ->from('work_order_status')
+                        ->whereIn('slug', ['completed', 'cancelled']);
+            })
+            ->get();
+        $slaDefinitions = \App\Models\SlaDefinition::where('company_id', $this->targetCompany->id)
+            ->where('is_active', true)
+            ->get();
+
+        if ($workOrders->isEmpty() || $slaDefinitions->isEmpty()) {
+            $this->command->warn('Cannot seed SLA violations: missing work orders or SLA definitions.');
+            return;
+        }
+
+        $violationTypes = ['response_time', 'containment_time', 'completion_time'];
+        
+        // Create 5-10 SLA violations
+        $violationCount = rand(5, 10);
+        for ($i = 0; $i < $violationCount; $i++) {
+            $workOrder = $workOrders->random();
+            $slaDefinition = $slaDefinitions->random();
+            $violationType = $violationTypes[array_rand($violationTypes)];
+            
+            // Create violation that occurred in the past
+            $violatedAt = now()->subDays(rand(1, 30));
+            $notifiedAt = $violatedAt->copy()->addHours(rand(1, 24));
+            
+            \App\Models\WorkOrderSlaViolation::create([
+                'work_order_id' => $workOrder->id,
+                'sla_definition_id' => $slaDefinition->id,
+                'violation_type' => $violationType,
+                'violated_at' => $violatedAt,
+                'notified_at' => $notifiedAt,
+            ]);
+        }
+
+        $this->command->info('Created SLA violations for company.');
+    }
+
+    /**
      * Seed transactions
      */
     protected function seedTransactions(): void
@@ -613,6 +930,10 @@ class ProjectDataSeeder extends Seeder
         $this->call(PurchaseOrderSeeder::class);
         $this->call(PurchaseOrderItemSeeder::class);
         $this->call(PurchaseOrderTemplateSeeder::class);
+        
+        // Seed additional activity and document data
+        $this->seedLocationActivities();
+        $this->seedAssetDocuments();
     }
 
     /**
@@ -620,6 +941,14 @@ class ProjectDataSeeder extends Seeder
      */
     protected function seedMaintenanceAndWorkOrders(): void
     {
+        // Call comprehensive MaintenanceSeeder which creates:
+        // - Maintenance plans with checklists
+        // - Scheduled maintenance with assignments
+        // - Checklist responses (history)
+        // - Predictive maintenance records
+        $this->call(MaintenanceSeeder::class);
+        
+        // Also call individual seeders for work orders
         $this->call(AssetMaintenanceScheduleSeeder::class);
         $this->call(MaintenancePlanSeeder::class);
         $this->call(MaintenancePlanChecklistSeeder::class);
@@ -633,6 +962,9 @@ class ProjectDataSeeder extends Seeder
         
         // Seed SLA definitions
         $this->call(SlaSeeder::class);
+        
+        // Seed SLA violations (if any work orders violate SLAs)
+        $this->seedSlaViolations();
     }
 
     /**
@@ -667,6 +999,180 @@ class ProjectDataSeeder extends Seeder
         $this->call(PredictiveMaintenanceSeeder::class);
         $this->call(AIRecommendationSeeder::class);
         $this->call(AIAnalyticsRunSeeder::class);
+        
+        // Seed AI analytics schedule for the company
+        $this->seedAIAnalyticsSchedule();
+    }
+
+    /**
+     * Seed AI analytics schedule for the target company
+     */
+    protected function seedAIAnalyticsSchedule(): void
+    {
+        $existing = \App\Models\AIAnalyticsSchedule::where('company_id', $this->targetCompany->id)->exists();
+        
+        if ($existing) {
+            $this->command->info('AI analytics schedule already exists for company. Skipping.');
+            return;
+        }
+
+        $this->command->info('Seeding AI analytics schedule for company...');
+
+        \App\Models\AIAnalyticsSchedule::create([
+            'company_id' => $this->targetCompany->id,
+            'enabled' => true,
+            'frequency' => 'weekly',
+            'hour_utc' => 3, // 3 AM UTC
+        ]);
+
+        $this->command->info('Created AI analytics schedule for company.');
+    }
+
+    /**
+     * Seed notifications for the target company
+     */
+    protected function seedNotifications(): void
+    {
+        $existingCount = \App\Models\Notification::where('company_id', $this->targetCompany->id)->count();
+        
+        if ($existingCount >= 20) {
+            $this->command->info('Notifications already exist for company. Skipping.');
+            return;
+        }
+
+        $this->command->info('Seeding notifications for company...');
+
+        $users = User::where('company_id', $this->targetCompany->id)->get();
+        $assets = \App\Models\Asset::where('company_id', $this->targetCompany->id)->get();
+        $workOrders = \App\Models\WorkOrder::where('company_id', $this->targetCompany->id)->get();
+        $locations = \App\Models\Location::where('company_id', $this->targetCompany->id)->get();
+
+        if ($users->isEmpty()) {
+            $this->command->warn('Cannot seed notifications: missing users.');
+            return;
+        }
+
+        $notificationTypes = [
+            'asset' => [
+                'actions' => ['created', 'updated', 'assigned', 'maintenance_due', 'warranty_expiring'],
+                'titles' => [
+                    'created' => 'New Asset Created',
+                    'updated' => 'Asset Updated',
+                    'assigned' => 'Asset Assigned to You',
+                    'maintenance_due' => 'Maintenance Due',
+                    'warranty_expiring' => 'Warranty Expiring Soon',
+                ],
+            ],
+            'work_order' => [
+                'actions' => ['created', 'assigned', 'updated', 'completed', 'overdue'],
+                'titles' => [
+                    'created' => 'New Work Order Created',
+                    'assigned' => 'Work Order Assigned to You',
+                    'updated' => 'Work Order Updated',
+                    'completed' => 'Work Order Completed',
+                    'overdue' => 'Work Order Overdue',
+                ],
+            ],
+            'maintenance' => [
+                'actions' => ['scheduled', 'due', 'completed', 'overdue'],
+                'titles' => [
+                    'scheduled' => 'Maintenance Scheduled',
+                    'due' => 'Maintenance Due',
+                    'completed' => 'Maintenance Completed',
+                    'overdue' => 'Maintenance Overdue',
+                ],
+            ],
+            'inventory' => [
+                'actions' => ['low_stock', 'reorder_point', 'out_of_stock', 'received'],
+                'titles' => [
+                    'low_stock' => 'Low Stock Alert',
+                    'reorder_point' => 'Reorder Point Reached',
+                    'out_of_stock' => 'Out of Stock',
+                    'received' => 'Inventory Received',
+                ],
+            ],
+            'location' => [
+                'actions' => ['created', 'updated', 'asset_moved'],
+                'titles' => [
+                    'created' => 'New Location Created',
+                    'updated' => 'Location Updated',
+                    'asset_moved' => 'Asset Moved to Location',
+                ],
+            ],
+        ];
+
+        // Create 15-20 notifications
+        $notificationCount = rand(15, 20);
+        for ($i = 0; $i < $notificationCount; $i++) {
+            $type = array_rand($notificationTypes);
+            $typeConfig = $notificationTypes[$type];
+            $action = $typeConfig['actions'][array_rand($typeConfig['actions'])];
+            $title = $typeConfig['titles'][$action];
+            
+            $user = $users->random();
+            $createdBy = $users->random();
+            $isRead = rand(0, 10) > 3; // 70% unread
+            
+            // Generate appropriate data based on type
+            $data = [];
+            switch ($type) {
+                case 'asset':
+                    if ($assets->isNotEmpty()) {
+                        $asset = $assets->random();
+                        $data = [
+                            'asset_id' => $asset->id,
+                            'asset_name' => $asset->name,
+                            'asset_id_code' => $asset->asset_id,
+                        ];
+                    }
+                    break;
+                case 'work_order':
+                    if ($workOrders->isNotEmpty()) {
+                        $workOrder = $workOrders->random();
+                        $data = [
+                            'work_order_id' => $workOrder->id,
+                            'work_order_title' => $workOrder->title,
+                        ];
+                    }
+                    break;
+                case 'location':
+                    if ($locations->isNotEmpty()) {
+                        $location = $locations->random();
+                        $data = [
+                            'location_id' => $location->id,
+                            'location_name' => $location->name,
+                        ];
+                    }
+                    break;
+                case 'inventory':
+                    $parts = \App\Models\InventoryPart::where('company_id', $this->targetCompany->id)->get();
+                    if ($parts->isNotEmpty()) {
+                        $part = $parts->random();
+                        $data = [
+                            'part_id' => $part->id,
+                            'part_name' => $part->name,
+                            'part_number' => $part->part_number,
+                        ];
+                    }
+                    break;
+            }
+
+            \App\Models\Notification::create([
+                'company_id' => $this->targetCompany->id,
+                'user_id' => $user->id,
+                'type' => $type,
+                'action' => $action,
+                'title' => $title,
+                'message' => \Faker\Factory::create()->sentence(10),
+                'data' => $data,
+                'read' => $isRead,
+                'read_at' => $isRead ? now()->subDays(rand(1, 7)) : null,
+                'created_by' => $createdBy->id,
+                'created_at' => now()->subDays(rand(0, 30)),
+            ]);
+        }
+
+        $this->command->info('Created notifications for company.');
     }
 }
 
