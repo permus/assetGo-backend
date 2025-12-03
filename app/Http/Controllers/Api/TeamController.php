@@ -45,7 +45,7 @@ class TeamController extends Controller
         $perPage = min((int) $request->get('per_page', 15), 100);
 
         $query = $user->company->users()
-            ->where('user_type', 'team')
+            ->where('user_type', 'user')
             ->with(['roles.permissions', 'locations:id,name,parent_id']);
 
         // Search filter (by first/last name, full name, or email)
@@ -86,11 +86,11 @@ class TeamController extends Controller
             $query->where('active', $active);
         }
 
-        // Type filter (maps 'technician' to 'team') - kept for forward compatibility
+        // Type filter (maps 'technician' to 'user') - kept for forward compatibility
         if ($type = $request->get('type')) {
             $type = strtolower($type);
             if ($type === 'technician') {
-                // Already constrained to user_type = 'team'
+                // Already constrained to user_type = 'user'
             }
         }
 
@@ -219,13 +219,13 @@ class TeamController extends Controller
             $hashedPassword = Hash::make($plainPassword);
         }
 
-        // Create the team member (user with user_type = 'team')
+        // Create the team member (user with user_type = 'user')
         $teamMember = User::create([
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
             'email' => $request->email,
             'password' => $hashedPassword,
-            'user_type' => 'team',
+            'user_type' => 'user',
             'company_id' => $user->company_id,
             'created_by' => $user->id,
             'hourly_rate' => $request->input('hourly_rate'),
@@ -304,7 +304,7 @@ class TeamController extends Controller
     {
         $user = $request->user();
         $teamMember = $user->company->users()
-            ->where('user_type', 'team')
+            ->where('user_type', 'user')
             ->where('id', $id)
             ->with(['roles.permissions', 'locations:id,name,parent_id'])
             ->first();
@@ -331,7 +331,7 @@ class TeamController extends Controller
     {
         $user = $request->user();
         $teamMember = $user->company->users()
-            ->where('user_type', 'team')
+            ->where('user_type', 'user')
             ->where('id', $id)
             ->first();
 
@@ -445,7 +445,7 @@ class TeamController extends Controller
     {
         $user = $request->user();
         $teamMember = $user->company->users()
-            ->where('user_type', 'team')
+            ->where('user_type', 'user')
             ->where('id', $id)
             ->first();
 
@@ -506,7 +506,7 @@ class TeamController extends Controller
     {
         $user = $request->user();
         $teamMember = $user->company->users()
-            ->where('user_type', 'team')
+            ->where('user_type', 'user')
             ->where('id', $id)
             ->first();
 
@@ -589,7 +589,7 @@ class TeamController extends Controller
     {
         $user = $request->user();
         $teamMember = $user->company->users()
-            ->where('user_type', 'team')
+            ->where('user_type', 'user')
             ->where('id', $id)
             ->first();
 
@@ -663,7 +663,7 @@ class TeamController extends Controller
     {
         $user = $request->user();
         $teamMember = $user->company->users()
-            ->where('user_type', 'team')
+            ->where('user_type', 'user')
             ->where('id', $id)
             ->first();
 

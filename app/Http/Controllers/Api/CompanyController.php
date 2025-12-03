@@ -59,9 +59,9 @@ class CompanyController extends Controller
             ], 404);
         }
 
-        // Check if user is the owner or admin (admin/super_admin/company_admin)
+        // Check if user is the owner or admin
         $isOwner = ($company->owner_id === $user->id);
-        $isAdmin = in_array($user->user_type, ['admin', 'super_admin', 'company_admin'], true);
+        $isAdmin = ($user->user_type === 'admin');
         if (!$isOwner && !$isAdmin) {
             return response()->json([
                 'success' => false,
@@ -168,7 +168,7 @@ class CompanyController extends Controller
         }
 
         // Check if user has permission to view company users
-        if ($company->owner_id !== $user->id && $user->user_type !== 'manager') {
+        if ($company->owner_id !== $user->id && $user->user_type !== 'admin') {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized to view company users'

@@ -18,7 +18,7 @@ class CompanySettingsController extends Controller
         $this->notificationService = $notificationService;
     }
     /**
-     * Update company currency (admin-only: super_admin, company_admin, or owner)
+     * Update company currency (admin-only: admin or owner)
      */
     public function updateCurrency(Request $request)
     {
@@ -155,10 +155,7 @@ class CompanySettingsController extends Controller
         if ($ownerId == $userId) {
             return true;
         }
-
-        // Map legacy user_type to admin-like permissions
-        $adminTypes = ['admin', 'super_admin', 'company_admin'];
-        return in_array($userType, $adminTypes, true);
+        return $userType === 'admin';
     }
 }
 

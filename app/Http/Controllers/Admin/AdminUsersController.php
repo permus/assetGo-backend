@@ -58,7 +58,7 @@ class AdminUsersController extends Controller
         // Add team member count for each user
         $userItems = collect($users->items())->map(function ($user) {
             $teamCount = User::where('created_by', $user->id)
-                ->where('user_type', 'team')
+                ->where('user_type', 'user')
                 ->count();
             $user->setAttribute('created_teams_count', $teamCount);
             return $user;
@@ -103,8 +103,7 @@ class AdminUsersController extends Controller
             $creator = User::find($user->created_by);
             if ($creator) {
                 // Check if creator is admin type
-                $adminTypes = ['admin', 'super_admin', 'company_admin'];
-                if (in_array($creator->user_type, $adminTypes)) {
+                if ($creator->user_type === 'admin') {
                     $user->setAttribute('created_by_name', 'Administrator');
                 } else {
                     $user->setAttribute('created_by_name', $creator->first_name . ' ' . $creator->last_name);
@@ -117,7 +116,7 @@ class AdminUsersController extends Controller
         
         // Add team member count
         $teamCount = User::where('created_by', $user->id)
-            ->where('user_type', 'team')
+            ->where('user_type', 'user')
             ->count();
         $user->setAttribute('created_teams_count', $teamCount);
         
@@ -135,7 +134,7 @@ class AdminUsersController extends Controller
     public function getCreatedTeams(User $user, Request $request)
     {
         $query = User::where('created_by', $user->id)
-            ->where('user_type', 'team')
+            ->where('user_type', 'user')
             ->with(['roles' => function($query) {
                 $query->limit(1); // Only get first role as roles[0]
             }]);
@@ -247,7 +246,7 @@ class AdminUsersController extends Controller
                 'last_name' => $request->last_name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'user_type' => 'owner',
+                'user_type' => 'admin',
                 'created_by' => $request->user()->id, // Admin creating the user
                 'email_verified_at' => now(),
                 'active' => true,

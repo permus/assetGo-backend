@@ -143,9 +143,9 @@ class TeamCacheService
             return [];
         }
 
-        $totalTeamMembers = $company->users()->where('user_type', 'team')->count();
-        $activeTeamMembers = $company->users()->where('user_type', 'team')->whereNotNull('email_verified_at')->count();
-        $pendingTeamMembers = $company->users()->where('user_type', 'team')->whereNull('email_verified_at')->count();
+        $totalTeamMembers = $company->users()->where('user_type', 'user')->count();
+        $activeTeamMembers = $company->users()->where('user_type', 'user')->whereNotNull('email_verified_at')->count();
+        $pendingTeamMembers = $company->users()->where('user_type', 'user')->whereNull('email_verified_at')->count();
 
         // Aggregate work order assignment counts for this company
         $assignmentAggregates = WorkOrderAssignment::join('work_orders', 'work_order_assignments.work_order_id', '=', 'work_orders.id')

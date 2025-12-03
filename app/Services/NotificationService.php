@@ -101,14 +101,14 @@ class NotificationService
     }
 
     /**
-     * Create notifications for team members (users with user_type = 'team')
-     * Note: In this app, team members are users with user_type='team', not a separate team entity
+     * Create notifications for team members (users with user_type = 'user')
+     * Note: In this app, team members are users with user_type='user', not a separate team entity
      */
     public function createForTeam(int $companyId, array $data): array
     {
-        // Get all team members (users with user_type='team') in the company
+        // Get all team members (users with user_type='user') in the company
         $userIds = User::where('company_id', $companyId)
-            ->where('user_type', 'team')
+            ->where('user_type', 'user')
             ->where('active', true)
             ->pluck('id')
             ->toArray();

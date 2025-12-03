@@ -137,9 +137,8 @@ class ScheduleMaintenanceAssignedController extends Controller
         $companyId = $request->user()->company_id;
         $scheduleId = $request->get('schedule_id');
         
-        // Get all users from the same company, excluding super admins
+        // Get all users from the same company
         $query = \App\Models\User::where('company_id', $companyId)
-            ->where('user_type', '!=', 'super_admin')
             ->where('active', true)
             ->select('id', 'first_name', 'last_name', 'email', 'user_type');
         

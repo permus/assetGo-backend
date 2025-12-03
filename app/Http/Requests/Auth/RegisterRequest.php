@@ -32,7 +32,7 @@ class RegisterRequest extends FormRequest
                 'confirmed',
                 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/', // At least 1 uppercase, 1 lowercase, 1 number
             ],
-            'user_type' => 'nullable|string|in:admin,user,manager',
+            'user_type' => 'nullable|string|in:admin,user',
             'company_name' => 'nullable|string|max:255',
         ];
     }
@@ -52,7 +52,7 @@ class RegisterRequest extends FormRequest
             'password.min' => 'Password must be at least 8 characters long',
             'password.confirmed' => 'Password confirmation does not match',
             'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
-            'user_type.in' => 'User type must be one of: admin, user, manager',
+            'user_type.in' => 'User type must be one of: admin, user',
         ];
     }
 

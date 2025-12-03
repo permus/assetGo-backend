@@ -502,7 +502,7 @@ class ProjectDataSeeder extends Seeder
         $this->command->info('Creating additional users for company...');
         
         $users = [
-            ['first_name' => 'Manager', 'last_name' => 'Smith', 'email' => 'manager@' . $this->targetCompany->slug . '.com', 'user_type' => 'manager', 'hourly_rate' => 40.00],
+            ['first_name' => 'Manager', 'last_name' => 'Smith', 'email' => 'manager@' . $this->targetCompany->slug . '.com', 'user_type' => 'admin', 'hourly_rate' => 40.00],
             ['first_name' => 'John', 'last_name' => 'Technician', 'email' => 'tech1@' . $this->targetCompany->slug . '.com', 'user_type' => 'user', 'hourly_rate' => 30.00],
             ['first_name' => 'Sarah', 'last_name' => 'Engineer', 'email' => 'tech2@' . $this->targetCompany->slug . '.com', 'user_type' => 'user', 'hourly_rate' => 35.00],
         ];

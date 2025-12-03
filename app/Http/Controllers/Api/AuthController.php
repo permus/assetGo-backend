@@ -47,7 +47,7 @@ class AuthController extends Controller
                 'last_name' => $request->last_name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'user_type' => $request->user_type ?? 'owner',
+                'user_type' => $request->user_type ?? 'admin',
                 'created_by' => null, // Self-registration, no creator
                 'preferences' => [
                     'email_notifications' => true,
@@ -172,17 +172,24 @@ class AuthController extends Controller
         $enabledModules = $this->getEnabledModulesForCompany($user->company_id);
 
         // Get user permissions based on user type
+        // Normalize legacy user types for backward compatibility
+        $userType = $user->user_type;
+        if ($userType === 'manager') {
+            $userType = 'user';
+        } elseif ($userType === 'owner') {
+            $userType = 'admin';
+        }
         $permissions = [];
         $moduleAccess = [];
         
-        if ($user->user_type === 'team') {
-            // For team users, get permissions from their roles
+        if ($userType === 'user') {
+            // For regular users, get permissions from their roles
             $permissions = $user->getAllPermissions();
             
             // Determine module access based on permissions AND enabled modules
             $moduleAccess = $this->getModuleAccessFromPermissions($permissions, $enabledModules);
         } else {
-            // For company users (owners, admins, etc.), return all permissions as true
+            // For admin users, return all permissions as true
             $permissions = [
                 'assets' => [
                     'can_view' => true,
@@ -254,7 +261,14 @@ class AuthController extends Controller
         }
 
         // Admin users always have access to roles module
-        if (strtolower($user->user_type) === 'admin') {
+        // Normalize legacy user types for backward compatibility
+        $userType = $user->user_type;
+        if ($userType === 'manager') {
+            $userType = 'user';
+        } elseif ($userType === 'owner') {
+            $userType = 'admin';
+        }
+        if (strtolower($userType) === 'admin') {
             $moduleAccess['roles'] = true;
         }
 
@@ -411,17 +425,24 @@ class AuthController extends Controller
         // Get enabled modules for the company (for ALL users)
         $enabledModules = $this->getEnabledModulesForCompany($user->company_id);
         
+        // Normalize legacy user types for backward compatibility
+        $userType = $user->user_type;
+        if ($userType === 'manager') {
+            $userType = 'user';
+        } elseif ($userType === 'owner') {
+            $userType = 'admin';
+        }
         $permissions = [];
         $moduleAccess = [];
         
-        if ($user->user_type === 'team') {
-            // For team users, get permissions from their roles
+        if ($userType === 'user') {
+            // For regular users, get permissions from their roles
             $permissions = $user->getAllPermissions();
             
             // Determine module access based on permissions AND enabled modules
             $moduleAccess = $this->getModuleAccessFromPermissions($permissions, $enabledModules);
         } else {
-            // For company users (owners, admins, etc.), return all permissions as true
+            // For admin users, return all permissions as true
             $permissions = [
                 'assets' => [
                     'can_view' => true,
@@ -493,7 +514,14 @@ class AuthController extends Controller
         }
         
         // Admin users always have access to roles module
-        if (strtolower($user->user_type) === 'admin') {
+        // Normalize legacy user types for backward compatibility
+        $userType = $user->user_type;
+        if ($userType === 'manager') {
+            $userType = 'user';
+        } elseif ($userType === 'owner') {
+            $userType = 'admin';
+        }
+        if (strtolower($userType) === 'admin') {
             $moduleAccess['roles'] = true;
         }
         

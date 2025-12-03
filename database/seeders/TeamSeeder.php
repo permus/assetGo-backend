@@ -51,7 +51,7 @@ class TeamSeeder extends Seeder
 
         foreach ($companies as $company) {
             $existingTeamCount = User::where('company_id', $company->id)
-                ->where('user_type', 'team')
+                ->where('user_type', 'user')
                 ->count();
 
             if ($existingTeamCount >= 25) {
@@ -92,7 +92,7 @@ class TeamSeeder extends Seeder
                     'last_name' => $lastName,
                     'email' => $email,
                     'password' => Hash::make('Password1'),
-                    'user_type' => 'team',
+                    'user_type' => 'user',
                     'company_id' => $company->id,
                     'hourly_rate' => fake()->randomFloat(2, 25, 75),
                     'email_verified_at' => fake()->boolean(80) ? now() : null,
@@ -108,7 +108,7 @@ class TeamSeeder extends Seeder
 
             if ($companyCreatedCount > 0) {
                 $totalTeamMembers = User::where('company_id', $company->id)
-                    ->where('user_type', 'team')
+                    ->where('user_type', 'user')
                     ->count();
                 $this->command->info("Company '{$company->name}': Created {$companyCreatedCount} team members. Total: {$totalTeamMembers}");
                 $totalCreated += $companyCreatedCount;

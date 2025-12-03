@@ -49,7 +49,7 @@ class MaintenanceSeeder extends Seeder
             }
             
             $teamMembers = User::where('company_id', $company->id)
-                ->where('user_type', 'team')
+                ->where('user_type', 'user')
                 ->where('active', true)
                 ->get();
             $inventoryParts = InventoryPart::where('company_id', $company->id)

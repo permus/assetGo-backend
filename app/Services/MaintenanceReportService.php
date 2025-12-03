@@ -244,7 +244,7 @@ class MaintenanceReportService extends ReportService
             
             // Get technicians with their work orders
             $technicians = User::where('company_id', $this->companyId)
-                ->where('user_type', 'team')
+                ->where('user_type', 'user')
                 ->with(['assignedWorkOrders' => function($query) use ($filters) {
                     $this->buildQuery($query, $filters);
                 }])

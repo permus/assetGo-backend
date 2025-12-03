@@ -106,9 +106,16 @@ class User extends Authenticatable
      */
     public function hasPermission($module, $action)
     {
-        // Check if user has admin-like user_type (grants all permissions)
-        $adminUserTypes = ['admin', 'super_admin', 'company_admin', 'owner'];
-        if (in_array($this->user_type, $adminUserTypes)) {
+        // Normalize legacy user types for backward compatibility
+        $userType = $this->user_type;
+        if ($userType === 'manager') {
+            $userType = 'user';
+        } elseif ($userType === 'owner') {
+            $userType = 'admin';
+        }
+        
+        // Check if user has admin user_type (grants all permissions)
+        if ($userType === 'admin') {
             return true;
         }
         
@@ -144,11 +151,11 @@ class User extends Authenticatable
     }
 
     /**
-     * Get all team members created by this user
+     * Get all users created by this user
      */
     public function createdTeams()
     {
-        return $this->hasMany(User::class, 'created_by')->where('user_type', 'team');
+        return $this->hasMany(User::class, 'created_by')->where('user_type', 'user');
     }
 
     /**
